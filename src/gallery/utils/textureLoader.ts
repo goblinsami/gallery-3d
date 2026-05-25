@@ -5,6 +5,7 @@ import {
   Texture,
   TextureLoader,
 } from "three";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { textureCache } from "./textureCache";
 
 export interface TextureLoadOptions {
@@ -22,12 +23,12 @@ const createFallbackTexture = (): Texture => {
   const context = canvas.getContext("2d");
   if (context) {
     const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#22324a");
-    gradient.addColorStop(1, "#4b5568");
+    gradient.addColorStop(0, GALLERY_TOKENS.textureFallback.gradientStart);
+    gradient.addColorStop(1, GALLERY_TOKENS.textureFallback.gradientEnd);
     context.fillStyle = gradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.fillStyle = "rgba(255,255,255,0.85)";
+    context.fillStyle = GALLERY_TOKENS.textureFallback.label;
     context.font = "600 32px sans-serif";
     context.textAlign = "center";
     context.fillText("Artwork Unavailable", canvas.width / 2, canvas.height / 2);

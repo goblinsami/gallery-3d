@@ -29,6 +29,15 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkTurnSmoothness).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnSmoothness);
     expect(result.config.artworkTurnKeyframes).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnKeyframes);
     expect(result.config.artworkTurnLeadIn).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnLeadIn);
+    expect(result.config.sceneTitleConfig.daylightContrastEnabled).toBe(
+      DEFAULT_GALLERY_CONFIG.sceneTitleConfig.daylightContrastEnabled,
+    );
+    expect(result.config.sceneTitleConfig.daylightContrastColor).toBe(
+      DEFAULT_GALLERY_CONFIG.sceneTitleConfig.daylightContrastColor,
+    );
+    expect(result.config.sceneTitleConfig.daylightContrastStrength).toBeCloseTo(
+      DEFAULT_GALLERY_CONFIG.sceneTitleConfig.daylightContrastStrength,
+    );
     expect(result.config.corridor.carpetEnabled).toBe(DEFAULT_GALLERY_CONFIG.corridor.carpetEnabled);
   });
 
@@ -70,6 +79,13 @@ describe("validateGalleryConfig", () => {
       artworkTurnSmoothness: 0.82,
       artworkTurnKeyframes: 7,
       artworkTurnLeadIn: 0.34,
+      sceneTitleConfig: {
+        maxWidth: 5.5,
+        lineHeight: 1.4,
+        daylightContrastEnabled: false,
+        daylightContrastColor: "#17263b",
+        daylightContrastStrength: 0.6,
+      },
       corridor: {
         wallColor: "#ffffff",
         carpetEnabled: false,
@@ -97,6 +113,11 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkTurnSmoothness).toBeCloseTo(0.82);
     expect(result.config.artworkTurnKeyframes).toBe(7);
     expect(result.config.artworkTurnLeadIn).toBeCloseTo(0.34);
+    expect(result.config.sceneTitleConfig.maxWidth).toBeCloseTo(5.5);
+    expect(result.config.sceneTitleConfig.lineHeight).toBeCloseTo(1.4);
+    expect(result.config.sceneTitleConfig.daylightContrastEnabled).toBe(false);
+    expect(result.config.sceneTitleConfig.daylightContrastColor).toBe("#17263b");
+    expect(result.config.sceneTitleConfig.daylightContrastStrength).toBeCloseTo(0.6);
     expect(result.config.corridor.wallColor).toBe("#ffffff");
     expect(result.config.corridor.carpetEnabled).toBe(false);
     expect(result.config.corridor.carpetColor).toBe("#aa1010");
@@ -220,6 +241,42 @@ describe("validateGalleryConfig", () => {
     expect(high.config.artworkTurnSmoothness).toBe(1);
   });
 
+  it("clamps sceneTitle wrapping values", () => {
+    const low = validateGalleryConfig({
+      sceneTitleConfig: {
+        maxWidth: 0,
+        lineHeight: 0,
+      },
+    });
+    const high = validateGalleryConfig({
+      sceneTitleConfig: {
+        maxWidth: 99,
+        lineHeight: 99,
+      },
+    });
+
+    expect(low.config.sceneTitleConfig.maxWidth).toBeCloseTo(0.8);
+    expect(low.config.sceneTitleConfig.lineHeight).toBeCloseTo(0.8);
+    expect(high.config.sceneTitleConfig.maxWidth).toBeCloseTo(40);
+    expect(high.config.sceneTitleConfig.lineHeight).toBeCloseTo(2.4);
+  });
+
+  it("clamps sceneTitle daylight contrast strength", () => {
+    const low = validateGalleryConfig({
+      sceneTitleConfig: {
+        daylightContrastStrength: -1,
+      },
+    });
+    const high = validateGalleryConfig({
+      sceneTitleConfig: {
+        daylightContrastStrength: 99,
+      },
+    });
+
+    expect(low.config.sceneTitleConfig.daylightContrastStrength).toBe(0);
+    expect(high.config.sceneTitleConfig.daylightContrastStrength).toBe(1);
+  });
+
   it("clamps and rounds artworkTurnKeyframes", () => {
     const low = validateGalleryConfig({ artworkTurnKeyframes: 0 });
     const high = validateGalleryConfig({ artworkTurnKeyframes: 99 });
@@ -261,6 +318,10 @@ describe("validateGalleryConfig", () => {
             offsetY: 5,
             offsetZ: -9,
             align: "before",
+            borderEnabled: true,
+            borderColor: "#ff9933",
+            borderIntensity: 9,
+            borderWidth: 0,
           },
         },
       ],
@@ -274,5 +335,9 @@ describe("validateGalleryConfig", () => {
     expect(sideText?.offsetY).toBe(2);
     expect(sideText?.offsetZ).toBe(-3);
     expect(sideText?.align).toBe("before");
+    expect(sideText?.borderEnabled).toBe(true);
+    expect(sideText?.borderColor).toBe("#ff9933");
+    expect(sideText?.borderIntensity).toBe(4);
+    expect(sideText?.borderWidth).toBe(0.01);
   });
 });

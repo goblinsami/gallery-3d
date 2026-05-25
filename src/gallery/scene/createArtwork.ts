@@ -4,6 +4,7 @@ import type { PositionedArtwork } from "../types/galleryRuntime";
 import { loadTextureWithFallback } from "../utils/textureLoader";
 import { createArtworkFrame } from "./createArtworkFrame";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { createArtworkSideText } from "./createArtworkSideText";
 
 export interface CreatedArtwork {
@@ -36,7 +37,7 @@ export const createArtwork = async (
   const baseIntensity = artwork.spotlightIntensity ?? GALLERY_DEFAULTS.artwork.spotlightIntensity;
   const isContrastMode = config.lightingMode === "contrast";
   const spotlight = new SpotLight(
-    0xffffff,
+    GALLERY_TOKENS.artwork.spotlight,
     isContrastMode ? baseIntensity * 1.18 : baseIntensity,
     isContrastMode ? 28 : 22,
     isContrastMode ? Math.PI / 7 : Math.PI / 5.5,

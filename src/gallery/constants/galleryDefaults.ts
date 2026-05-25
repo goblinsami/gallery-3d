@@ -1,3 +1,5 @@
+import { GALLERY_TOKENS } from "../config/galleryTokens";
+
 export const GALLERY_DEFAULTS = {
   scroll: {
     defaultStrength: 1,
@@ -13,7 +15,7 @@ export const GALLERY_DEFAULTS = {
     segmentLength: 12,
     carpetEnabled: true,
     carpetWidth: 0.72,
-    carpetColor: "#8f1319",
+    carpetColor: GALLERY_TOKENS.artwork.defaultCarpet,
     artworkSpacing: 14,
     wallThickness: 0.24,
     artworkInset: 0.02,
@@ -22,7 +24,7 @@ export const GALLERY_DEFAULTS = {
     width: 2.4,
     height: 1.6,
     frameEnabled: false,
-    frameColor: "#151515",
+    frameColor: GALLERY_TOKENS.artwork.defaultFrame,
     frameThickness: 0.14,
     frameDepth: 0.06,
     spotlightIntensity: 1.15,
@@ -31,6 +33,10 @@ export const GALLERY_DEFAULTS = {
     sideTextGap: 0.5,
     sideTextOffsetY: 0,
     sideTextOffsetZ: 0,
+    sideTextBorderEnabled: false,
+    sideTextBorderColor: GALLERY_TOKENS.artwork.sideTextBorder,
+    sideTextBorderIntensity: 1.2,
+    sideTextBorderWidth: 0.035,
   },
   timings: {
     introDuration: 1.1,

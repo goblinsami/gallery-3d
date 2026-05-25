@@ -58,7 +58,7 @@ const onRuntimeProgress = (progress: number): void => {
 </script>
 
 <template>
-  <main class="playground" :class="{ 'toolbar-hidden': !isToolbarVisible }" :style="{ '--token-bg': tokens.htmlBackground, '--token-panel': tokens.panelBackground, '--token-border': tokens.panelBorder, '--token-text': tokens.panelText, '--token-muted': tokens.panelMutedText, '--token-accent': tokens.accent }">
+  <main class="playground" :class="{ 'toolbar-hidden': !isToolbarVisible }" :style="{ '--token-bg': tokens.ui.htmlBackground, '--token-panel': tokens.ui.panelBackground, '--token-border': tokens.ui.panelBorder, '--token-text': tokens.ui.panelText, '--token-muted': tokens.ui.panelMutedText, '--token-accent': tokens.ui.accent, '--token-gradient-start': tokens.ui.bodyGradientStart, '--token-gradient-end': tokens.ui.bodyGradientEnd, '--token-toolbar-bg': tokens.ui.toolbarBackground, '--token-field-bg': tokens.ui.fieldBackground, '--token-button-end': tokens.ui.buttonAccentEnd, '--token-button-text': tokens.ui.buttonText, '--token-meta': tokens.ui.metaText, '--token-feedback-ok': tokens.ui.feedbackSuccess, '--token-feedback-error': tokens.ui.feedbackError }">
     <button type="button" class="toolbar-toggle" @click="isToolbarVisible = !isToolbarVisible">
       {{ isToolbarVisible ? "Hide Toolbar" : "Show Toolbar" }}
     </button>
@@ -120,7 +120,7 @@ const onRuntimeProgress = (progress: number): void => {
 
 :global(body) {
   font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 20% 10%, #182235 0%, var(--token-bg) 45%, #06070b 100%);
+  background: radial-gradient(circle at 20% 10%, var(--token-gradient-start) 0%, var(--token-bg) 45%, var(--token-gradient-end) 100%);
   color: var(--token-text);
 }
 
@@ -145,7 +145,7 @@ const onRuntimeProgress = (progress: number): void => {
   z-index: 8;
   border-radius: 999px;
   border: 1px solid var(--token-border);
-  background: rgba(8, 13, 22, 0.82);
+  background: var(--token-toolbar-bg);
   color: var(--token-text);
   padding: 8px 14px;
   font-size: 0.82rem;
@@ -187,7 +187,7 @@ textarea,
 button {
   border-radius: 10px;
   border: 1px solid var(--token-border);
-  background: rgba(3, 7, 14, 0.5);
+  background: var(--token-field-bg);
   color: var(--token-text);
   padding: 9px 10px;
   font: inherit;
@@ -203,14 +203,14 @@ textarea {
 
 button {
   cursor: pointer;
-  background: linear-gradient(130deg, var(--token-accent), #5f87d9);
+  background: linear-gradient(130deg, var(--token-accent), var(--token-button-end));
   border-color: transparent;
-  color: #041227;
+  color: var(--token-button-text);
   font-weight: 600;
 }
 
 .toolbar-toggle {
-  background: rgba(8, 13, 22, 0.82);
+  background: var(--token-toolbar-bg);
   border-color: var(--token-border);
   color: var(--token-text);
 }
@@ -225,17 +225,17 @@ button {
 }
 
 .meta {
-  color: #ccd8ef;
+  color: var(--token-meta);
   font-size: 0.84rem;
 }
 
 .feedback {
   font-size: 0.82rem;
-  color: #9fefc8;
+  color: var(--token-feedback-ok);
 }
 
 .feedback.error {
-  color: #ffb5b5;
+  color: var(--token-feedback-error);
 }
 
 @media (max-width: 960px) {

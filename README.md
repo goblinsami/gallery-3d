@@ -94,6 +94,7 @@ Main schema is strongly typed in:
 Default production config:
 
 - `src/gallery/config/defaultGalleryConfig.ts`
+- all color values are centralized in `src/gallery/config/galleryTokens.ts`
 
 It includes:
 
@@ -109,6 +110,13 @@ It includes:
 - `artworkTurnSmoothness` controls how soft the camera rotates toward artworks (`0` direct, `1` very smooth)
 - `artworkTurnKeyframes` controls how many intermediate keyframes are generated during turn-to-artwork (`2` simple, `6` very smooth)
 - `artworkTurnLeadIn` starts the turn before focus-in begins (`0` off, `0.35` early cinematic anticipation)
+- `sceneTitleConfig.maxWidth` sets the max width of the 3D title before wrapping to a new line
+- `sceneTitleConfig.lineHeight` sets vertical spacing between wrapped title lines
+- `sceneTitleConfig.daylightContrastEnabled` toggles extra readability stroke for title in `day` mode
+- `sceneTitleConfig.daylightContrastColor` sets the stroke/halo color used for that readability layer
+- `sceneTitleConfig.daylightContrastStrength` controls how pronounced the title readability stroke is (`0` off, `1` strong)
+- `artworks[].sideText.borderEnabled` enables/disables a luminous border around side text panels
+- `artworks[].sideText.borderColor`, `borderIntensity`, `borderWidth` tune the border look
 - `corridor.carpetEnabled` shows/hides the central carpet (`true` visible, `false` hidden)
 - camera params
 - corridor dimensions/colors

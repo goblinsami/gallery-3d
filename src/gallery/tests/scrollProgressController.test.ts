@@ -64,4 +64,24 @@ describe("ScrollProgressController loop phases", () => {
     expect(states[6].progress).toBeLessThanOrEqual(0.2);
     expect(states[6].whiteMix).toBe(0);
   });
+
+  it("does not wrap backward before first loop completion", () => {
+    const states: ScrollProgressState[] = [];
+    const controller = new ScrollProgressController({
+      element: createElementStub(),
+      loop: true,
+      loopWhiteAfterEndWindow: 0.14,
+      loopWhiteFadeOutWindow: 0.22,
+      onProgress: (state) => states.push(state),
+    });
+
+    controller.setProgress(0);
+    (controller as unknown as { running: boolean; velocity: number; tick: () => void }).running = true;
+    (controller as unknown as { running: boolean; velocity: number; tick: () => void }).velocity = -0.4;
+    (controller as unknown as { running: boolean; velocity: number; tick: () => void }).tick();
+
+    expect(states[0]).toEqual({ progress: 0, whiteMix: 0 });
+    expect(states[1].progress).toBe(0);
+    expect(states[1].whiteMix).toBe(0);
+  });
 });

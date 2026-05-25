@@ -26,6 +26,7 @@ import { getCameraStateAtProgress } from "../journey/getCameraStateAtProgress";
 import { textureCache } from "../utils/textureCache";
 import { lerpVec3 } from "../utils/math";
 import { LIGHTING_PRESETS } from "../constants/lightingPresets";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 
 interface ArtworkSpotlightEntry {
   artworkIndex: number;
@@ -55,7 +56,7 @@ export class GalleryEngine {
   private smoothedLookAt: Vec3 | null = null;
   private loopWhiteMix = 0;
   private baseFogDensity = 0.025;
-  private readonly whiteColor = new Color("#ffffff");
+  private readonly whiteColor = new Color(GALLERY_TOKENS.scene.white);
   private readonly baseBackgroundColor = new Color();
   private readonly baseFogColor = new Color();
   private readonly mixedBackgroundColor = new Color();

@@ -1,6 +1,7 @@
 import { CAMERA_DEFAULTS } from "../constants/cameraDefaults";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 import type {
   ArtGallerySceneConfig,
   ArtworkConfig,
@@ -90,8 +91,16 @@ const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | n
       offsetY: clamp(source.offsetY ?? GALLERY_DEFAULTS.artwork.sideTextOffsetY, -2, 2),
       offsetZ: clamp(source.offsetZ ?? GALLERY_DEFAULTS.artwork.sideTextOffsetZ, -3, 3),
       align: source.align === "before" || source.align === "after" ? source.align : "after",
-      backgroundColor: source.backgroundColor ?? "#0e1422",
-      textColor: source.textColor ?? "#f3f6fb",
+      backgroundColor: source.backgroundColor ?? GALLERY_TOKENS.artwork.sideTextBackground,
+      textColor: source.textColor ?? GALLERY_TOKENS.artwork.sideTextText,
+      borderEnabled: source.borderEnabled ?? GALLERY_DEFAULTS.artwork.sideTextBorderEnabled,
+      borderColor: source.borderColor ?? GALLERY_DEFAULTS.artwork.sideTextBorderColor,
+      borderIntensity: clamp(
+        source.borderIntensity ?? GALLERY_DEFAULTS.artwork.sideTextBorderIntensity,
+        0,
+        4,
+      ),
+      borderWidth: clamp(source.borderWidth ?? GALLERY_DEFAULTS.artwork.sideTextBorderWidth, 0.01, 0.16),
     };
   };
 
@@ -309,7 +318,22 @@ export const validateGalleryConfig = (
       fontUrl: source.sceneTitleConfig?.fontUrl ?? defaultConfig.sceneTitleConfig.fontUrl,
       size: clamp(source.sceneTitleConfig?.size ?? defaultConfig.sceneTitleConfig.size, 0.3, 5),
       depth: clamp(source.sceneTitleConfig?.depth ?? defaultConfig.sceneTitleConfig.depth, 0.02, 1),
+      maxWidth: clamp(source.sceneTitleConfig?.maxWidth ?? defaultConfig.sceneTitleConfig.maxWidth, 0.8, 40),
+      lineHeight: clamp(
+        source.sceneTitleConfig?.lineHeight ?? defaultConfig.sceneTitleConfig.lineHeight,
+        0.8,
+        2.4,
+      ),
       color: source.sceneTitleConfig?.color ?? defaultConfig.sceneTitleConfig.color,
+      daylightContrastEnabled:
+        source.sceneTitleConfig?.daylightContrastEnabled ?? defaultConfig.sceneTitleConfig.daylightContrastEnabled,
+      daylightContrastColor:
+        source.sceneTitleConfig?.daylightContrastColor ?? defaultConfig.sceneTitleConfig.daylightContrastColor,
+      daylightContrastStrength: clamp(
+        source.sceneTitleConfig?.daylightContrastStrength ?? defaultConfig.sceneTitleConfig.daylightContrastStrength,
+        0,
+        1,
+      ),
       position: toVec3(source.sceneTitleConfig?.position, defaultConfig.sceneTitleConfig.position),
       maxOpacity: clamp(source.sceneTitleConfig?.maxOpacity ?? defaultConfig.sceneTitleConfig.maxOpacity, 0, 1),
       fadeStartProgress: clamp(

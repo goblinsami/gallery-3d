@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   CanvasTexture,
   Group,
   LinearFilter,
@@ -9,6 +10,7 @@ import {
 } from "three";
 import type { PositionedArtwork } from "../types/galleryRuntime";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 
 const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 640;
@@ -75,8 +77,8 @@ export const createArtworkSideText = (artwork: PositionedArtwork): Group | null 
     return null;
   }
 
-  const bgColor = sideText.backgroundColor ?? "#0e1422";
-  const textColor = sideText.textColor ?? "#f3f6fb";
+  const bgColor = sideText.backgroundColor ?? GALLERY_TOKENS.artwork.sideTextBackground;
+  const textColor = sideText.textColor ?? GALLERY_TOKENS.artwork.sideTextText;
   const panelOpacity = 0.9;
   const paddingX = 78;
   const paddingTop = 86;
@@ -90,7 +92,7 @@ export const createArtworkSideText = (artwork: PositionedArtwork): Group | null 
 
   let cursorY = paddingTop;
   if (eyebrow) {
-    context.fillStyle = "#bcd0f1";
+    context.fillStyle = GALLERY_TOKENS.artwork.sideTextEyebrow;
     context.font = "600 36px 'Segoe UI', sans-serif";
     context.fillText(eyebrow.toUpperCase(), paddingX, cursorY);
     cursorY += 64;
@@ -104,7 +106,7 @@ export const createArtworkSideText = (artwork: PositionedArtwork): Group | null 
   }
 
   if (description) {
-    context.fillStyle = "#dce7f8";
+    context.fillStyle = GALLERY_TOKENS.artwork.sideTextDescription;
     context.font = "400 38px 'Segoe UI', sans-serif";
     drawWrappedText(context, description, paddingX, cursorY, textWidth, 52, 4);
   }
@@ -135,5 +137,86 @@ export const createArtworkSideText = (artwork: PositionedArtwork): Group | null 
   const root = new Group();
   root.name = `artwork-side-text-${artwork.id}`;
   root.add(mesh);
+
+  const borderEnabled = sideText.borderEnabled ?? GALLERY_DEFAULTS.artwork.sideTextBorderEnabled;
+  if (borderEnabled) {
+    const borderColor = sideText.borderColor ?? GALLERY_DEFAULTS.artwork.sideTextBorderColor;
+    const borderIntensity = clamp(
+      sideText.borderIntensity ?? GALLERY_DEFAULTS.artwork.sideTextBorderIntensity,
+      0,
+      4,
+    );
+    const borderWidth = clamp(
+      sideText.borderWidth ?? GALLERY_DEFAULTS.artwork.sideTextBorderWidth,
+      0.01,
+      0.16,
+    );
+    const borderDepthOffset = 0.002;
+    const coreOpacity = clamp(0.26 + borderIntensity * 0.16, 0.08, 0.95);
+    const glowOpacity = clamp(borderIntensity * 0.085, 0.02, 0.45);
+
+    const createBorderStrip = (
+      stripWidth: number,
+      stripHeight: number,
+      x: number,
+      y: number,
+      z: number,
+      borderMaterial: MeshBasicMaterial,
+    ): Mesh => {
+      const strip = new Mesh(new PlaneGeometry(stripWidth, stripHeight), borderMaterial);
+      strip.position.set(x, y, z);
+      strip.renderOrder = 4;
+      return strip;
+    };
+
+    const borderGroup = new Group();
+    borderGroup.position.copy(mesh.position);
+    root.add(borderGroup);
+
+    const outerWidth = width + borderWidth * 2;
+    const outerHeight = height + borderWidth * 2;
+
+    const coreMaterial = new MeshBasicMaterial({
+      color: borderColor,
+      transparent: true,
+      opacity: coreOpacity,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const glowMaterial = new MeshBasicMaterial({
+      color: borderColor,
+      transparent: true,
+      opacity: glowOpacity,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    });
+
+    const coreTop = createBorderStrip(outerWidth, borderWidth, 0, height / 2 + borderWidth / 2, borderDepthOffset, coreMaterial);
+    const coreBottom = createBorderStrip(outerWidth, borderWidth, 0, -(height / 2 + borderWidth / 2), borderDepthOffset, coreMaterial);
+    const coreLeft = createBorderStrip(borderWidth, outerHeight, -(width / 2 + borderWidth / 2), 0, borderDepthOffset, coreMaterial);
+    const coreRight = createBorderStrip(borderWidth, outerHeight, width / 2 + borderWidth / 2, 0, borderDepthOffset, coreMaterial);
+
+    const glowWidth = borderWidth * 2.1;
+    const glowOuterWidth = width + glowWidth * 2;
+    const glowOuterHeight = height + glowWidth * 2;
+    const glowTop = createBorderStrip(glowOuterWidth, glowWidth, 0, height / 2 + glowWidth / 2, borderDepthOffset - 0.0008, glowMaterial);
+    const glowBottom = createBorderStrip(glowOuterWidth, glowWidth, 0, -(height / 2 + glowWidth / 2), borderDepthOffset - 0.0008, glowMaterial);
+    const glowLeft = createBorderStrip(glowWidth, glowOuterHeight, -(width / 2 + glowWidth / 2), 0, borderDepthOffset - 0.0008, glowMaterial);
+    const glowRight = createBorderStrip(glowWidth, glowOuterHeight, width / 2 + glowWidth / 2, 0, borderDepthOffset - 0.0008, glowMaterial);
+
+    borderGroup.add(
+      coreTop,
+      coreBottom,
+      coreLeft,
+      coreRight,
+      glowTop,
+      glowBottom,
+      glowLeft,
+      glowRight,
+    );
+  }
+
   return root;
 };

@@ -10,6 +10,7 @@ import {
 } from "three";
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 import { LIGHTING_PRESETS } from "../constants/lightingPresets";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { getCeilingSpotLayout } from "./ceilingSpotLayout";
 
 export const createEnvironment = (
@@ -25,8 +26,14 @@ export const createEnvironment = (
   }
 
   const lightStripMaterial = new MeshStandardMaterial({
-    color: config.lightingMode === "contrast" ? "#f0f2f7" : "#d5dde8",
-    emissive: config.lightingMode === "contrast" ? "#56637d" : "#94a5bd",
+    color:
+      config.lightingMode === "contrast"
+        ? GALLERY_TOKENS.environment.stripContrastColor
+        : GALLERY_TOKENS.environment.stripDayColor,
+    emissive:
+      config.lightingMode === "contrast"
+        ? GALLERY_TOKENS.environment.stripContrastEmissive
+        : GALLERY_TOKENS.environment.stripDayEmissive,
     emissiveIntensity: config.lightingMode === "contrast" ? 0.8 : 0.45,
     roughness: 0.25,
     metalness: 0.12,
@@ -46,7 +53,7 @@ export const createEnvironment = (
       side: DoubleSide,
     });
     const innerFixtureMaterial = new MeshStandardMaterial({
-      color: "#fff4df",
+      color: GALLERY_TOKENS.environment.ceilingInnerFixture,
       emissive: config.ceilingSpotsColor,
       emissiveIntensity: 0.85 + config.ceilingSpotsIntensity * 0.45,
       roughness: 0.18,

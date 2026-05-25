@@ -33,6 +33,7 @@ export class ScrollProgressController {
   private loopWhiteFadeOutWindow: number;
   private loopWhiteFadeOutRevealWindow: number;
   private loopProgressAdvanceDuringWhiteFadeOut: number;
+  private hasCompletedInitialLoop = false;
 
   private running = false;
   private velocity = 0;
@@ -98,9 +99,14 @@ export class ScrollProgressController {
       0,
       0.45,
     );
+    const initialProgress = options.initialProgress ?? 0;
+    const cycleLength = this.getLoopCycleLength();
+    this.hasCompletedInitialLoop = this.loop && initialProgress >= cycleLength - 0.000001;
     this.progress = this.loop
-      ? this.wrap(options.initialProgress ?? 0, this.getLoopCycleLength())
-      : clamp(options.initialProgress ?? 0, 0, 1);
+      ? this.hasCompletedInitialLoop
+        ? this.wrap(initialProgress, cycleLength)
+        : clamp(initialProgress, 0, cycleLength)
+      : clamp(initialProgress, 0, 1);
     this.targetProgress = this.progress;
   }
 
@@ -116,7 +122,7 @@ export class ScrollProgressController {
 
   setProgress(progress: number): void {
     const normalized = this.loop
-      ? this.wrap(progress, this.getLoopCycleLength())
+      ? this.normalizeLoopProgress(progress)
       : clamp(progress, 0, 1);
     this.progress = normalized;
     this.targetProgress = normalized;
@@ -140,11 +146,9 @@ export class ScrollProgressController {
     this.loopWhiteFadeOutWindow = clamp(whiteFadeOutWindow, 0.05, 0.6);
     this.loopWhiteFadeOutRevealWindow = clamp(whiteFadeOutRevealWindow, 0.03, 0.45);
     this.loopProgressAdvanceDuringWhiteFadeOut = clamp(progressAdvanceDuringWhiteFadeOut, 0, 0.45);
-    this.progress = this.loop
-      ? this.wrap(this.progress, this.getLoopCycleLength())
-      : clamp(this.progress, 0, 1);
+    this.progress = this.loop ? this.normalizeLoopProgress(this.progress) : clamp(this.progress, 0, 1);
     this.targetProgress = this.loop
-      ? this.wrap(this.targetProgress, this.getLoopCycleLength())
+      ? this.normalizeLoopProgress(this.targetProgress)
       : clamp(this.targetProgress, 0, 1);
     this.emitCurrentState();
   }
@@ -155,9 +159,10 @@ export class ScrollProgressController {
     }
 
     this.loop = loop;
-    const normalized = this.loop
-      ? this.wrap(this.progress, this.getLoopCycleLength())
-      : clamp(this.progress, 0, 1);
+    if (!this.loop) {
+      this.hasCompletedInitialLoop = false;
+    }
+    const normalized = this.loop ? this.normalizeLoopProgress(this.progress) : clamp(this.progress, 0, 1);
     this.progress = normalized;
     this.targetProgress = normalized;
     this.velocity = 0;
@@ -175,9 +180,18 @@ export class ScrollProgressController {
       return;
     }
 
-    this.targetProgress = this.loop
-      ? this.targetProgress + this.velocity
-      : clamp(this.targetProgress + this.velocity, 0, 1);
+    if (this.loop) {
+      const cycleLength = this.getLoopCycleLength();
+      const nextTarget = this.targetProgress + this.velocity;
+
+      this.targetProgress = this.hasCompletedInitialLoop ? nextTarget : Math.max(0, nextTarget);
+
+      if (!this.hasCompletedInitialLoop && this.targetProgress >= cycleLength - 0.000001) {
+        this.hasCompletedInitialLoop = true;
+      }
+    } else {
+      this.targetProgress = clamp(this.targetProgress + this.velocity, 0, 1);
+    }
     this.velocity *= this.damping;
 
     if (Math.abs(this.velocity) < 0.00001) {
@@ -209,6 +223,17 @@ export class ScrollProgressController {
 
   private getLoopCycleLength(): number {
     return 1 + this.loopWhiteAfterEndWindow + this.loopWhiteFadeOutWindow;
+  }
+
+  private normalizeLoopProgress(progress: number): number {
+    const cycleLength = this.getLoopCycleLength();
+    if (progress >= cycleLength - 0.000001) {
+      this.hasCompletedInitialLoop = true;
+    }
+
+    return this.hasCompletedInitialLoop
+      ? this.wrap(progress, cycleLength)
+      : clamp(progress, 0, cycleLength);
   }
 
   private resolveProgressState(rawProgress: number): ScrollProgressState {

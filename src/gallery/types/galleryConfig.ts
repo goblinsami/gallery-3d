@@ -23,6 +23,10 @@ export interface ArtworkSideTextConfig {
   align?: ArtworkSideTextAlign;
   backgroundColor?: string;
   textColor?: string;
+  borderEnabled?: boolean;
+  borderColor?: string;
+  borderIntensity?: number;
+  borderWidth?: number;
 }
 
 export interface ArtworkConfig {
@@ -47,7 +51,12 @@ export interface SceneTitleConfig {
   fontUrl: string;
   size: number;
   depth: number;
+  maxWidth: number;
+  lineHeight: number;
   color: string;
+  daylightContrastEnabled: boolean;
+  daylightContrastColor: string;
+  daylightContrastStrength: number;
   position: Vec3;
   maxOpacity: number;
   fadeStartProgress: number;

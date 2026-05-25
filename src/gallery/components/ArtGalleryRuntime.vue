@@ -8,6 +8,7 @@ import {
   type ScrollProgressState,
 } from "../journey/scrollProgressController";
 import { toWheelSensitivity } from "../utils/scrollStrength";
+import { GALLERY_TOKENS } from "../config/galleryTokens";
 
 interface Props {
   config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>;
@@ -30,6 +31,10 @@ let resizeObserver: ResizeObserver | null = null;
 let resizeTimeout: number | null = null;
 
 const resolvedConfig = computed(() => validateGalleryConfig(props.config).config);
+const whiteOverlayStyle = computed(() => ({
+  opacity: whiteOverlayOpacity.value,
+  background: GALLERY_TOKENS.scene.white,
+}));
 
 const handleProgress = (state: ScrollProgressState): void => {
   whiteOverlayOpacity.value = state.whiteMix;
@@ -117,7 +122,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="containerRef" class="art-gallery-runtime" aria-label="3D Art Gallery Runtime">
-    <div class="white-overlay" :style="{ opacity: whiteOverlayOpacity }" />
+    <div class="white-overlay" :style="whiteOverlayStyle" />
   </div>
 </template>
 
@@ -134,7 +139,6 @@ onBeforeUnmount(() => {
 .white-overlay {
   position: absolute;
   inset: 0;
-  background: #ffffff;
   pointer-events: none;
   z-index: 3;
   transition: opacity 80ms linear;

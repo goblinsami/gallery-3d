@@ -4,6 +4,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
+  PlaneGeometry,
 } from "three";
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 
@@ -27,10 +28,13 @@ export const createCorridor = (config: ArtGallerySceneConfig): Group => {
   const height = config.corridor.height;
   const segmentLength = config.corridor.segmentLength;
   const thickness = config.corridor.wallThickness;
+  const segmentCount = resolveSegmentCount(config);
+  const corridorDepth = Math.max(segmentLength, segmentCount * segmentLength);
+  const seamOverlap = 0.004;
 
-  const floorGeometry = new BoxGeometry(width + thickness * 2, thickness, segmentLength);
-  const ceilingGeometry = floorGeometry.clone();
-  const wallGeometry = new BoxGeometry(thickness, height + thickness, segmentLength);
+  const floorGeometry = new BoxGeometry(width + seamOverlap * 2, thickness, corridorDepth + seamOverlap * 2);
+  const ceilingGeometry = new PlaneGeometry(width + seamOverlap * 2, corridorDepth + seamOverlap * 2);
+  const wallGeometry = new PlaneGeometry(corridorDepth + seamOverlap * 2, height + seamOverlap * 2);
 
   const floorMaterial = new MeshStandardMaterial({ color: new Color(config.corridor.floorColor), roughness: 0.9 });
   const ceilingMaterial = new MeshStandardMaterial({
@@ -53,39 +57,38 @@ export const createCorridor = (config: ArtGallerySceneConfig): Group => {
   }
   const carpetThickness = Math.max(0.008, thickness * 0.05);
   const carpetGeometry = carpetEnabled
-    ? new BoxGeometry(config.corridor.carpetWidth, carpetThickness, segmentLength)
+    ? new BoxGeometry(config.corridor.carpetWidth, carpetThickness, corridorDepth)
     : null;
 
-  const segmentCount = resolveSegmentCount(config);
+  const zCenter = -corridorDepth / 2;
 
-  for (let index = 0; index < segmentCount; index += 1) {
-    const z = -(index + 0.5) * segmentLength;
+  const floor = new Mesh(floorGeometry, floorMaterial);
+  floor.position.set(0, -thickness / 2, zCenter);
+  floor.receiveShadow = true;
 
-    const floor = new Mesh(floorGeometry, floorMaterial);
-    floor.position.set(0, -thickness / 2, z);
-    floor.receiveShadow = true;
+  const ceiling = new Mesh(ceilingGeometry, ceilingMaterial);
+  ceiling.position.set(0, height, zCenter);
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.receiveShadow = true;
 
-    const ceiling = new Mesh(ceilingGeometry, ceilingMaterial);
-    ceiling.position.set(0, height + thickness / 2, z);
-    ceiling.receiveShadow = true;
+  const leftWall = new Mesh(wallGeometry, wallMaterial);
+  leftWall.position.set(-width / 2, height / 2, zCenter);
+  leftWall.rotation.y = Math.PI / 2;
+  leftWall.receiveShadow = true;
 
-    const leftWall = new Mesh(wallGeometry, wallMaterial);
-    leftWall.position.set(-(width / 2 + thickness / 2), height / 2, z);
-    leftWall.receiveShadow = true;
+  const rightWall = new Mesh(wallGeometry, wallMaterial);
+  rightWall.position.set(width / 2, height / 2, zCenter);
+  rightWall.rotation.y = -Math.PI / 2;
+  rightWall.receiveShadow = true;
 
-    const rightWall = new Mesh(wallGeometry, wallMaterial);
-    rightWall.position.set(width / 2 + thickness / 2, height / 2, z);
-    rightWall.receiveShadow = true;
+  root.add(floor, ceiling, leftWall, rightWall);
 
-    root.add(floor, ceiling, leftWall, rightWall);
-
-    if (carpetGeometry && carpetMaterial) {
-      const carpet = new Mesh(carpetGeometry, carpetMaterial);
-      carpet.position.set(0, carpetThickness / 2, z);
-      carpet.receiveShadow = true;
-      carpet.castShadow = false;
-      root.add(carpet);
-    }
+  if (carpetGeometry && carpetMaterial) {
+    const carpet = new Mesh(carpetGeometry, carpetMaterial);
+    carpet.position.set(0, carpetThickness / 2, zCenter);
+    carpet.receiveShadow = true;
+    carpet.castShadow = false;
+    root.add(carpet);
   }
 
   return root;
