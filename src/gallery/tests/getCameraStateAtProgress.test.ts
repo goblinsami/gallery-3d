@@ -40,5 +40,30 @@ describe("getCameraStateAtProgress", () => {
     expect(state.lookAt[2]).toBeCloseTo(-15);
     expect(state.titleOpacity).toBeCloseTo(0.5);
   });
+
+  it("uses linear blend during turn-alignment segments for continuous rotation", () => {
+    const turnKeyframes: CameraKeyframe[] = [
+      {
+        progress: 0.2,
+        position: [0, 1, -5],
+        lookAt: [0, 1, -10],
+        titleOpacity: 0.6,
+        activeArtworkIndex: null,
+        label: "artwork-0-travel-end",
+      },
+      {
+        progress: 0.4,
+        position: [1, 1, -7],
+        lookAt: [2, 1, -12],
+        titleOpacity: 0.4,
+        activeArtworkIndex: 0,
+        label: "artwork-0-focus-turn-1",
+      },
+    ];
+
+    const state = getCameraStateAtProgress(turnKeyframes, 0.25);
+    expect(state.lookAt[0]).toBeCloseTo(0.5);
+    expect(state.position[0]).toBeCloseTo(0.25);
+  });
 });
 

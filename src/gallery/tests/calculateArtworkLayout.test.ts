@@ -55,5 +55,20 @@ describe("calculateArtworkLayout", () => {
       expect(layout[index].position[2]).toBeLessThan(layout[index - 1].position[2]);
     }
   });
+
+  it("orients artworks inward to corridor center", () => {
+    const layout = calculateArtworkLayout({
+      ...DEFAULT_GALLERY_CONFIG,
+      artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 2).map((artwork, index) => ({
+        ...artwork,
+        side: index === 0 ? "left" : "right",
+      })),
+    });
+
+    expect(layout[0].rotation[1]).toBeCloseTo(Math.PI / 2);
+    expect(layout[1].rotation[1]).toBeCloseTo(-Math.PI / 2);
+    expect(layout[0].focusTarget[0]).toBeGreaterThan(layout[0].position[0]);
+    expect(layout[1].focusTarget[0]).toBeLessThan(layout[1].position[0]);
+  });
 });
 

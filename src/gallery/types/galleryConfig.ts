@@ -78,6 +78,7 @@ export interface ArtGallerySceneConfig {
   artworkFocusFill: number;
   artworkTurnSmoothness: number;
   artworkTurnKeyframes: number;
+  artworkTurnLeadIn: number;
   camera: GalleryCameraConfig;
   corridor: GalleryCorridorConfig;
   sceneTitleConfig: SceneTitleConfig;

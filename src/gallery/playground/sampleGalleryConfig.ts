@@ -18,6 +18,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
     artworkFocusFill: 0.72,
     artworkTurnSmoothness: 0.72,
     artworkTurnKeyframes: 6,
+    artworkTurnLeadIn: 0.32,
     corridor: {
       ...DEFAULT_GALLERY_CONFIG.corridor,
       wallColor: "#f3f3f0",

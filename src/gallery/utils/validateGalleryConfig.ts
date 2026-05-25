@@ -209,6 +209,11 @@ export const validateGalleryConfig = (
     artworkTurnKeyframes: Math.round(
       clamp(source.artworkTurnKeyframes ?? defaultConfig.artworkTurnKeyframes, 1, 12),
     ),
+    artworkTurnLeadIn: clamp(
+      source.artworkTurnLeadIn ?? defaultConfig.artworkTurnLeadIn,
+      0,
+      0.85,
+    ),
     camera: {
       fov: clamp(source.camera?.fov ?? defaultConfig.camera.fov, 35, 90),
       startPosition: toVec3(source.camera?.startPosition, defaultConfig.camera.startPosition),

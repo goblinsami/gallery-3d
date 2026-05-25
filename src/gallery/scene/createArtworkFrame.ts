@@ -1,5 +1,6 @@
 import {
   BoxGeometry,
+  DoubleSide,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -63,6 +64,7 @@ export const createArtworkFrame = (artwork: PositionedArtwork, texture: Texture)
     map: texture,
     roughness: 0.52,
     metalness: 0.02,
+    side: DoubleSide,
   });
   const imageMesh = new Mesh(planeGeometry, imageMaterial);
   const displaySize = resolveDisplaySize(texture, width, height);

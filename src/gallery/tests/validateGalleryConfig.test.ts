@@ -20,6 +20,7 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkFocusFill).toBe(DEFAULT_GALLERY_CONFIG.artworkFocusFill);
     expect(result.config.artworkTurnSmoothness).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnSmoothness);
     expect(result.config.artworkTurnKeyframes).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnKeyframes);
+    expect(result.config.artworkTurnLeadIn).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnLeadIn);
   });
 
   it("detects invalid artworks and preserves valid ones", () => {
@@ -51,6 +52,7 @@ describe("validateGalleryConfig", () => {
       artworkFocusFill: 0.68,
       artworkTurnSmoothness: 0.82,
       artworkTurnKeyframes: 7,
+      artworkTurnLeadIn: 0.34,
       corridor: {
         wallColor: "#ffffff",
       },
@@ -66,6 +68,7 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkFocusFill).toBeCloseTo(0.68);
     expect(result.config.artworkTurnSmoothness).toBeCloseTo(0.82);
     expect(result.config.artworkTurnKeyframes).toBe(7);
+    expect(result.config.artworkTurnLeadIn).toBeCloseTo(0.34);
     expect(result.config.corridor.wallColor).toBe("#ffffff");
     expect(result.config.corridor.width).toBe(DEFAULT_GALLERY_CONFIG.corridor.width);
   });
@@ -161,6 +164,14 @@ describe("validateGalleryConfig", () => {
     expect(low.config.artworkTurnKeyframes).toBe(1);
     expect(high.config.artworkTurnKeyframes).toBe(12);
     expect(rounded.config.artworkTurnKeyframes).toBe(5);
+  });
+
+  it("clamps artworkTurnLeadIn", () => {
+    const low = validateGalleryConfig({ artworkTurnLeadIn: -1 });
+    const high = validateGalleryConfig({ artworkTurnLeadIn: 2 });
+
+    expect(low.config.artworkTurnLeadIn).toBe(0);
+    expect(high.config.artworkTurnLeadIn).toBe(0.85);
   });
 
   it("supports legacy infiniteGallery flag as alias of infiniteCorridor", () => {

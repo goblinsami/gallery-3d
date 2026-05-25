@@ -93,5 +93,33 @@ describe("buildCameraKeyframes", () => {
 
     expect(highTurnFrames.length).toBeGreaterThan(lowTurnFrames.length);
   });
+
+  it("adds turn lead-in keyframes when artworkTurnLeadIn is enabled", () => {
+    const noLeadConfig = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworkTurnLeadIn: 0,
+      artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
+    };
+
+    const withLeadConfig = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworkTurnLeadIn: 0.35,
+      artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
+    };
+
+    const noLeadKeyframes = buildCameraKeyframes(noLeadConfig, calculateArtworkLayout(noLeadConfig));
+    const withLeadKeyframes = buildCameraKeyframes(withLeadConfig, calculateArtworkLayout(withLeadConfig));
+
+    expect(noLeadKeyframes.some((entry) => entry.label.includes("turn-lead-start"))).toBe(false);
+    expect(withLeadKeyframes.some((entry) => entry.label.includes("turn-lead-start"))).toBe(true);
+
+    const leadStart = withLeadKeyframes.find((entry) => entry.label === "artwork-0-turn-lead-start");
+    const travelEnd = withLeadKeyframes.find((entry) => entry.label === "artwork-0-travel-end");
+
+    expect(leadStart).toBeDefined();
+    expect(travelEnd).toBeDefined();
+    expect(leadStart!.position[2]).toBeGreaterThan(travelEnd!.position[2]);
+    expect(leadStart!.lookAt[0]).not.toBe(travelEnd!.lookAt[0]);
+  });
 });
 

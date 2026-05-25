@@ -11,6 +11,8 @@ const smootherstep = (t: number): number => {
   const clamped = clamp01(t);
   return clamped * clamped * clamped * (clamped * (clamped * 6 - 15) + 10);
 };
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
 
 const titleOpacityAt = (config: ArtGallerySceneConfig, progress: number): number => {
   const { fadeStartProgress, fadeEndProgress, maxOpacity } = config.sceneTitleConfig;
@@ -94,7 +96,7 @@ export const calculateArtworkLayout = (config: ArtGallerySceneConfig): Positione
       index,
       side,
       position,
-      rotation: [0, side === "left" ? -Math.PI / 2 : Math.PI / 2, 0],
+      rotation: [0, side === "left" ? Math.PI / 2 : -Math.PI / 2, 0],
       lookAt,
       focusTarget,
       focusPosition,
@@ -155,16 +157,54 @@ export const buildCameraKeyframes = (
     const focusHold = findSegment(timeline.segments, `artwork-${artwork.index}-focus-hold`);
     const returnSegment = findSegment(timeline.segments, `artwork-${artwork.index}-return`);
     const turnKeyframes = Math.max(1, Math.round(config.artworkTurnKeyframes));
+    const turnLeadIn = clamp(config.artworkTurnLeadIn, 0, 0.85);
+    const previousKeyframe = keyframes[keyframes.length - 1];
+    const travelStartPosition = previousKeyframe?.position ?? artwork.centerPosition;
+    const travelStartLookAt = previousKeyframe?.lookAt ?? artwork.lookAt;
+    const leadInStartT = clamp01(1 - turnLeadIn);
+    const leadInStart = lerp(travel.start, travel.end, leadInStartT);
+    const leadInStartPosition = lerpVec3(
+      travelStartPosition,
+      artwork.centerPosition,
+      smootherstep(leadInStartT),
+    );
+    const leadInStartLookAt = lerpVec3(
+      travelStartLookAt,
+      artwork.lookAt,
+      smootherstep(leadInStartT),
+    );
+    const turnStartProgress = turnLeadIn > 0 ? leadInStart : focusIn.start;
+    const turnStartLookAt = turnLeadIn > 0 ? leadInStartLookAt : artwork.lookAt;
+    const resolveTurnLookAt = (progress: number): Vec3 => {
+      const duration = Math.max(0.0001, focusIn.end - turnStartProgress);
+      const t = clamp01((progress - turnStartProgress) / duration);
+      return lerpVec3(turnStartLookAt, artwork.focusTarget, smootherstep(t));
+    };
 
-    push(travel.end, artwork.centerPosition, artwork.lookAt, `artwork-${artwork.index}-travel-end`, null);
+    if (turnLeadIn > 0) {
+      push(
+        leadInStart,
+        leadInStartPosition,
+        turnStartLookAt,
+        `artwork-${artwork.index}-turn-lead-start`,
+        null,
+      );
+    }
+
+    push(
+      travel.end,
+      artwork.centerPosition,
+      resolveTurnLookAt(travel.end),
+      `artwork-${artwork.index}-travel-end`,
+      null,
+    );
 
     for (let step = 1; step <= turnKeyframes; step += 1) {
       const t = step / turnKeyframes;
       const positionT = smootherstep(t);
-      const lookAtT = smootherstep(t);
       const progress = lerp(focusIn.start, focusIn.end, t);
       const position = lerpVec3(artwork.centerPosition, artwork.focusPosition, positionT);
-      const lookAt = lerpVec3(artwork.lookAt, artwork.focusTarget, lookAtT);
+      const lookAt = resolveTurnLookAt(progress);
       const label =
         step === turnKeyframes
           ? `artwork-${artwork.index}-focus-in-end`

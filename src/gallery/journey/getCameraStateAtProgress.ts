@@ -20,6 +20,15 @@ const isIntroToFirstArtworkBlend = (lower: CameraKeyframe, upper: CameraKeyframe
   (lower.label === "start" && upper.label === "intro-end") ||
   (lower.label === "intro-end" && upper.label === "artwork-0-travel-end");
 
+const isTurnAlignmentLabel = (label: string): boolean =>
+  label.includes("turn-lead-start") ||
+  label.includes("travel-end") ||
+  label.includes("focus-turn-") ||
+  label.includes("focus-in-end");
+
+const isTurnAlignmentBlend = (lower: CameraKeyframe, upper: CameraKeyframe): boolean =>
+  isTurnAlignmentLabel(lower.label) || isTurnAlignmentLabel(upper.label);
+
 export const getCameraStateAtProgress = (
   keyframes: CameraKeyframe[],
   progress: number,
@@ -66,9 +75,11 @@ export const getCameraStateAtProgress = (
 
   const linearT = inverseLerp(lower.progress, upper.progress, clampedProgress);
   const smoothT = smoothstep(linearT);
-  const easedT = isIntroToFirstArtworkBlend(lower, upper)
-    ? lerp(smoothT, linearT, INTRO_BLEND_LINEARITY)
-    : smoothT;
+  const easedT = isTurnAlignmentBlend(lower, upper)
+    ? linearT
+    : isIntroToFirstArtworkBlend(lower, upper)
+      ? lerp(smoothT, linearT, INTRO_BLEND_LINEARITY)
+      : smoothT;
 
   return {
     position: lerpVec3(lower.position, upper.position, easedT),

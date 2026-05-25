@@ -108,6 +108,7 @@ It includes:
 - `artworkFocusFill` controls how much of the viewport the focused artwork occupies (`0.5` farther, `0.9` closer)
 - `artworkTurnSmoothness` controls how soft the camera rotates toward artworks (`0` direct, `1` very smooth)
 - `artworkTurnKeyframes` controls how many intermediate keyframes are generated during turn-to-artwork (`2` simple, `6` very smooth)
+- `artworkTurnLeadIn` starts the turn before focus-in begins (`0` off, `0.35` early cinematic anticipation)
 - camera params
 - corridor dimensions/colors
 - title style and fade
