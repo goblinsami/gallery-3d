@@ -49,7 +49,7 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   },
   sceneTitleConfig: {
     fontUrl: "/fonts/helvetiker_regular.typeface.json",
-    size: 1.2,
+    size: 0.1,
     depth: 0.3,
     color: "#f2f4f7",
     position: [0, 1.75, 3.25],
