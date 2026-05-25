@@ -3,10 +3,18 @@ import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 
 export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
-  id: "default-liminal-gallery",
-  sceneTitle: "3D Art Gallery",
+  id: "daylight-galery",
+  sceneTitle: "DayLight galery",
   lightingMode: "day",
   infiniteCorridor: true,
+  sceneBackgroundColor: "#e6ebf3",
+  sceneFogColor: "#e7ecf3",
+  ceilingSpotsEnabled: false,
+  ceilingSpotsColor: "#ffffff",
+  ceilingSpotsIntensity: 0.9,
+  artworkBacklightEnabled: false,
+  artworkBacklightColor: "#ffb36b",
+  artworkBacklightIntensity: 1.1,
   scrollStrength: 1,
   loopWhiteAfterEndWindow: 0.14,
   loopWhiteStartsBeforeEndWindow: 0.05,
@@ -58,6 +66,11 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
       title: "Echoes of Atrium",
       description: "A suspended fragment of stillness.",
       imageUrl: "/images/work1.jpg",
+      sideText: {
+        eyebrow: "Gallery Note",
+        title: "Echoes of Atrium",
+        description: "A suspended fragment of stillness in atmospheric low-contrast tones.",
+      },
       metadata: { artist: "A. Mercer", year: "2026", medium: "Archival Pigment" },
     },
     {
@@ -65,6 +78,12 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
       title: "Soft Geometry",
       description: "Planes, silence, and reflected light.",
       imageUrl: "/images/work2.jpg",
+      sideText: {
+        eyebrow: "Collection",
+        title: "Soft Geometry",
+        description: "Planes, silence and reflected light arranged in a restrained composition.",
+        align: "before",
+      },
       metadata: { artist: "I. Rowan", year: "2025", medium: "Digital C-Print" },
     },
     {

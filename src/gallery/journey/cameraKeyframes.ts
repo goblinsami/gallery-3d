@@ -78,16 +78,39 @@ export const calculateArtworkLayout = (config: ArtGallerySceneConfig): Positione
       side === "left"
         ? -wallHalfWidth + config.corridor.wallThickness + config.corridor.artworkInset
         : wallHalfWidth - config.corridor.wallThickness - config.corridor.artworkInset;
+    const artworkWidth = artwork.width ?? GALLERY_DEFAULTS.artwork.width;
+    const artworkHeight = artwork.height ?? GALLERY_DEFAULTS.artwork.height;
     const frameDepth = artwork.frameDepth ?? GALLERY_DEFAULTS.artwork.frameDepth;
-    const focusDistance = getFocusDistance(config, artwork);
+    const sideText = artwork.sideText;
+    const hasSideText = Boolean(sideText?.title || sideText?.eyebrow || sideText?.description);
+    const sideTextWidth = clamp(sideText?.width ?? GALLERY_DEFAULTS.artwork.sideTextWidth, 0.8, 3.6);
+    const sideTextHeight = clamp(sideText?.height ?? GALLERY_DEFAULTS.artwork.sideTextHeight, 0.6, 2.6);
+    const sideTextGap = clamp(sideText?.gap ?? GALLERY_DEFAULTS.artwork.sideTextGap, 0.08, 2.2);
+    const sideTextAlignSign = sideText?.align === "before" ? -1 : 1;
+    const sideTextLocalOffsetX = hasSideText
+      ? sideTextAlignSign * (artworkWidth / 2 + sideTextGap + sideTextWidth / 2)
+      : 0;
+    const sideTextWorldZDirection = side === "left" ? -1 : 1;
+    const sideTextWorldZ = z + sideTextWorldZDirection * sideTextLocalOffsetX;
+    const focusTargetZ = hasSideText ? (z + sideTextWorldZ) / 2 : z;
+    const compositionWidth = hasSideText ? artworkWidth + sideTextGap + sideTextWidth : artworkWidth;
+    const compositionHeight = hasSideText ? Math.max(artworkHeight, sideTextHeight) : artworkHeight;
+    const focusDistance = getFocusDistance(config, {
+      width: compositionWidth,
+      height: compositionHeight,
+    });
 
     const position: Vec3 = [x, cameraHeight, z];
-    const lookAt: Vec3 = [0, cameraHeight, z];
-    const focusTarget: Vec3 = [x + normalX * (frameDepth / 2 + IMAGE_SURFACE_OFFSET), cameraHeight, z];
+    const lookAt: Vec3 = [0, cameraHeight, focusTargetZ];
+    const focusTarget: Vec3 = [
+      x + normalX * (frameDepth / 2 + IMAGE_SURFACE_OFFSET),
+      cameraHeight,
+      focusTargetZ,
+    ];
     const focusPosition: Vec3 = [
       focusTarget[0] + normalX * focusDistance,
       cameraHeight,
-      z,
+      focusTargetZ,
     ];
     const centerPosition: Vec3 = [0, cameraHeight, z + 1.8];
 

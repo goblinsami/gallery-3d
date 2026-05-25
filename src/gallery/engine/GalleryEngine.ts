@@ -252,10 +252,8 @@ export class GalleryEngine {
   }
 
   private resetAtmosphereBase(): void {
-    const backgroundHex = this.config.lightingMode === "contrast" ? "#070b12" : "#e6ebf3";
-    const fogHex = this.config.lightingMode === "contrast" ? "#0a0f18" : "#e7ecf3";
-    this.baseBackgroundColor.set(backgroundHex);
-    this.baseFogColor.set(fogHex);
+    this.baseBackgroundColor.set(this.config.sceneBackgroundColor);
+    this.baseFogColor.set(this.config.sceneFogColor);
     this.baseFogDensity = LIGHTING_PRESETS[this.config.lightingMode].fogDensity;
   }
 

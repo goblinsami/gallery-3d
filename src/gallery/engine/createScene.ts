@@ -4,9 +4,10 @@ import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 
 export const createScene = (config: ArtGallerySceneConfig): Scene => {
   const scene = new Scene();
-  const backgroundColor = config.lightingMode === "contrast" ? "#070b12" : "#e6ebf3";
+  const backgroundColor = config.sceneBackgroundColor;
+  const fogColor = config.sceneFogColor;
   scene.background = new Color(backgroundColor);
-  scene.fog = new FogExp2(backgroundColor, LIGHTING_PRESETS[config.lightingMode].fogDensity);
+  scene.fog = new FogExp2(fogColor, LIGHTING_PRESETS[config.lightingMode].fogDensity);
   return scene;
 };
 

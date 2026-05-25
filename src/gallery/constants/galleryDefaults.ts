@@ -18,10 +18,16 @@ export const GALLERY_DEFAULTS = {
   artwork: {
     width: 2.4,
     height: 1.6,
+    frameEnabled: false,
     frameColor: "#151515",
     frameThickness: 0.14,
     frameDepth: 0.06,
     spotlightIntensity: 1.15,
+    sideTextWidth: 1.55,
+    sideTextHeight: 1.1,
+    sideTextGap: 0.5,
+    sideTextOffsetY: 0,
+    sideTextOffsetZ: 0,
   },
   timings: {
     introDuration: 1.1,
@@ -30,4 +36,3 @@ export const GALLERY_DEFAULTS = {
     returnDuration: 0.75,
   },
 } as const;
-

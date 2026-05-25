@@ -4,6 +4,7 @@ import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import type {
   ArtGallerySceneConfig,
   ArtworkConfig,
+  ArtworkSideTextConfig,
   DeepPartial,
   LightingMode,
   Vec3,
@@ -64,6 +65,36 @@ const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | n
     return null;
   }
 
+  const sanitizeSideText = (
+    source: DeepPartial<ArtworkSideTextConfig> | undefined,
+  ): ArtworkSideTextConfig | undefined => {
+    if (!source || typeof source !== "object") {
+      return undefined;
+    }
+
+    const eyebrow = isNonEmptyString(source.eyebrow) ? source.eyebrow.trim() : undefined;
+    const title = isNonEmptyString(source.title) ? source.title.trim() : undefined;
+    const description = isNonEmptyString(source.description) ? source.description.trim() : undefined;
+
+    if (!eyebrow && !title && !description) {
+      return undefined;
+    }
+
+    return {
+      eyebrow,
+      title,
+      description,
+      width: clamp(source.width ?? GALLERY_DEFAULTS.artwork.sideTextWidth, 0.8, 3.6),
+      height: clamp(source.height ?? GALLERY_DEFAULTS.artwork.sideTextHeight, 0.6, 2.6),
+      gap: clamp(source.gap ?? GALLERY_DEFAULTS.artwork.sideTextGap, 0.08, 2.2),
+      offsetY: clamp(source.offsetY ?? GALLERY_DEFAULTS.artwork.sideTextOffsetY, -2, 2),
+      offsetZ: clamp(source.offsetZ ?? GALLERY_DEFAULTS.artwork.sideTextOffsetZ, -3, 3),
+      align: source.align === "before" || source.align === "after" ? source.align : "after",
+      backgroundColor: source.backgroundColor ?? "#0e1422",
+      textColor: source.textColor ?? "#f3f6fb",
+    };
+  };
+
   return {
     id: artwork.id,
     title: artwork.title,
@@ -73,6 +104,7 @@ const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | n
     side: artwork.side === "left" || artwork.side === "right" ? artwork.side : undefined,
     width: clamp(artwork.width ?? GALLERY_DEFAULTS.artwork.width, 0.8, 4.2),
     height: clamp(artwork.height ?? GALLERY_DEFAULTS.artwork.height, 0.8, 3.2),
+    frameEnabled: artwork.frameEnabled ?? GALLERY_DEFAULTS.artwork.frameEnabled,
     frameColor: artwork.frameColor ?? GALLERY_DEFAULTS.artwork.frameColor,
     frameThickness: clamp(
       artwork.frameThickness ?? GALLERY_DEFAULTS.artwork.frameThickness,
@@ -85,6 +117,7 @@ const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | n
       0,
       3,
     ),
+    sideText: sanitizeSideText(artwork.sideText),
     metadata: artwork.metadata,
   };
 };
@@ -174,6 +207,18 @@ export const validateGalleryConfig = (
       ? (source.lightingMode as LightingMode)
       : defaultConfig.lightingMode,
     infiniteCorridor: resolvedInfiniteCorridor,
+    sceneBackgroundColor: source.sceneBackgroundColor ?? defaultConfig.sceneBackgroundColor,
+    sceneFogColor: source.sceneFogColor ?? defaultConfig.sceneFogColor,
+    ceilingSpotsEnabled: source.ceilingSpotsEnabled ?? defaultConfig.ceilingSpotsEnabled,
+    ceilingSpotsColor: source.ceilingSpotsColor ?? defaultConfig.ceilingSpotsColor,
+    ceilingSpotsIntensity: clamp(source.ceilingSpotsIntensity ?? defaultConfig.ceilingSpotsIntensity, 0, 4),
+    artworkBacklightEnabled: source.artworkBacklightEnabled ?? defaultConfig.artworkBacklightEnabled,
+    artworkBacklightColor: source.artworkBacklightColor ?? defaultConfig.artworkBacklightColor,
+    artworkBacklightIntensity: clamp(
+      source.artworkBacklightIntensity ?? defaultConfig.artworkBacklightIntensity,
+      0,
+      4,
+    ),
     scrollStrength: normalizeScrollStrength(source.scrollStrength ?? defaultConfig.scrollStrength),
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,

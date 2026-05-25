@@ -7,7 +7,15 @@ describe("validateGalleryConfig", () => {
     const result = validateGalleryConfig();
     expect(result.config.id).toBe(DEFAULT_GALLERY_CONFIG.id);
     expect(result.config.artworks.length).toBeGreaterThan(0);
+    expect(result.config.sceneBackgroundColor).toBe(DEFAULT_GALLERY_CONFIG.sceneBackgroundColor);
+    expect(result.config.sceneFogColor).toBe(DEFAULT_GALLERY_CONFIG.sceneFogColor);
     expect(result.config.scrollStrength).toBe(DEFAULT_GALLERY_CONFIG.scrollStrength);
+    expect(result.config.ceilingSpotsEnabled).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsEnabled);
+    expect(result.config.ceilingSpotsColor).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsColor);
+    expect(result.config.ceilingSpotsIntensity).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsIntensity);
+    expect(result.config.artworkBacklightEnabled).toBe(DEFAULT_GALLERY_CONFIG.artworkBacklightEnabled);
+    expect(result.config.artworkBacklightColor).toBe(DEFAULT_GALLERY_CONFIG.artworkBacklightColor);
+    expect(result.config.artworkBacklightIntensity).toBe(DEFAULT_GALLERY_CONFIG.artworkBacklightIntensity);
     expect(result.config.loopWhiteAfterEndWindow).toBe(DEFAULT_GALLERY_CONFIG.loopWhiteAfterEndWindow);
     expect(result.config.loopWhiteStartsBeforeEndWindow).toBe(
       DEFAULT_GALLERY_CONFIG.loopWhiteStartsBeforeEndWindow,
@@ -43,6 +51,14 @@ describe("validateGalleryConfig", () => {
   it("merges partial payload with defaults", () => {
     const result = validateGalleryConfig({
       sceneTitle: "Custom Title",
+      sceneBackgroundColor: "#020202",
+      sceneFogColor: "#090909",
+      ceilingSpotsEnabled: true,
+      ceilingSpotsColor: "#ffd2a2",
+      ceilingSpotsIntensity: 1.8,
+      artworkBacklightEnabled: true,
+      artworkBacklightColor: "#ff9a55",
+      artworkBacklightIntensity: 2.2,
       scrollStrength: 3,
       loopWhiteAfterEndWindow: 0.24,
       loopWhiteStartsBeforeEndWindow: 0.18,
@@ -59,6 +75,14 @@ describe("validateGalleryConfig", () => {
     });
 
     expect(result.config.sceneTitle).toBe("Custom Title");
+    expect(result.config.sceneBackgroundColor).toBe("#020202");
+    expect(result.config.sceneFogColor).toBe("#090909");
+    expect(result.config.ceilingSpotsEnabled).toBe(true);
+    expect(result.config.ceilingSpotsColor).toBe("#ffd2a2");
+    expect(result.config.ceilingSpotsIntensity).toBeCloseTo(1.8);
+    expect(result.config.artworkBacklightEnabled).toBe(true);
+    expect(result.config.artworkBacklightColor).toBe("#ff9a55");
+    expect(result.config.artworkBacklightIntensity).toBeCloseTo(2.2);
     expect(result.config.scrollStrength).toBeCloseTo(3);
     expect(result.config.loopWhiteAfterEndWindow).toBeCloseTo(0.24);
     expect(result.config.loopWhiteStartsBeforeEndWindow).toBeCloseTo(0.18);
@@ -79,6 +103,22 @@ describe("validateGalleryConfig", () => {
 
     expect(low.config.scrollStrength).toBe(0.25);
     expect(high.config.scrollStrength).toBe(8);
+  });
+
+  it("clamps ceiling/artwork light intensities", () => {
+    const low = validateGalleryConfig({
+      ceilingSpotsIntensity: -1,
+      artworkBacklightIntensity: -1,
+    });
+    const high = validateGalleryConfig({
+      ceilingSpotsIntensity: 99,
+      artworkBacklightIntensity: 99,
+    });
+
+    expect(low.config.ceilingSpotsIntensity).toBe(0);
+    expect(low.config.artworkBacklightIntensity).toBe(0);
+    expect(high.config.ceilingSpotsIntensity).toBe(4);
+    expect(high.config.artworkBacklightIntensity).toBe(4);
   });
 
   it("converts legacy sensitivity values to strength scale", () => {
@@ -179,5 +219,36 @@ describe("validateGalleryConfig", () => {
     expect(result.config.infiniteCorridor).toBe(true);
     expect(result.warnings.some((warning) => warning.includes("infiniteGallery"))).toBe(true);
   });
-});
 
+  it("sanitizes artwork sideText and clamps its sizing values", () => {
+    const result = validateGalleryConfig({
+      artworks: [
+        {
+          id: "a-1",
+          title: "A",
+          imageUrl: "/images/work1.jpg",
+          sideText: {
+            eyebrow: "Eyebrow",
+            title: "Side Title",
+            description: "Desc",
+            width: 99,
+            height: 0,
+            gap: -1,
+            offsetY: 5,
+            offsetZ: -9,
+            align: "before",
+          },
+        },
+      ],
+    });
+
+    const sideText = result.config.artworks[0].sideText;
+    expect(sideText).toBeDefined();
+    expect(sideText?.width).toBe(3.6);
+    expect(sideText?.height).toBe(0.6);
+    expect(sideText?.gap).toBe(0.08);
+    expect(sideText?.offsetY).toBe(2);
+    expect(sideText?.offsetZ).toBe(-3);
+    expect(sideText?.align).toBe("before");
+  });
+});

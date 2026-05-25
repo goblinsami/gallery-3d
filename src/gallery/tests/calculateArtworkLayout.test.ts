@@ -70,5 +70,44 @@ describe("calculateArtworkLayout", () => {
     expect(layout[0].focusTarget[0]).toBeGreaterThan(layout[0].position[0]);
     expect(layout[1].focusTarget[0]).toBeLessThan(layout[1].position[0]);
   });
+
+  it("expands focus composition when artwork sideText is present", () => {
+    const noTextConfig = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworks: [
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          sideText: undefined,
+          side: "left" as const,
+        },
+      ],
+    };
+
+    const withTextConfig = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworks: [
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          side: "left" as const,
+          sideText: {
+            eyebrow: "Note",
+            title: "Long Lateral Label",
+            description: "Camera should adapt to include this side text.",
+            width: 2.2,
+            gap: 0.8,
+            align: "after" as const,
+          },
+        },
+      ],
+    };
+
+    const noTextLayout = calculateArtworkLayout(noTextConfig)[0];
+    const withTextLayout = calculateArtworkLayout(withTextConfig)[0];
+    const noTextDistance = Math.abs(noTextLayout.focusPosition[0] - noTextLayout.focusTarget[0]);
+    const withTextDistance = Math.abs(withTextLayout.focusPosition[0] - withTextLayout.focusTarget[0]);
+
+    expect(withTextDistance).toBeGreaterThan(noTextDistance);
+    expect(withTextLayout.focusTarget[2]).not.toBeCloseTo(withTextLayout.position[2]);
+  });
 });
 

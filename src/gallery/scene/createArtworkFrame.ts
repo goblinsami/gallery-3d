@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  DoubleSide,
-  Group,
-  Mesh,
-  MeshStandardMaterial,
-  PlaneGeometry,
-  type Texture,
-} from "three";
+import { BoxGeometry, DoubleSide, Group, Mesh, MeshStandardMaterial, PlaneGeometry, type Texture } from "three";
 import type { PositionedArtwork } from "../types/galleryRuntime";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 
@@ -46,18 +38,22 @@ export const createArtworkFrame = (artwork: PositionedArtwork, texture: Texture)
   const height = artwork.height ?? GALLERY_DEFAULTS.artwork.height;
   const frameThickness = artwork.frameThickness ?? GALLERY_DEFAULTS.artwork.frameThickness;
   const frameDepth = artwork.frameDepth ?? GALLERY_DEFAULTS.artwork.frameDepth;
+  const frameEnabled = artwork.frameEnabled ?? GALLERY_DEFAULTS.artwork.frameEnabled;
 
   const root = new Group();
 
-  const frameGeometry = new BoxGeometry(width + frameThickness * 2, height + frameThickness * 2, frameDepth);
-  const frameMaterial = new MeshStandardMaterial({
-    color: artwork.frameColor ?? GALLERY_DEFAULTS.artwork.frameColor,
-    roughness: 0.62,
-    metalness: 0.23,
-  });
-  const frameMesh = new Mesh(frameGeometry, frameMaterial);
-  frameMesh.castShadow = true;
-  frameMesh.receiveShadow = true;
+  if (frameEnabled) {
+    const frameGeometry = new BoxGeometry(width + frameThickness * 2, height + frameThickness * 2, frameDepth);
+    const frameMaterial = new MeshStandardMaterial({
+      color: artwork.frameColor ?? GALLERY_DEFAULTS.artwork.frameColor,
+      roughness: 0.62,
+      metalness: 0.23,
+    });
+    const frameMesh = new Mesh(frameGeometry, frameMaterial);
+    frameMesh.castShadow = true;
+    frameMesh.receiveShadow = true;
+    root.add(frameMesh);
+  }
 
   const planeGeometry = new PlaneGeometry(1, 1);
   const imageMaterial = new MeshStandardMaterial({
@@ -69,10 +65,8 @@ export const createArtworkFrame = (artwork: PositionedArtwork, texture: Texture)
   const imageMesh = new Mesh(planeGeometry, imageMaterial);
   const displaySize = resolveDisplaySize(texture, width, height);
   imageMesh.scale.set(displaySize.width, displaySize.height, 1);
-  imageMesh.position.z = frameDepth / 2 + 0.02;
+  imageMesh.position.z = (frameEnabled ? frameDepth / 2 : 0) + 0.02;
   imageMesh.receiveShadow = true;
-
-  root.add(frameMesh);
   root.add(imageMesh);
 
   return {

@@ -9,6 +9,22 @@ export interface ArtworkMetadata {
   tags?: string[];
 }
 
+export type ArtworkSideTextAlign = "before" | "after";
+
+export interface ArtworkSideTextConfig {
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  width?: number;
+  height?: number;
+  gap?: number;
+  offsetY?: number;
+  offsetZ?: number;
+  align?: ArtworkSideTextAlign;
+  backgroundColor?: string;
+  textColor?: string;
+}
+
 export interface ArtworkConfig {
   id: string;
   title: string;
@@ -18,10 +34,12 @@ export interface ArtworkConfig {
   side?: ArtworkSide;
   width?: number;
   height?: number;
+  frameEnabled?: boolean;
   frameColor?: string;
   frameThickness?: number;
   frameDepth?: number;
   spotlightIntensity?: number;
+  sideText?: ArtworkSideTextConfig;
   metadata?: ArtworkMetadata;
 }
 
@@ -69,6 +87,14 @@ export interface ArtGallerySceneConfig {
   sceneTitle: string;
   lightingMode: LightingMode;
   infiniteCorridor: boolean;
+  sceneBackgroundColor: string;
+  sceneFogColor: string;
+  ceilingSpotsEnabled: boolean;
+  ceilingSpotsColor: string;
+  ceilingSpotsIntensity: number;
+  artworkBacklightEnabled: boolean;
+  artworkBacklightColor: string;
+  artworkBacklightIntensity: number;
   scrollStrength: number;
   loopWhiteAfterEndWindow: number;
   loopWhiteStartsBeforeEndWindow: number;

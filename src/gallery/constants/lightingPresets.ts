@@ -11,12 +11,12 @@ export interface LightingPreset {
 
 export const LIGHTING_PRESETS: Record<LightingMode, LightingPreset> = {
   contrast: {
-    ambientIntensity: 0.2,
-    directionalIntensity: 0.36,
-    directionalPosition: [4, 8, 6],
+    ambientIntensity: 0.14,
+    directionalIntensity: 0.3,
+    directionalPosition: [3, 7, 5],
     shadowMapSize: 2048,
-    shadowSoftness: 0.45,
-    fogDensity: 0.055,
+    shadowSoftness: 0.35,
+    fogDensity: 0.06,
   },
   day: {
     ambientIntensity: 0.65,

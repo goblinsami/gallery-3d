@@ -12,6 +12,7 @@ const runtimeConfig = ref<ArtGallerySceneConfig>(sampleGalleryConfigs[0]);
 const jsonDraft = ref(JSON.stringify(runtimeConfig.value, null, 2));
 const parseError = ref("");
 const progressLabel = ref("0.000");
+const isToolbarVisible = ref(true);
 
 const sampleOptions = computed(() =>
   sampleGalleryConfigs.map((sample) => ({
@@ -57,8 +58,12 @@ const onRuntimeProgress = (progress: number): void => {
 </script>
 
 <template>
-  <main class="playground" :style="{ '--token-bg': tokens.htmlBackground, '--token-panel': tokens.panelBackground, '--token-border': tokens.panelBorder, '--token-text': tokens.panelText, '--token-muted': tokens.panelMutedText, '--token-accent': tokens.accent }">
-    <aside class="control-panel">
+  <main class="playground" :class="{ 'toolbar-hidden': !isToolbarVisible }" :style="{ '--token-bg': tokens.htmlBackground, '--token-panel': tokens.panelBackground, '--token-border': tokens.panelBorder, '--token-text': tokens.panelText, '--token-muted': tokens.panelMutedText, '--token-accent': tokens.accent }">
+    <button type="button" class="toolbar-toggle" @click="isToolbarVisible = !isToolbarVisible">
+      {{ isToolbarVisible ? "Hide Toolbar" : "Show Toolbar" }}
+    </button>
+
+    <aside v-show="isToolbarVisible" class="control-panel">
       <h1>JSON-Driven 3D Gallery</h1>
       <p>
         Scroll sobre el viewport para avanzar o retroceder el recorrido cinematográfico.
@@ -126,6 +131,26 @@ const onRuntimeProgress = (progress: number): void => {
   gap: 18px;
   padding: 18px;
   box-sizing: border-box;
+  position: relative;
+}
+
+.playground.toolbar-hidden {
+  grid-template-columns: 1fr;
+}
+
+.toolbar-toggle {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 8;
+  border-radius: 999px;
+  border: 1px solid var(--token-border);
+  background: rgba(8, 13, 22, 0.82);
+  color: var(--token-text);
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .control-panel {
@@ -184,9 +209,19 @@ button {
   font-weight: 600;
 }
 
+.toolbar-toggle {
+  background: rgba(8, 13, 22, 0.82);
+  border-color: var(--token-border);
+  color: var(--token-text);
+}
+
 .preview-panel {
   min-width: 0;
   min-height: 0;
+}
+
+.toolbar-hidden .preview-panel {
+  grid-column: 1 / -1;
 }
 
 .meta {
@@ -207,6 +242,11 @@ button {
   .playground {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(440px, 1fr);
+  }
+
+  .toolbar-toggle {
+    top: 14px;
+    left: 14px;
   }
 }
 </style>
