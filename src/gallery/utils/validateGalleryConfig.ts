@@ -36,6 +36,29 @@ const toVec3 = (value: unknown, fallback: Vec3): Vec3 => {
   return fallback;
 };
 
+const resolveNumericWithLegacy = (
+  source: Record<string, unknown>,
+  key: string,
+  legacyKey: string | null,
+  fallback: number,
+  warnings: string[],
+): number => {
+  const value = source[key];
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (legacyKey) {
+    const legacyValue = source[legacyKey];
+    if (typeof legacyValue === "number") {
+      warnings.push(`Using legacy key \`${legacyKey}\`; please migrate to \`${key}\`.`);
+      return legacyValue;
+    }
+  }
+
+  return fallback;
+};
+
 const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | null => {
   if (!isNonEmptyString(artwork.id) || !isNonEmptyString(artwork.imageUrl) || !isNonEmptyString(artwork.title)) {
     return null;
@@ -108,6 +131,42 @@ export const validateGalleryConfig = (
     errors.push(`Invalid lighting mode: ${String(mode)}`);
   }
 
+  const loopWhiteAfterEndWindowRaw = resolveNumericWithLegacy(
+    legacySource,
+    "loopWhiteAfterEndWindow",
+    "loopWhiteTransitionWindow",
+    defaultConfig.loopWhiteAfterEndWindow,
+    warnings,
+  );
+  const loopWhiteStartsBeforeEndWindowRaw = resolveNumericWithLegacy(
+    legacySource,
+    "loopWhiteStartsBeforeEndWindow",
+    "loopWhiteLeadWindow",
+    defaultConfig.loopWhiteStartsBeforeEndWindow,
+    warnings,
+  );
+  const loopWhiteFadeOutRevealWindowRaw = resolveNumericWithLegacy(
+    legacySource,
+    "loopWhiteFadeOutRevealWindow",
+    "loopTitleRevealWindow",
+    defaultConfig.loopWhiteFadeOutRevealWindow,
+    warnings,
+  );
+  const loopWhiteFadeOutWindowRaw = resolveNumericWithLegacy(
+    legacySource,
+    "loopWhiteFadeOutWindow",
+    "loopTitleReadableWindow",
+    defaultConfig.loopWhiteFadeOutWindow,
+    warnings,
+  );
+  const loopProgressAdvanceDuringWhiteFadeOutRaw = resolveNumericWithLegacy(
+    legacySource,
+    "loopProgressAdvanceDuringWhiteFadeOut",
+    "loopRestartProgressWindow",
+    defaultConfig.loopProgressAdvanceDuringWhiteFadeOut,
+    warnings,
+  );
+
   const config: ArtGallerySceneConfig = {
     id: source.id ?? defaultConfig.id,
     sceneTitle: source.sceneTitle ?? defaultConfig.sceneTitle,
@@ -116,6 +175,31 @@ export const validateGalleryConfig = (
       : defaultConfig.lightingMode,
     infiniteCorridor: resolvedInfiniteCorridor,
     scrollStrength: normalizeScrollStrength(source.scrollStrength ?? defaultConfig.scrollStrength),
+    loopWhiteAfterEndWindow: clamp(
+      loopWhiteAfterEndWindowRaw,
+      0.02,
+      0.45,
+    ),
+    loopWhiteStartsBeforeEndWindow: clamp(
+      loopWhiteStartsBeforeEndWindowRaw,
+      0,
+      0.45,
+    ),
+    loopWhiteFadeOutRevealWindow: clamp(
+      loopWhiteFadeOutRevealWindowRaw,
+      0.03,
+      0.45,
+    ),
+    loopWhiteFadeOutWindow: clamp(
+      loopWhiteFadeOutWindowRaw,
+      0.05,
+      0.6,
+    ),
+    loopProgressAdvanceDuringWhiteFadeOut: clamp(
+      loopProgressAdvanceDuringWhiteFadeOutRaw,
+      0,
+      0.45,
+    ),
     artworkFocusFill: clamp(source.artworkFocusFill ?? defaultConfig.artworkFocusFill, 0.35, 0.95),
     artworkTurnSmoothness: clamp(
       source.artworkTurnSmoothness ?? defaultConfig.artworkTurnSmoothness,
@@ -192,6 +276,13 @@ export const validateGalleryConfig = (
     const start = config.sceneTitleConfig.fadeEndProgress;
     config.sceneTitleConfig.fadeEndProgress = config.sceneTitleConfig.fadeStartProgress;
     config.sceneTitleConfig.fadeStartProgress = start;
+  }
+
+  if (config.loopWhiteFadeOutRevealWindow > config.loopWhiteFadeOutWindow) {
+    warnings.push(
+      "loopWhiteFadeOutRevealWindow is greater than loopWhiteFadeOutWindow. Values were aligned.",
+    );
+    config.loopWhiteFadeOutWindow = config.loopWhiteFadeOutRevealWindow;
   }
 
   return {

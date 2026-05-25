@@ -1,6 +1,11 @@
 import { gsap } from "gsap";
 import { clamp } from "../utils/clamp";
 
+export interface ScrollProgressState {
+  progress: number;
+  whiteMix: number;
+}
+
 export interface ScrollProgressControllerOptions {
   element: HTMLElement;
   initialProgress?: number;
@@ -8,22 +13,37 @@ export interface ScrollProgressControllerOptions {
   smoothing?: number;
   damping?: number;
   loop?: boolean;
-  onProgress: (progress: number) => void;
+  loopWhiteAfterEndWindow?: number;
+  loopWhiteStartsBeforeEndWindow?: number;
+  loopWhiteFadeOutWindow?: number;
+  loopWhiteFadeOutRevealWindow?: number;
+  loopProgressAdvanceDuringWhiteFadeOut?: number;
+  onProgress: (state: ScrollProgressState) => void;
 }
 
 export class ScrollProgressController {
   private readonly element: HTMLElement;
-  private readonly onProgress: (progress: number) => void;
+  private readonly onProgress: (state: ScrollProgressState) => void;
   private sensitivity: number;
   private readonly smoothing: number;
   private readonly damping: number;
   private loop: boolean;
+  private loopWhiteAfterEndWindow: number;
+  private loopWhiteStartsBeforeEndWindow: number;
+  private loopWhiteFadeOutWindow: number;
+  private loopWhiteFadeOutRevealWindow: number;
+  private loopProgressAdvanceDuringWhiteFadeOut: number;
 
   private running = false;
   private velocity = 0;
   private progress = 0;
   private targetProgress = 0;
-  private readonly wrap01 = (value: number): number => ((value % 1) + 1) % 1;
+  private readonly smoothstep = (value: number): number => {
+    const t = clamp(value, 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+  private readonly wrap = (value: number, modulus: number): number =>
+    ((value % modulus) + modulus) % modulus;
 
   private readonly toPixelDelta = (event: WheelEvent): number => {
     if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
@@ -69,8 +89,17 @@ export class ScrollProgressController {
     this.smoothing = options.smoothing ?? 0.18;
     this.damping = options.damping ?? 0.86;
     this.loop = options.loop ?? false;
+    this.loopWhiteAfterEndWindow = clamp(options.loopWhiteAfterEndWindow ?? 0.09, 0.02, 0.45);
+    this.loopWhiteStartsBeforeEndWindow = clamp(options.loopWhiteStartsBeforeEndWindow ?? 0.12, 0, 0.45);
+    this.loopWhiteFadeOutWindow = clamp(options.loopWhiteFadeOutWindow ?? 0.34, 0.05, 0.6);
+    this.loopWhiteFadeOutRevealWindow = clamp(options.loopWhiteFadeOutRevealWindow ?? 0.16, 0.03, 0.45);
+    this.loopProgressAdvanceDuringWhiteFadeOut = clamp(
+      options.loopProgressAdvanceDuringWhiteFadeOut ?? 0.14,
+      0,
+      0.45,
+    );
     this.progress = this.loop
-      ? this.wrap01(options.initialProgress ?? 0)
+      ? this.wrap(options.initialProgress ?? 0, this.getLoopCycleLength())
       : clamp(options.initialProgress ?? 0, 0, 1);
     this.targetProgress = this.progress;
   }
@@ -86,15 +115,38 @@ export class ScrollProgressController {
   }
 
   setProgress(progress: number): void {
-    const normalized = this.loop ? this.wrap01(progress) : clamp(progress, 0, 1);
+    const normalized = this.loop
+      ? this.wrap(progress, this.getLoopCycleLength())
+      : clamp(progress, 0, 1);
     this.progress = normalized;
     this.targetProgress = normalized;
     this.velocity = 0;
-    this.onProgress(normalized);
+    this.emitCurrentState();
   }
 
   setSensitivity(sensitivity: number): void {
     this.sensitivity = clamp(sensitivity, 0.00005, 0.01);
+  }
+
+  setLoopTransitionWindows(
+    whiteAfterEndWindow: number,
+    whiteStartsBeforeEndWindow: number,
+    whiteFadeOutWindow: number,
+    whiteFadeOutRevealWindow: number,
+    progressAdvanceDuringWhiteFadeOut: number,
+  ): void {
+    this.loopWhiteAfterEndWindow = clamp(whiteAfterEndWindow, 0.02, 0.45);
+    this.loopWhiteStartsBeforeEndWindow = clamp(whiteStartsBeforeEndWindow, 0, 0.45);
+    this.loopWhiteFadeOutWindow = clamp(whiteFadeOutWindow, 0.05, 0.6);
+    this.loopWhiteFadeOutRevealWindow = clamp(whiteFadeOutRevealWindow, 0.03, 0.45);
+    this.loopProgressAdvanceDuringWhiteFadeOut = clamp(progressAdvanceDuringWhiteFadeOut, 0, 0.45);
+    this.progress = this.loop
+      ? this.wrap(this.progress, this.getLoopCycleLength())
+      : clamp(this.progress, 0, 1);
+    this.targetProgress = this.loop
+      ? this.wrap(this.targetProgress, this.getLoopCycleLength())
+      : clamp(this.targetProgress, 0, 1);
+    this.emitCurrentState();
   }
 
   setLoop(loop: boolean): void {
@@ -103,11 +155,13 @@ export class ScrollProgressController {
     }
 
     this.loop = loop;
-    const normalized = this.loop ? this.wrap01(this.progress) : clamp(this.progress, 0, 1);
+    const normalized = this.loop
+      ? this.wrap(this.progress, this.getLoopCycleLength())
+      : clamp(this.progress, 0, 1);
     this.progress = normalized;
     this.targetProgress = normalized;
     this.velocity = 0;
-    this.onProgress(normalized);
+    this.emitCurrentState();
   }
 
   dispose(): void {
@@ -139,16 +193,83 @@ export class ScrollProgressController {
     if (this.loop) {
       // Keep values bounded while preserving interpolation continuity across cycles.
       if (Math.abs(this.progress) > 1000 || Math.abs(this.targetProgress) > 1000) {
+        const cycleLength = this.getLoopCycleLength();
         const delta = this.progress - this.targetProgress;
-        const wrappedTarget = this.wrap01(this.targetProgress);
+        const wrappedTarget = this.wrap(this.targetProgress, cycleLength);
         this.targetProgress = wrappedTarget;
         this.progress = wrappedTarget + delta;
       }
 
-      this.onProgress(this.wrap01(this.progress));
+      this.emitCurrentState();
       return;
     }
 
-    this.onProgress(clamp(this.progress, 0, 1));
+    this.emitCurrentState();
   };
+
+  private getLoopCycleLength(): number {
+    return 1 + this.loopWhiteAfterEndWindow + this.loopWhiteFadeOutWindow;
+  }
+
+  private resolveProgressState(rawProgress: number): ScrollProgressState {
+    if (!this.loop) {
+      return {
+        progress: clamp(rawProgress, 0, 1),
+        whiteMix: 0,
+      };
+    }
+
+    const whiteInWindow = Math.max(0.0001, this.loopWhiteAfterEndWindow);
+    const whiteLeadWindow = clamp(this.loopWhiteStartsBeforeEndWindow, 0, 0.45);
+    const whiteOutWindow = Math.max(0.0001, this.loopWhiteFadeOutWindow);
+    const cycleLength = this.getLoopCycleLength();
+    const cycleProgress = this.wrap(rawProgress, cycleLength);
+    const whiteInEnd = 1 + whiteInWindow;
+    const leadStart = Math.max(0, 1 - whiteLeadWindow);
+
+    if (cycleProgress <= 1) {
+      if (whiteLeadWindow > 0 && cycleProgress >= leadStart) {
+        const phase = clamp((cycleProgress - leadStart) / Math.max(0.0001, whiteLeadWindow), 0, 1);
+        return {
+          progress: cycleProgress,
+          whiteMix: 1 - Math.pow(1 - phase, 2.4),
+        };
+      }
+
+      return {
+        progress: cycleProgress,
+        whiteMix: 0,
+      };
+    }
+
+    if (cycleProgress <= whiteInEnd) {
+      if (whiteLeadWindow > 0) {
+        return {
+          progress: 1,
+          whiteMix: 1,
+        };
+      }
+
+      const phase = clamp((cycleProgress - 1) / whiteInWindow, 0, 1);
+      return {
+        progress: 1,
+        whiteMix: 1 - Math.pow(1 - phase, 2.4),
+      };
+    }
+
+    const phaseOut = clamp((cycleProgress - whiteInEnd) / whiteOutWindow, 0, 1);
+    const revealRatio = clamp(this.loopWhiteFadeOutRevealWindow / whiteOutWindow, 0.1, 1);
+    const fadeOutPhase = clamp(phaseOut / revealRatio, 0, 1);
+    const whiteMix = 1 - this.smoothstep(fadeOutPhase);
+    const restartProgress = this.loopProgressAdvanceDuringWhiteFadeOut * this.smoothstep(phaseOut);
+
+    return {
+      progress: clamp(restartProgress, 0, 1),
+      whiteMix: clamp(whiteMix, 0, 1),
+    };
+  }
+
+  private emitCurrentState(): void {
+    this.onProgress(this.resolveProgressState(this.progress));
+  }
 }

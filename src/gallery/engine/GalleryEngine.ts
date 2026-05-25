@@ -1,4 +1,5 @@
 import {
+  Color,
   FogExp2,
   Group,
   Material,
@@ -24,12 +25,15 @@ import { buildCameraKeyframes, calculateArtworkLayout } from "../journey/cameraK
 import { getCameraStateAtProgress } from "../journey/getCameraStateAtProgress";
 import { textureCache } from "../utils/textureCache";
 import { lerpVec3 } from "../utils/math";
+import { LIGHTING_PRESETS } from "../constants/lightingPresets";
 
 interface ArtworkSpotlightEntry {
   artworkIndex: number;
   spotlight: SpotLight;
   baseIntensity: number;
 }
+
+const LOOP_FOG_BOOST = 0.08;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -49,6 +53,13 @@ export class GalleryEngine {
   private animationFrameId: number | null = null;
   private initialized = false;
   private smoothedLookAt: Vec3 | null = null;
+  private loopWhiteMix = 0;
+  private baseFogDensity = 0.025;
+  private readonly whiteColor = new Color("#ffffff");
+  private readonly baseBackgroundColor = new Color();
+  private readonly baseFogColor = new Color();
+  private readonly mixedBackgroundColor = new Color();
+  private readonly mixedFogColor = new Color();
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -64,6 +75,7 @@ export class GalleryEngine {
     this.camera = createCamera(this.config);
     this.renderer = createRenderer(this.config);
     this.container.appendChild(this.renderer.domElement);
+    this.resetAtmosphereBase();
 
     await this.rebuildScene();
     this.resize();
@@ -78,15 +90,23 @@ export class GalleryEngine {
     this.applyState();
   }
 
+  setLoopWhiteMix(whiteMix: number): void {
+    this.loopWhiteMix = clamp(whiteMix, 0, 1);
+    this.applyState();
+  }
+
   async updateConfig(config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>): Promise<void> {
     const validation = validateGalleryConfig(config as DeepPartial<ArtGallerySceneConfig>);
     this.config = validation.config;
+    if (!this.config.infiniteCorridor) {
+      this.loopWhiteMix = 0;
+    }
 
     if (!this.scene || !this.camera || !this.renderer) {
       return;
     }
 
-    this.renderer.setClearColor(this.config.lightingMode === "contrast" ? "#070b12" : "#e6ebf3", 1);
+    this.resetAtmosphereBase();
     await this.rebuildScene();
     this.applyState();
   }
@@ -121,6 +141,7 @@ export class GalleryEngine {
     }
 
     textureCache.clear();
+    this.loopWhiteMix = 0;
     this.initialized = false;
     this.scene = null;
     this.camera = null;
@@ -141,21 +162,28 @@ export class GalleryEngine {
   }
 
   private applyState(): void {
-    if (!this.camera || this.keyframes.length === 0) {
+    if (!this.camera || !this.scene || !this.renderer || this.keyframes.length === 0) {
       return;
     }
 
     const state = getCameraStateAtProgress(this.keyframes, this.progress);
+    const desiredPosition = state.position;
+    const desiredLookAt = state.lookAt;
+    const titleOpacity = state.titleOpacity;
+    const whiteMix = this.config.infiniteCorridor ? this.loopWhiteMix : 0;
+
+    this.applyAtmosphere(whiteMix);
+
     const lookAtSmoothing = clamp(1 - this.config.artworkTurnSmoothness * 0.85, 0.03, 1);
 
-    this.camera.position.set(state.position[0], state.position[1], state.position[2]);
+    this.camera.position.set(desiredPosition[0], desiredPosition[1], desiredPosition[2]);
     this.smoothedLookAt = this.smoothedLookAt
-      ? lerpVec3(this.smoothedLookAt, state.lookAt, lookAtSmoothing)
-      : state.lookAt;
+      ? lerpVec3(this.smoothedLookAt, desiredLookAt, lookAtSmoothing)
+      : desiredLookAt;
     this.camera.lookAt(this.smoothedLookAt[0], this.smoothedLookAt[1], this.smoothedLookAt[2]);
 
     if (this.titleMaterial && "opacity" in this.titleMaterial) {
-      (this.titleMaterial as Material & { opacity: number }).opacity = state.titleOpacity;
+      (this.titleMaterial as Material & { opacity: number }).opacity = titleOpacity;
     }
 
     this.artworkSpotlights.forEach((entry) => {
@@ -221,6 +249,36 @@ export class GalleryEngine {
       layout,
       keyframes,
     };
+  }
+
+  private resetAtmosphereBase(): void {
+    const backgroundHex = this.config.lightingMode === "contrast" ? "#070b12" : "#e6ebf3";
+    const fogHex = this.config.lightingMode === "contrast" ? "#0a0f18" : "#e7ecf3";
+    this.baseBackgroundColor.set(backgroundHex);
+    this.baseFogColor.set(fogHex);
+    this.baseFogDensity = LIGHTING_PRESETS[this.config.lightingMode].fogDensity;
+  }
+
+  private applyAtmosphere(whiteMix: number): void {
+    if (!this.scene || !this.renderer) {
+      return;
+    }
+
+    this.mixedBackgroundColor.copy(this.baseBackgroundColor).lerp(this.whiteColor, whiteMix);
+    this.mixedFogColor.copy(this.baseFogColor).lerp(this.whiteColor, whiteMix);
+
+    if (this.scene.background instanceof Color) {
+      this.scene.background.copy(this.mixedBackgroundColor);
+    } else {
+      this.scene.background = this.mixedBackgroundColor.clone();
+    }
+
+    if (this.scene.fog instanceof FogExp2) {
+      this.scene.fog.color.copy(this.mixedFogColor);
+      this.scene.fog.density = this.baseFogDensity + whiteMix * LOOP_FOG_BOOST;
+    }
+
+    this.renderer.setClearColor(this.mixedBackgroundColor, 1);
   }
 
   private clearSceneGraph(): void {

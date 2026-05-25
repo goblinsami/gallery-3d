@@ -100,6 +100,11 @@ It includes:
 - lighting mode (`contrast` or `day`)
 - finite/infinite corridor mode
 - `scrollStrength` for wheel force (forward/backward), using human scale (`1` normal, `2` faster, `4` strong) with wheel/trackpad adaptive normalization
+- `loopWhiteAfterEndWindow` controls how much scroll is needed after the end to reach/hold full white (`0.06` very fast, `0.2` cinematic)
+- `loopWhiteStartsBeforeEndWindow` starts white invasion before `progress=1` while camera still advances (`0` off, `0.2` strong overlap)
+- `loopWhiteFadeOutWindow` controls how much scroll is used to fade from full white back to the restarted scene
+- `loopWhiteFadeOutRevealWindow` shapes how quickly that fade-out happens inside the fade-out window
+- `loopProgressAdvanceDuringWhiteFadeOut` controls how much journey progress advances while white is still fading out (`0` static restart, `0.2` fluid restart)
 - `artworkFocusFill` controls how much of the viewport the focused artwork occupies (`0.5` farther, `0.9` closer)
 - `artworkTurnSmoothness` controls how soft the camera rotates toward artworks (`0` direct, `1` very smooth)
 - `artworkTurnKeyframes` controls how many intermediate keyframes are generated during turn-to-artwork (`2` simple, `6` very smooth)
@@ -120,7 +125,12 @@ It includes:
 ## Infinite Corridor
 
 `infiniteCorridor: true` enables modular repeated corridor segments to simulate endless continuation without infinite geometry.
-In this mode, scroll progress loops from end to start (and vice versa), so after the white end corridor you re-enter title + corridor again.
+In this mode, loop progression is phase-based and fully scroll-driven:
+- phase 1: normal corridor journey (`progress 0 -> 1`)
+- phase 1b (optional): white invasion begins before end while camera still advances (`loopWhiteStartsBeforeEndWindow`)
+- phase 2: hold end corridor while scroll increases white to 100%
+- phase 3: keep scrolling to diffuse white (overlay opacity down), reveal title, and advance early journey progress for a fluid re-entry
+White transition behavior is JSON-configurable via `loopWhiteAfterEndWindow`, `loopWhiteStartsBeforeEndWindow`, `loopWhiteFadeOutRevealWindow`, `loopWhiteFadeOutWindow`, and `loopProgressAdvanceDuringWhiteFadeOut`.
 
 ## Texture System
 

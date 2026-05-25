@@ -8,6 +8,15 @@ describe("validateGalleryConfig", () => {
     expect(result.config.id).toBe(DEFAULT_GALLERY_CONFIG.id);
     expect(result.config.artworks.length).toBeGreaterThan(0);
     expect(result.config.scrollStrength).toBe(DEFAULT_GALLERY_CONFIG.scrollStrength);
+    expect(result.config.loopWhiteAfterEndWindow).toBe(DEFAULT_GALLERY_CONFIG.loopWhiteAfterEndWindow);
+    expect(result.config.loopWhiteStartsBeforeEndWindow).toBe(
+      DEFAULT_GALLERY_CONFIG.loopWhiteStartsBeforeEndWindow,
+    );
+    expect(result.config.loopWhiteFadeOutRevealWindow).toBe(DEFAULT_GALLERY_CONFIG.loopWhiteFadeOutRevealWindow);
+    expect(result.config.loopWhiteFadeOutWindow).toBe(DEFAULT_GALLERY_CONFIG.loopWhiteFadeOutWindow);
+    expect(result.config.loopProgressAdvanceDuringWhiteFadeOut).toBe(
+      DEFAULT_GALLERY_CONFIG.loopProgressAdvanceDuringWhiteFadeOut,
+    );
     expect(result.config.artworkFocusFill).toBe(DEFAULT_GALLERY_CONFIG.artworkFocusFill);
     expect(result.config.artworkTurnSmoothness).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnSmoothness);
     expect(result.config.artworkTurnKeyframes).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnKeyframes);
@@ -34,6 +43,11 @@ describe("validateGalleryConfig", () => {
     const result = validateGalleryConfig({
       sceneTitle: "Custom Title",
       scrollStrength: 3,
+      loopWhiteAfterEndWindow: 0.24,
+      loopWhiteStartsBeforeEndWindow: 0.18,
+      loopWhiteFadeOutRevealWindow: 0.2,
+      loopWhiteFadeOutWindow: 0.44,
+      loopProgressAdvanceDuringWhiteFadeOut: 0.19,
       artworkFocusFill: 0.68,
       artworkTurnSmoothness: 0.82,
       artworkTurnKeyframes: 7,
@@ -44,6 +58,11 @@ describe("validateGalleryConfig", () => {
 
     expect(result.config.sceneTitle).toBe("Custom Title");
     expect(result.config.scrollStrength).toBeCloseTo(3);
+    expect(result.config.loopWhiteAfterEndWindow).toBeCloseTo(0.24);
+    expect(result.config.loopWhiteStartsBeforeEndWindow).toBeCloseTo(0.18);
+    expect(result.config.loopWhiteFadeOutRevealWindow).toBeCloseTo(0.2);
+    expect(result.config.loopWhiteFadeOutWindow).toBeCloseTo(0.44);
+    expect(result.config.loopProgressAdvanceDuringWhiteFadeOut).toBeCloseTo(0.19);
     expect(result.config.artworkFocusFill).toBeCloseTo(0.68);
     expect(result.config.artworkTurnSmoothness).toBeCloseTo(0.82);
     expect(result.config.artworkTurnKeyframes).toBe(7);
@@ -65,6 +84,57 @@ describe("validateGalleryConfig", () => {
 
     expect(legacyDefault.config.scrollStrength).toBeCloseTo(1);
     expect(legacyFaster.config.scrollStrength).toBeCloseTo(2);
+  });
+
+  it("clamps loop transition windows and aligns reveal/readable windows", () => {
+    const low = validateGalleryConfig({
+      loopWhiteAfterEndWindow: 0,
+      loopWhiteStartsBeforeEndWindow: -1,
+      loopWhiteFadeOutRevealWindow: 0,
+      loopWhiteFadeOutWindow: 0,
+      loopProgressAdvanceDuringWhiteFadeOut: -1,
+    });
+    const high = validateGalleryConfig({
+      loopWhiteAfterEndWindow: 2,
+      loopWhiteStartsBeforeEndWindow: 5,
+      loopWhiteFadeOutRevealWindow: 2,
+      loopWhiteFadeOutWindow: 2,
+      loopProgressAdvanceDuringWhiteFadeOut: 5,
+    });
+    const aligned = validateGalleryConfig({
+      loopWhiteFadeOutRevealWindow: 0.35,
+      loopWhiteFadeOutWindow: 0.2,
+    });
+
+    expect(low.config.loopWhiteAfterEndWindow).toBe(0.02);
+    expect(low.config.loopWhiteStartsBeforeEndWindow).toBe(0);
+    expect(low.config.loopWhiteFadeOutRevealWindow).toBe(0.03);
+    expect(low.config.loopWhiteFadeOutWindow).toBe(0.05);
+    expect(low.config.loopProgressAdvanceDuringWhiteFadeOut).toBe(0);
+    expect(high.config.loopWhiteAfterEndWindow).toBe(0.45);
+    expect(high.config.loopWhiteStartsBeforeEndWindow).toBe(0.45);
+    expect(high.config.loopWhiteFadeOutRevealWindow).toBe(0.45);
+    expect(high.config.loopWhiteFadeOutWindow).toBe(0.6);
+    expect(high.config.loopProgressAdvanceDuringWhiteFadeOut).toBe(0.45);
+    expect(aligned.config.loopWhiteFadeOutWindow).toBe(0.35);
+    expect(aligned.warnings.some((warning) => warning.includes("loopWhiteFadeOutRevealWindow"))).toBe(true);
+  });
+
+  it("supports legacy loop transition keys as aliases", () => {
+    const result = validateGalleryConfig({
+      loopWhiteTransitionWindow: 0.11,
+      loopWhiteLeadWindow: 0.15,
+      loopTitleRevealWindow: 0.19,
+      loopTitleReadableWindow: 0.31,
+      loopRestartProgressWindow: 0.17,
+    } as never);
+
+    expect(result.config.loopWhiteAfterEndWindow).toBeCloseTo(0.11);
+    expect(result.config.loopWhiteStartsBeforeEndWindow).toBeCloseTo(0.15);
+    expect(result.config.loopWhiteFadeOutRevealWindow).toBeCloseTo(0.19);
+    expect(result.config.loopWhiteFadeOutWindow).toBeCloseTo(0.31);
+    expect(result.config.loopProgressAdvanceDuringWhiteFadeOut).toBeCloseTo(0.17);
+    expect(result.warnings.some((warning) => warning.includes("loopWhiteTransitionWindow"))).toBe(true);
   });
 
   it("clamps out-of-range artworkFocusFill values", () => {

@@ -3,7 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { GalleryEngine } from "../engine/GalleryEngine";
 import type { ArtGallerySceneConfig, DeepPartial } from "../types/galleryConfig";
 import { validateGalleryConfig } from "../utils/validateGalleryConfig";
-import { ScrollProgressController } from "../journey/scrollProgressController";
+import {
+  ScrollProgressController,
+  type ScrollProgressState,
+} from "../journey/scrollProgressController";
 import { toWheelSensitivity } from "../utils/scrollStrength";
 
 interface Props {
@@ -20,6 +23,7 @@ const emit = defineEmits<{
 }>();
 
 const containerRef = ref<HTMLElement | null>(null);
+const whiteOverlayOpacity = ref(0);
 let engine: GalleryEngine | null = null;
 let scrollController: ScrollProgressController | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -27,9 +31,11 @@ let resizeTimeout: number | null = null;
 
 const resolvedConfig = computed(() => validateGalleryConfig(props.config).config);
 
-const handleProgress = (progress: number): void => {
-  engine?.setProgress(progress);
-  emit("progress", progress);
+const handleProgress = (state: ScrollProgressState): void => {
+  whiteOverlayOpacity.value = state.whiteMix;
+  engine?.setLoopWhiteMix(state.whiteMix);
+  engine?.setProgress(state.progress);
+  emit("progress", state.progress);
 };
 
 onMounted(async () => {
@@ -46,9 +52,15 @@ onMounted(async () => {
     initialProgress: props.initialProgress,
     sensitivity: toWheelSensitivity(resolvedConfig.value.scrollStrength),
     loop: resolvedConfig.value.infiniteCorridor,
+    loopWhiteAfterEndWindow: resolvedConfig.value.loopWhiteAfterEndWindow,
+    loopWhiteStartsBeforeEndWindow: resolvedConfig.value.loopWhiteStartsBeforeEndWindow,
+    loopWhiteFadeOutWindow: resolvedConfig.value.loopWhiteFadeOutWindow,
+    loopWhiteFadeOutRevealWindow: resolvedConfig.value.loopWhiteFadeOutRevealWindow,
+    loopProgressAdvanceDuringWhiteFadeOut: resolvedConfig.value.loopProgressAdvanceDuringWhiteFadeOut,
     onProgress: handleProgress,
   });
   scrollController.start();
+  scrollController.setProgress(props.initialProgress);
 
   resizeObserver = new ResizeObserver(() => {
     if (resizeTimeout !== null) {
@@ -72,6 +84,13 @@ watch(
 
     await engine.updateConfig(nextConfig);
     scrollController?.setSensitivity(toWheelSensitivity(nextConfig.scrollStrength));
+    scrollController?.setLoopTransitionWindows(
+      nextConfig.loopWhiteAfterEndWindow,
+      nextConfig.loopWhiteStartsBeforeEndWindow,
+      nextConfig.loopWhiteFadeOutWindow,
+      nextConfig.loopWhiteFadeOutRevealWindow,
+      nextConfig.loopProgressAdvanceDuringWhiteFadeOut,
+    );
     scrollController?.setLoop(nextConfig.infiniteCorridor);
   },
   { deep: true },
@@ -97,16 +116,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="art-gallery-runtime" aria-label="3D Art Gallery Runtime"></div>
+  <div ref="containerRef" class="art-gallery-runtime" aria-label="3D Art Gallery Runtime">
+    <div class="white-overlay" :style="{ opacity: whiteOverlayOpacity }" />
+  </div>
 </template>
 
 <style scoped>
 .art-gallery-runtime {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 420px;
   overflow: hidden;
   border-radius: 14px;
+}
+
+.white-overlay {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 80ms linear;
 }
 </style>
 

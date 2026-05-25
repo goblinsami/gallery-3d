@@ -70,6 +70,11 @@ export interface ArtGallerySceneConfig {
   lightingMode: LightingMode;
   infiniteCorridor: boolean;
   scrollStrength: number;
+  loopWhiteAfterEndWindow: number;
+  loopWhiteStartsBeforeEndWindow: number;
+  loopWhiteFadeOutRevealWindow: number;
+  loopWhiteFadeOutWindow: number;
+  loopProgressAdvanceDuringWhiteFadeOut: number;
   artworkFocusFill: number;
   artworkTurnSmoothness: number;
   artworkTurnKeyframes: number;

@@ -8,6 +8,11 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   lightingMode: "day",
   infiniteCorridor: true,
   scrollStrength: 1,
+  loopWhiteAfterEndWindow: 0.05,
+  loopWhiteStartsBeforeEndWindow: 0.08,
+  loopWhiteFadeOutRevealWindow: 0.001,
+  loopWhiteFadeOutWindow: 0.22,
+  loopProgressAdvanceDuringWhiteFadeOut: 1,
   artworkFocusFill: 0.78,
   artworkTurnSmoothness: 0.65,
   artworkTurnKeyframes: 4,
@@ -54,7 +59,7 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
       imageUrl: "https://picsum.photos/id/1035/1600/1100",
       fallbackImageUrl: "https://picsum.photos/seed/gallery-fallback-1/1600/1100",
       metadata: { artist: "A. Mercer", year: "2026", medium: "Archival Pigment" },
-    },
+    }/* ,
     {
       id: "w-02",
       title: "Soft Geometry",
@@ -62,8 +67,8 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
       imageUrl: "https://picsum.photos/id/1027/1600/1100",
       fallbackImageUrl: "https://picsum.photos/seed/gallery-fallback-2/1600/1100",
       metadata: { artist: "I. Rowan", year: "2025", medium: "Digital C-Print" },
-    },
-    {
+    }, */
+/*     {
       id: "w-03",
       title: "Threshold #4",
       description: "A corridor inside another corridor.",
@@ -78,6 +83,6 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
       imageUrl: "https://picsum.photos/id/1033/1600/1100",
       fallbackImageUrl: "https://picsum.photos/seed/gallery-fallback-4/1600/1100",
       metadata: { artist: "R. Chen", year: "2024", medium: "Photography" },
-    },
+    }, */
   ],
 };
