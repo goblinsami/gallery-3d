@@ -38,6 +38,23 @@ export const createCorridor = (config: ArtGallerySceneConfig): Group => {
     roughness: 0.65,
   });
   const wallMaterial = new MeshStandardMaterial({ color: new Color(config.corridor.wallColor), roughness: 0.75 });
+  const carpetEnabled = config.corridor.carpetEnabled;
+  const carpetMaterial = carpetEnabled
+    ? new MeshStandardMaterial({
+        color: new Color(config.corridor.carpetColor),
+        roughness: 0.86,
+        metalness: 0.03,
+      })
+    : null;
+  if (carpetMaterial) {
+    carpetMaterial.polygonOffset = true;
+    carpetMaterial.polygonOffsetFactor = -1.2;
+    carpetMaterial.polygonOffsetUnits = -1;
+  }
+  const carpetThickness = Math.max(0.008, thickness * 0.05);
+  const carpetGeometry = carpetEnabled
+    ? new BoxGeometry(config.corridor.carpetWidth, carpetThickness, segmentLength)
+    : null;
 
   const segmentCount = resolveSegmentCount(config);
 
@@ -61,6 +78,14 @@ export const createCorridor = (config: ArtGallerySceneConfig): Group => {
     rightWall.receiveShadow = true;
 
     root.add(floor, ceiling, leftWall, rightWall);
+
+    if (carpetGeometry && carpetMaterial) {
+      const carpet = new Mesh(carpetGeometry, carpetMaterial);
+      carpet.position.set(0, carpetThickness / 2, z);
+      carpet.receiveShadow = true;
+      carpet.castShadow = false;
+      root.add(carpet);
+    }
   }
 
   return root;

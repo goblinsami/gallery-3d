@@ -199,6 +199,18 @@ export const validateGalleryConfig = (
     defaultConfig.loopProgressAdvanceDuringWhiteFadeOut,
     warnings,
   );
+  const corridorWidth = clamp(source.corridor?.width ?? defaultConfig.corridor.width, 4, 20);
+  const corridorHeight = clamp(source.corridor?.height ?? defaultConfig.corridor.height, 2.8, 12);
+  const corridorSegmentLength = clamp(
+    source.corridor?.segmentLength ?? defaultConfig.corridor.segmentLength,
+    4,
+    30,
+  );
+  const corridorCarpetWidth = clamp(
+    source.corridor?.carpetWidth ?? defaultConfig.corridor.carpetWidth,
+    0.12,
+    Math.max(0.12, corridorWidth - 0.35),
+  );
 
   const config: ArtGallerySceneConfig = {
     id: source.id ?? defaultConfig.id,
@@ -272,16 +284,15 @@ export const validateGalleryConfig = (
       far: clamp(source.camera?.far ?? CAMERA_DEFAULTS.far, 50, 1000),
     },
     corridor: {
-      width: clamp(source.corridor?.width ?? defaultConfig.corridor.width, 4, 20),
-      height: clamp(source.corridor?.height ?? defaultConfig.corridor.height, 2.8, 12),
-      segmentLength: clamp(
-        source.corridor?.segmentLength ?? defaultConfig.corridor.segmentLength,
-        4,
-        30,
-      ),
+      width: corridorWidth,
+      height: corridorHeight,
+      segmentLength: corridorSegmentLength,
       wallColor: source.corridor?.wallColor ?? defaultConfig.corridor.wallColor,
       floorColor: source.corridor?.floorColor ?? defaultConfig.corridor.floorColor,
       ceilingColor: source.corridor?.ceilingColor ?? defaultConfig.corridor.ceilingColor,
+      carpetEnabled: source.corridor?.carpetEnabled ?? defaultConfig.corridor.carpetEnabled,
+      carpetWidth: corridorCarpetWidth,
+      carpetColor: source.corridor?.carpetColor ?? defaultConfig.corridor.carpetColor,
       artworkSpacing: clamp(
         source.corridor?.artworkSpacing ?? defaultConfig.corridor.artworkSpacing,
         4,

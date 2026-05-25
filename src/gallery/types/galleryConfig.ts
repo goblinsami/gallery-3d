@@ -70,6 +70,9 @@ export interface GalleryCorridorConfig {
   wallColor: string;
   floorColor: string;
   ceilingColor: string;
+  carpetEnabled: boolean;
+  carpetWidth: number;
+  carpetColor: string;
   artworkSpacing: number;
   wallThickness: number;
   artworkInset: number;

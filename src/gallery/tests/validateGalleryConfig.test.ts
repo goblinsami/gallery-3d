@@ -29,6 +29,7 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkTurnSmoothness).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnSmoothness);
     expect(result.config.artworkTurnKeyframes).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnKeyframes);
     expect(result.config.artworkTurnLeadIn).toBe(DEFAULT_GALLERY_CONFIG.artworkTurnLeadIn);
+    expect(result.config.corridor.carpetEnabled).toBe(DEFAULT_GALLERY_CONFIG.corridor.carpetEnabled);
   });
 
   it("detects invalid artworks and preserves valid ones", () => {
@@ -71,6 +72,9 @@ describe("validateGalleryConfig", () => {
       artworkTurnLeadIn: 0.34,
       corridor: {
         wallColor: "#ffffff",
+        carpetEnabled: false,
+        carpetColor: "#aa1010",
+        carpetWidth: 0.64,
       },
     });
 
@@ -94,6 +98,9 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkTurnKeyframes).toBe(7);
     expect(result.config.artworkTurnLeadIn).toBeCloseTo(0.34);
     expect(result.config.corridor.wallColor).toBe("#ffffff");
+    expect(result.config.corridor.carpetEnabled).toBe(false);
+    expect(result.config.corridor.carpetColor).toBe("#aa1010");
+    expect(result.config.corridor.carpetWidth).toBeCloseTo(0.64);
     expect(result.config.corridor.width).toBe(DEFAULT_GALLERY_CONFIG.corridor.width);
   });
 
@@ -186,6 +193,23 @@ describe("validateGalleryConfig", () => {
 
     expect(low.config.artworkFocusFill).toBe(0.35);
     expect(high.config.artworkFocusFill).toBe(0.95);
+  });
+
+  it("clamps carpet width to corridor bounds", () => {
+    const low = validateGalleryConfig({
+      corridor: {
+        carpetWidth: 0,
+      },
+    });
+    const high = validateGalleryConfig({
+      corridor: {
+        width: 6,
+        carpetWidth: 99,
+      },
+    });
+
+    expect(low.config.corridor.carpetWidth).toBeCloseTo(0.12);
+    expect(high.config.corridor.carpetWidth).toBeCloseTo(5.65);
   });
 
   it("clamps out-of-range artworkTurnSmoothness values", () => {

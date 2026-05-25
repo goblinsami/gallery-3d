@@ -109,6 +109,7 @@ It includes:
 - `artworkTurnSmoothness` controls how soft the camera rotates toward artworks (`0` direct, `1` very smooth)
 - `artworkTurnKeyframes` controls how many intermediate keyframes are generated during turn-to-artwork (`2` simple, `6` very smooth)
 - `artworkTurnLeadIn` starts the turn before focus-in begins (`0` off, `0.35` early cinematic anticipation)
+- `corridor.carpetEnabled` shows/hides the central carpet (`true` visible, `false` hidden)
 - camera params
 - corridor dimensions/colors
 - title style and fade

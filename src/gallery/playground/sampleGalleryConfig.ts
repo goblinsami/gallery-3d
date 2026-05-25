@@ -32,6 +32,8 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
       wallColor: "#2b2723",
       floorColor: "#1f1a16",
       ceilingColor: "#211d1a",
+      carpetColor: "#af141b",
+      carpetWidth: 0.68,
       artworkSpacing: 12,
     },
     sceneTitleConfig: {
