@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
+    "build:runtime": "npm --prefix packages/runtime run build",
+    "sync:runtime-assets": "node scripts/copy-runtime-assets.mjs",
+    "build:all": "npm run build && npm run build:runtime && npm run sync:runtime-assets",
     "preview": "vite preview",
     "test": "vitest",
     "test:ci": "vitest --run",
@@ -20,10 +23,10 @@
     "@types/three": "^0.176.0",
     "@vitejs/plugin-vue": "^6.0.0",
     "jsdom": "^26.0.0",
+    "sass": "^1.100.0",
     "typescript": "^5.7.0",
     "vite": "^8.0.0",
     "vitest": "^3.1.0",
     "vue-tsc": "^2.2.0"
   }
 }
-

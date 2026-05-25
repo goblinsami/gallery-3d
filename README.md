@@ -172,9 +172,42 @@ No persistence is implemented.
 npm install
 npm run dev
 npm run build
+npm run build:runtime
+npm run build:all
 npm run test
 npm run test:ci
 ```
+
+## Runtime Packaging
+
+Independent packaging has been added inside this project:
+
+- `packages/runtime`: standalone Web Component runtime bundle
+- `packages/framer`: Framer Code Component wrapper (`ScrollixArtGallery.tsx`)
+
+Runtime build output:
+
+- `packages/runtime/dist/scrollix-art-gallery-runtime.js`
+- `packages/runtime/dist/scrollix-art-gallery-runtime.css`
+- `packages/runtime/dist/images/*`
+- `packages/runtime/dist/fonts/*`
+
+`npm run build:all` copies those artifacts into root `dist/`:
+
+- `dist/scrollix-art-gallery-runtime.js`
+- `dist/scrollix-art-gallery-runtime.css`
+- `dist/images/*`
+- `dist/fonts/*`
+
+## Netlify
+
+Root deployment config is in [netlify.toml](/c:/WORKSPACE/showcase/gallery-3d/netlify.toml).
+
+It includes:
+
+- build command: `npm run build:all`
+- publish dir: `dist`
+- CORS headers for runtime JS/CSS and fonts/images assets
 
 ## Future Integration Readiness
 
@@ -183,5 +216,5 @@ The runtime is isolated and configuration-driven, so adapters can later expose:
 - `<scrollix-gallery project-id="..." />`
 - `<scrollix-gallery config-json="..." />`
 
-No dependency on Scrollix Editor, Supabase or Framer APIs exists in this runtime.
+No dependency on Scrollix Editor or Supabase exists in this runtime.
 

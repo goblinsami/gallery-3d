@@ -1,0 +1,24 @@
+{
+  "name": "@scrollix-art-gallery/runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/scrollix-art-gallery-runtime.js",
+  "module": "dist/scrollix-art-gallery-runtime.js",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "gsap": "^3.12.5",
+    "three": "^0.176.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "sass": "^1.99.0",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.0"
+  }
+}
+
