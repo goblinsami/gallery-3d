@@ -1,2 +1,1 @@
-export { default as ScrollixArtGallery } from "./ScrollixArtGallery";
-
+export { default as ScrollixArtGallery } from "./ScrollixArtGallery.tsx";

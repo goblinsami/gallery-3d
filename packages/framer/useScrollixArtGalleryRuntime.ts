@@ -49,7 +49,12 @@ const waitForScriptLoad = (script: HTMLScriptElement, runtimeUrl: string) =>
     }
 
     const handleError = () => {
-      reject(new Error(`[Scrollix] Failed to load runtime module: ${runtimeUrl}`))
+      reject(
+        new Error(
+          `[Scrollix] Failed to load runtime module: ${runtimeUrl}. ` +
+            `Verify 200 status, JS MIME type, and CORS header Access-Control-Allow-Origin:*`
+        )
+      )
     }
 
     script.addEventListener('load', handleLoad, { once: true })
@@ -190,4 +195,3 @@ export const useScrollixArtGalleryRuntime = (
 
   return state
 }
-

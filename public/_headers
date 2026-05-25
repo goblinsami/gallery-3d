@@ -1,0 +1,30 @@
+/scrollix-art-gallery-runtime.js
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+  Access-Control-Allow-Headers: *
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/javascript; charset=utf-8
+
+/scrollix-art-gallery-runtime.css
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+  Access-Control-Allow-Headers: *
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: text/css; charset=utf-8
+
+/images/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+  Access-Control-Allow-Headers: *
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+  Access-Control-Allow-Headers: *
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=31536000, immutable
+

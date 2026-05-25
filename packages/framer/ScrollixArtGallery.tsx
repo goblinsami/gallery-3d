@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { addPropertyControls, ControlType } from 'framer'
-import { useScrollixArtGalleryRuntime } from './useScrollixArtGalleryRuntime'
+import { useScrollixArtGalleryRuntime } from './useScrollixArtGalleryRuntime.ts'
 import {
   DAYLIGHT_GALLERY_SAMPLE,
   MISTERY_MUSEUM_SAMPLE,
@@ -12,7 +12,7 @@ import {
   type DeepPartial,
   type LightingMode,
   type SamplePreset
-} from './gallerySamples'
+} from './gallerySamples.ts'
 
 type ArtworkSource = 'sample' | 'manual'
 type ArtworkSideControl = 'auto' | ArtworkSide
