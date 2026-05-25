@@ -226,34 +226,20 @@ export class ScrollProgressController {
     const cycleProgress = this.wrap(rawProgress, cycleLength);
     const whiteInEnd = 1 + whiteInWindow;
     const leadStart = Math.max(0, 1 - whiteLeadWindow);
-
-    if (cycleProgress <= 1) {
-      if (whiteLeadWindow > 0 && cycleProgress >= leadStart) {
-        const phase = clamp((cycleProgress - leadStart) / Math.max(0.0001, whiteLeadWindow), 0, 1);
-        return {
-          progress: cycleProgress,
-          whiteMix: 1 - Math.pow(1 - phase, 2.4),
-        };
-      }
-
-      return {
-        progress: cycleProgress,
-        whiteMix: 0,
-      };
-    }
+    const whiteInTotalWindow = Math.max(0.0001, whiteLeadWindow + whiteInWindow);
 
     if (cycleProgress <= whiteInEnd) {
-      if (whiteLeadWindow > 0) {
+      if (whiteLeadWindow > 0 && cycleProgress >= leadStart) {
+        const phase = clamp((cycleProgress - leadStart) / whiteInTotalWindow, 0, 1);
         return {
-          progress: 1,
-          whiteMix: 1,
+          progress: cycleProgress <= 1 ? cycleProgress : 1,
+          whiteMix: this.smoothstep(phase),
         };
       }
 
-      const phase = clamp((cycleProgress - 1) / whiteInWindow, 0, 1);
       return {
-        progress: 1,
-        whiteMix: 1 - Math.pow(1 - phase, 2.4),
+        progress: cycleProgress <= 1 ? cycleProgress : 1,
+        whiteMix: cycleProgress <= 1 ? 0 : this.smoothstep(clamp((cycleProgress - 1) / whiteInWindow, 0, 1)),
       };
     }
 

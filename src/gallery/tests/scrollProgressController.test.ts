@@ -50,8 +50,12 @@ describe("ScrollProgressController loop phases", () => {
     expect(states[1].whiteMix).toBeLessThan(1);
     expect(states[2].progress).toBeCloseTo(0.95);
     expect(states[2].whiteMix).toBeGreaterThan(states[1].whiteMix);
-    expect(states[3]).toEqual({ progress: 1, whiteMix: 1 });
-    expect(states[4]).toEqual({ progress: 1, whiteMix: 1 });
+    expect(states[3].progress).toBe(1);
+    expect(states[3].whiteMix).toBeGreaterThan(0.8);
+    expect(states[3].whiteMix).toBeLessThan(1);
+    expect(states[4].progress).toBe(1);
+    expect(states[4].whiteMix).toBeGreaterThan(0.95);
+    expect(states[4].whiteMix).toBeLessThanOrEqual(1);
     expect(states[5].progress).toBeGreaterThan(0);
     expect(states[5].progress).toBeLessThan(0.2);
     expect(states[5].whiteMix).toBeGreaterThan(0);

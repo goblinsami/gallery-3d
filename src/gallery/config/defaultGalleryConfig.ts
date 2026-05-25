@@ -9,7 +9,7 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   infiniteCorridor: true,
   scrollStrength: 1,
   loopWhiteAfterEndWindow: 0.05,
-  loopWhiteStartsBeforeEndWindow: 0.08,
+  loopWhiteStartsBeforeEndWindow: 0.05,
   loopWhiteFadeOutRevealWindow: 0.001,
   loopWhiteFadeOutWindow: 0.22,
   loopProgressAdvanceDuringWhiteFadeOut: 1,

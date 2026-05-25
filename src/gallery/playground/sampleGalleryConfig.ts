@@ -11,7 +11,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
     infiniteCorridor: true,
     scrollStrength: 1.35,
     loopWhiteAfterEndWindow: 0.08,
-    loopWhiteStartsBeforeEndWindow: 0.1,
+    loopWhiteStartsBeforeEndWindow: 0.07,
     loopWhiteFadeOutRevealWindow: 0.12,
     loopWhiteFadeOutWindow: 0.24,
     loopProgressAdvanceDuringWhiteFadeOut: 0.22,
