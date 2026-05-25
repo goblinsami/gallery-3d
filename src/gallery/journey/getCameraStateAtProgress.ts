@@ -2,6 +2,8 @@ import type { CameraKeyframe, CameraState } from "../types/galleryRuntime";
 import { clamp } from "../utils/clamp";
 import { inverseLerp, lerp, lerpVec3, smoothstep } from "../utils/math";
 
+const INTRO_BLEND_LINEARITY = 0.65;
+
 const resolveActiveArtwork = (
   lower: CameraKeyframe,
   upper: CameraKeyframe,
@@ -13,6 +15,10 @@ const resolveActiveArtwork = (
 
   return t < 0.5 ? lower.activeArtworkIndex : upper.activeArtworkIndex;
 };
+
+const isIntroToFirstArtworkBlend = (lower: CameraKeyframe, upper: CameraKeyframe): boolean =>
+  (lower.label === "start" && upper.label === "intro-end") ||
+  (lower.label === "intro-end" && upper.label === "artwork-0-travel-end");
 
 export const getCameraStateAtProgress = (
   keyframes: CameraKeyframe[],
@@ -59,7 +65,10 @@ export const getCameraStateAtProgress = (
   }
 
   const linearT = inverseLerp(lower.progress, upper.progress, clampedProgress);
-  const easedT = smoothstep(linearT);
+  const smoothT = smoothstep(linearT);
+  const easedT = isIntroToFirstArtworkBlend(lower, upper)
+    ? lerp(smoothT, linearT, INTRO_BLEND_LINEARITY)
+    : smoothT;
 
   return {
     position: lerpVec3(lower.position, upper.position, easedT),
