@@ -583,6 +583,17 @@ const useScrollixArtGalleryRuntime = (
 type ArtworkSource = 'sample' | 'manual'
 type ArtworkSideControl = 'auto' | ArtworkSide
 type FramerImageValue = string | { src?: string; srcSet?: string }
+type ArtworkImageOverrideValue = FramerImageValue | ArtworkImageOverrideInput
+
+interface ArtworkImageOverrideInput {
+  image?: FramerImageValue
+  artworkTitle?: string
+  artworkDescription?: string
+  sideTextEnabled?: boolean
+  sideTextEyebrow?: string
+  sideTextTitle?: string
+  sideTextDescription?: string
+}
 
 interface FramerArtworkInput {
   id: string
@@ -621,12 +632,56 @@ interface FramerArtworkInput {
   sideTextBorderWidth: number
 }
 
+interface GeometryColorsControls {
+  backgroundColor: string
+  fogColor: string
+  floorColor: string
+}
+
+interface CarpetControls {
+  enabled: boolean
+  color: string
+  width: number
+}
+
+interface TitleControls {
+  text: string
+  fontPreset: TitleFontPreset
+  customFontUrl: string
+  size: number
+  depth: number
+  maxWidth: number
+  lineHeight: number
+  color: string
+  daylightContrastEnabled: boolean
+  daylightContrastColor: string
+  daylightContrastStrength: number
+  positionX: number
+  positionY: number
+  positionZ: number
+  maxOpacity: number
+  fadeStartProgress: number
+  fadeEndProgress: number
+}
+
+interface DurationControls {
+  intro: number
+  travel: number
+  focus: number
+  return: number
+}
+
 interface ScrollixArtGalleryProps {
   style?: React.CSSProperties
   runtimeScriptUrl: string
   runtimeVersion: string
   samplePreset: SamplePreset
   artworkSource: ArtworkSource
+  artworkImageOverrides: ArtworkImageOverrideValue[]
+  geometryColors: GeometryColorsControls
+  carpet: CarpetControls
+  title: TitleControls
+  durations: DurationControls
   jsonOverrideFile: string
   customConfigJson: string
   sceneId: string
@@ -760,6 +815,74 @@ const normalizeFramerImageValue = (image: FramerImageValue | undefined): string 
   return undefined
 }
 
+interface ParsedArtworkImageOverride {
+  imageUrl?: string
+  artworkTitle?: string
+  artworkDescription?: string
+  sideTextEnabled?: boolean
+  sideTextEyebrow?: string
+  sideTextTitle?: string
+  sideTextDescription?: string
+}
+
+const normalizeArtworkImageOverride = (
+  override: ArtworkImageOverrideValue
+): ParsedArtworkImageOverride => {
+  if (typeof override === 'string') {
+    return {
+      imageUrl: normalizeFramerImageValue(override)
+    }
+  }
+
+  if (!override || typeof override !== 'object') {
+    return {}
+  }
+
+  // Legacy array format: item is directly a Framer image object { src, srcSet }.
+  if ('src' in override || 'srcSet' in override) {
+    return {
+      imageUrl: normalizeFramerImageValue(override as FramerImageValue)
+    }
+  }
+
+  const objectOverride = override as ArtworkImageOverrideInput
+  const artworkTitle = objectOverride.artworkTitle?.trim()
+  const artworkDescription = objectOverride.artworkDescription?.trim()
+  const sideTextEyebrow = objectOverride.sideTextEyebrow?.trim()
+  const sideTextTitle = objectOverride.sideTextTitle?.trim()
+  const sideTextDescription = objectOverride.sideTextDescription?.trim()
+
+  return {
+    imageUrl: normalizeFramerImageValue(objectOverride.image),
+    artworkTitle: artworkTitle && artworkTitle.length > 0 ? artworkTitle : undefined,
+    artworkDescription:
+      artworkDescription && artworkDescription.length > 0 ? artworkDescription : undefined,
+    sideTextEnabled:
+      typeof objectOverride.sideTextEnabled === 'boolean' ? objectOverride.sideTextEnabled : undefined,
+    sideTextEyebrow: sideTextEyebrow && sideTextEyebrow.length > 0 ? sideTextEyebrow : undefined,
+    sideTextTitle: sideTextTitle && sideTextTitle.length > 0 ? sideTextTitle : undefined,
+    sideTextDescription:
+      sideTextDescription && sideTextDescription.length > 0 ? sideTextDescription : undefined
+  }
+}
+
+const getArtworkImageOverrideSignature = (overrides: ArtworkImageOverrideValue[]): string =>
+  JSON.stringify(
+    overrides.map((item) => {
+      const normalized = normalizeArtworkImageOverride(item)
+      return {
+        imageUrl: normalized.imageUrl ?? '',
+        artworkTitle: normalized.artworkTitle ?? '',
+        artworkDescription: normalized.artworkDescription ?? '',
+        sideTextEnabled:
+          typeof normalized.sideTextEnabled === 'boolean' ? normalized.sideTextEnabled : null,
+        sideTextEyebrow: normalized.sideTextEyebrow ?? '',
+        sideTextTitle: normalized.sideTextTitle ?? '',
+        sideTextDescription: normalized.sideTextDescription ?? ''
+      }
+    })
+  )
+
 const normalizeExternalUrl = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim() ?? ''
   return trimmed.length > 0 ? trimmed : undefined
@@ -883,6 +1006,22 @@ const createArtworkInputFromConfig = (artwork: ArtworkConfig, index: number): Fr
 
 const DEFAULT_MANUAL_ARTWORKS: FramerArtworkInput[] = DAYLIGHT_GALLERY_SAMPLE.artworks.map(
   createArtworkInputFromConfig
+)
+const DEFAULT_ARTWORK_IMAGE_OVERRIDES: ArtworkImageOverrideInput[] = DAYLIGHT_GALLERY_SAMPLE.artworks.map(
+  (artwork) => ({
+    image: artwork.imageUrl,
+    artworkTitle: artwork.title,
+    artworkDescription: artwork.description ?? '',
+    sideTextEnabled: Boolean(
+      artwork.sideText?.eyebrow || artwork.sideText?.title || artwork.sideText?.description
+    ),
+    sideTextEyebrow: artwork.sideText?.eyebrow ?? '',
+    sideTextTitle: artwork.sideText?.title ?? '',
+    sideTextDescription: artwork.sideText?.description ?? ''
+  })
+)
+const DEFAULT_ARTWORK_IMAGE_OVERRIDES_SIGNATURE = getArtworkImageOverrideSignature(
+  DEFAULT_ARTWORK_IMAGE_OVERRIDES
 )
 
 const getArtworkSignature = (artwork: FramerArtworkInput) => ({
@@ -1058,6 +1197,141 @@ const resolveArtworks = (
   return manual.length > 0 ? manual : sampleConfig.artworks
 }
 
+const applyArtworkImageOverrides = (
+  config: ArtGallerySceneConfig,
+  imageOverrides: ArtworkImageOverrideValue[],
+  samplePreset: SamplePreset
+): ArtGallerySceneConfig => {
+  if (!Array.isArray(imageOverrides) || imageOverrides.length === 0) {
+    return config
+  }
+
+  const normalizedOverrides = imageOverrides.map((item) => normalizeArtworkImageOverride(item))
+  const hasAnyOverride = normalizedOverrides.some((item) => {
+    return Boolean(
+      item.imageUrl ||
+      item.artworkTitle ||
+      item.artworkDescription ||
+      item.sideTextEnabled !== undefined ||
+      item.sideTextEyebrow ||
+      item.sideTextTitle ||
+      item.sideTextDescription
+    )
+  })
+  if (!hasAnyOverride) {
+    return config
+  }
+
+  const normalizedOverrideUrls = normalizedOverrides.map((item) => item.imageUrl ?? '')
+  const currentImages = config.artworks.map((artwork) => artwork.imageUrl)
+  const alreadyMatchesCurrent = normalizedOverrideUrls.every(
+    (overrideUrl, index) => !overrideUrl || overrideUrl === currentImages[index]
+  )
+
+  const hasTextOverrides = normalizedOverrides.some((item) => {
+    return Boolean(
+      item.artworkTitle ||
+      item.artworkDescription ||
+      item.sideTextEnabled !== undefined ||
+      item.sideTextEyebrow ||
+      item.sideTextTitle ||
+      item.sideTextDescription
+    )
+  })
+
+  if (alreadyMatchesCurrent && !hasTextOverrides) {
+    return config
+  }
+
+  // Framer keeps defaultProps values from the initial sample preset.
+  // If sample changes from daylight to mistery and this list is still the
+  // untouched daylight default, we should not force those old images.
+  if (
+    samplePreset !== 'daylight' &&
+    getArtworkImageOverrideSignature(imageOverrides) === DEFAULT_ARTWORK_IMAGE_OVERRIDES_SIGNATURE
+  ) {
+    return config
+  }
+
+  const nextConfig = cloneConfig(config)
+
+  const ensureArtworkAt = (index: number): ArtworkConfig => {
+    const existing = nextConfig.artworks[index]
+    if (existing) return existing
+
+    const fallbackArtwork = nextConfig.artworks[nextConfig.artworks.length - 1]
+    const created: ArtworkConfig = {
+      id: `framer-art-${index + 1}`,
+      title: `Artwork ${index + 1}`,
+      description: '',
+      imageUrl: '',
+      fallbackImageUrl: fallbackArtwork?.fallbackImageUrl,
+      side: index % 2 === 0 ? 'left' : 'right',
+      width: fallbackArtwork?.width ?? 2.4,
+      height: fallbackArtwork?.height ?? 1.6,
+      frameEnabled: fallbackArtwork?.frameEnabled ?? false,
+      frameColor: fallbackArtwork?.frameColor ?? '#151515',
+      frameThickness: fallbackArtwork?.frameThickness ?? 0.14,
+      frameDepth: fallbackArtwork?.frameDepth ?? 0.06,
+      spotlightIntensity: fallbackArtwork?.spotlightIntensity ?? 1.15
+    }
+    nextConfig.artworks[index] = created
+    return created
+  }
+
+  for (let index = 0; index < normalizedOverrides.length; index += 1) {
+    const override = normalizedOverrides[index]
+    if (
+      !override.imageUrl &&
+      !override.artworkTitle &&
+      !override.artworkDescription &&
+      override.sideTextEnabled === undefined &&
+      !override.sideTextEyebrow &&
+      !override.sideTextTitle &&
+      !override.sideTextDescription
+    ) {
+      continue
+    }
+
+    const existingArtwork = nextConfig.artworks[index]
+    if (!existingArtwork && !override.imageUrl) {
+      continue
+    }
+    const currentArtwork = existingArtwork ?? ensureArtworkAt(index)
+    const nextArtwork: ArtworkConfig = {
+      ...currentArtwork,
+      imageUrl: override.imageUrl ?? currentArtwork.imageUrl,
+      title: override.artworkTitle ?? currentArtwork.title,
+      description: override.artworkDescription ?? currentArtwork.description
+    }
+
+    if (override.sideTextEnabled) {
+      nextArtwork.sideText = {
+        align: currentArtwork.sideText?.align ?? 'after',
+        width: currentArtwork.sideText?.width ?? 1.55,
+        height: currentArtwork.sideText?.height ?? 1.1,
+        gap: currentArtwork.sideText?.gap ?? 0.5,
+        offsetY: currentArtwork.sideText?.offsetY ?? 0,
+        offsetZ: currentArtwork.sideText?.offsetZ ?? 0,
+        backgroundColor: currentArtwork.sideText?.backgroundColor ?? '#0e1422',
+        textColor: currentArtwork.sideText?.textColor ?? '#f3f6fb',
+        borderEnabled: currentArtwork.sideText?.borderEnabled ?? false,
+        borderColor: currentArtwork.sideText?.borderColor ?? '#ff9e4b',
+        borderIntensity: currentArtwork.sideText?.borderIntensity ?? 1.2,
+        borderWidth: currentArtwork.sideText?.borderWidth ?? 0.035,
+        eyebrow: override.sideTextEyebrow ?? currentArtwork.sideText?.eyebrow,
+        title: override.sideTextTitle ?? currentArtwork.sideText?.title,
+        description: override.sideTextDescription ?? currentArtwork.sideText?.description
+      }
+    } else if (override.sideTextEnabled === false) {
+      nextArtwork.sideText = undefined
+    }
+
+    nextConfig.artworks[index] = nextArtwork
+  }
+  return nextConfig
+}
+
 const parseCustomConfigJson = (value: string): OverrideParseResult => {
   const trimmed = value.trim()
   if (!trimmed) return { parsed: null, error: null }
@@ -1123,15 +1397,19 @@ const buildGalleryConfig = (
 ): BuildConfigResult => {
   const sampleConfig = sampleConfigs[props.samplePreset]
   const controlsBaseline = cloneConfig(sampleConfigs.daylight)
-  const selectedTitleFontUrl = resolveTitleFontUrl(props.titleFontPreset, props.titleFontUrl)
+  const geometryColors = props.geometryColors
+  const carpet = props.carpet
+  const title = props.title
+  const durations = props.durations
+  const selectedTitleFontUrl = resolveTitleFontUrl(title.fontPreset, title.customFontUrl)
 
   const overrideConfig: DeepPartial<ArtGallerySceneConfig> = {
     id: props.sceneId.trim() || controlsBaseline.id,
-    sceneTitle: props.sceneTitle.trim() || controlsBaseline.sceneTitle,
+    sceneTitle: title.text.trim() || props.sceneTitle.trim() || controlsBaseline.sceneTitle,
     lightingMode: props.lightingMode,
     infiniteCorridor: props.infiniteCorridor,
-    sceneBackgroundColor: props.sceneBackgroundColor,
-    sceneFogColor: props.sceneFogColor,
+    sceneBackgroundColor: geometryColors.backgroundColor,
+    sceneFogColor: geometryColors.fogColor,
     ceilingSpotsEnabled: props.ceilingSpotsEnabled,
     ceilingSpotsColor: props.ceilingSpotsColor,
     ceilingSpotsIntensity: props.ceilingSpotsIntensity,
@@ -1161,37 +1439,36 @@ const buildGalleryConfig = (
       height: props.corridorHeight,
       segmentLength: props.corridorSegmentLength,
       wallColor: props.corridorWallColor,
-      floorColor: props.corridorFloorColor,
+      floorColor: geometryColors.floorColor,
       ceilingColor: props.corridorCeilingColor,
-      carpetEnabled: props.corridorCarpetEnabled,
-      carpetWidth: props.corridorCarpetWidth,
-      carpetColor: props.corridorCarpetColor,
+      carpetEnabled: carpet.enabled,
+      carpetWidth: carpet.width,
+      carpetColor: carpet.color,
       artworkSpacing: props.corridorArtworkSpacing,
       wallThickness: props.corridorWallThickness,
       artworkInset: props.corridorArtworkInset
     },
     sceneTitleConfig: {
       fontUrl: selectedTitleFontUrl,
-      size: props.titleSize,
-      depth: props.titleDepth,
-      maxWidth: props.titleMaxWidth,
-      lineHeight: props.titleLineHeight,
-      color: props.titleColor,
-      daylightContrastEnabled: props.titleDaylightContrastEnabled,
-      daylightContrastColor: props.titleDaylightContrastColor,
-      daylightContrastStrength: props.titleDaylightContrastStrength,
-      position: [props.titlePositionX, props.titlePositionY, props.titlePositionZ],
-      maxOpacity: props.titleMaxOpacity,
-      fadeStartProgress: props.titleFadeStartProgress,
-      fadeEndProgress: props.titleFadeEndProgress
+      size: title.size,
+      depth: title.depth,
+      maxWidth: title.maxWidth,
+      lineHeight: title.lineHeight,
+      color: title.color,
+      daylightContrastEnabled: title.daylightContrastEnabled,
+      daylightContrastColor: title.daylightContrastColor,
+      daylightContrastStrength: title.daylightContrastStrength,
+      position: [title.positionX, title.positionY, title.positionZ],
+      maxOpacity: title.maxOpacity,
+      fadeStartProgress: title.fadeStartProgress,
+      fadeEndProgress: title.fadeEndProgress
     },
     timings: {
-      introDuration: props.timingIntroDuration,
-      travelDuration: props.timingTravelDuration,
-      focusDuration: props.timingFocusDuration,
-      returnDuration: props.timingReturnDuration
-    },
-    artworks: resolveArtworks(props.artworkSource, props.artworks, controlsBaseline)
+      introDuration: durations.intro,
+      travelDuration: durations.travel,
+      focusDuration: durations.focus,
+      returnDuration: durations.return
+    }
   }
 
   const withControlOverrides = deepMerge(
@@ -1214,28 +1491,45 @@ const buildGalleryConfig = (
     }
   ) as unknown as ArtGallerySceneConfig
 
+  const withArtworkControls = deepMerge(
+    withFontSelection as unknown as Record<string, unknown>,
+    {
+      artworks: resolveArtworks(props.artworkSource, props.artworks, withFontSelection)
+    }
+  ) as unknown as ArtGallerySceneConfig
+
   const withFileOverride = fileOverride.parsed
     ? (deepMerge(
-        withFontSelection as unknown as Record<string, unknown>,
+        withArtworkControls as unknown as Record<string, unknown>,
         fileOverride.parsed
       ) as unknown as ArtGallerySceneConfig)
-    : withFontSelection
+    : withArtworkControls
 
   const parsedOverride = parseCustomConfigJson(props.customConfigJson)
   if (!parsedOverride.parsed) {
     const parseError = parsedOverride.error ?? fileOverride.error
+    const withImageOverrides = applyArtworkImageOverrides(
+      withFileOverride,
+      props.artworkImageOverrides,
+      props.samplePreset
+    )
     return {
-      config: withFileOverride,
+      config: withImageOverrides,
       parseError
     }
   }
 
-  const finalConfig = deepMerge(
+  const mergedConfig = deepMerge(
     withFileOverride as unknown as Record<string, unknown>,
     parsedOverride.parsed
+  ) as unknown as ArtGallerySceneConfig
+  const finalConfig = applyArtworkImageOverrides(
+    mergedConfig,
+    props.artworkImageOverrides,
+    props.samplePreset
   )
   return {
-    config: finalConfig as unknown as ArtGallerySceneConfig,
+    config: finalConfig,
     parseError: fileOverride.error
   }
 }
@@ -1384,6 +1678,7 @@ ScrollixArtGallery.defaultProps = {
   runtimeVersion: DEFAULT_RUNTIME_VERSION,
   samplePreset: 'daylight',
   artworkSource: 'sample',
+  artworkImageOverrides: DEFAULT_ARTWORK_IMAGE_OVERRIDES,
   jsonOverrideFile: '',
   customConfigJson: '',
   sceneId: DAYLIGHT_GALLERY_SAMPLE.id,
@@ -1479,6 +1774,52 @@ addPropertyControls(ScrollixArtGallery, {
     defaultValue: 'sample',
     description:
       'Template + Edit usa el sample como base y permite editar cada obra desde Framer.'
+  },
+  artworkImageOverrides: {
+    type: ControlType.Array,
+    title: 'Artwork Images',
+    maxCount: 48,
+    description:
+      'Imagen + texto por indice. Edita aqui upload, titulo, descripcion y side text.',
+    control: {
+      type: ControlType.Object,
+      controls: {
+        image: {
+          type: ControlType.Image,
+          title: 'Image'
+        },
+        artworkTitle: {
+          type: ControlType.String,
+          title: 'Title'
+        },
+        artworkDescription: {
+          type: ControlType.String,
+          title: 'Description',
+          displayTextArea: true
+        },
+        sideTextEnabled: {
+          type: ControlType.Boolean,
+          title: 'Side Text',
+          defaultValue: false
+        },
+        sideTextEyebrow: {
+          type: ControlType.String,
+          title: 'Eyebrow',
+          hidden: (item: ArtworkImageOverrideInput) => !item.sideTextEnabled
+        },
+        sideTextTitle: {
+          type: ControlType.String,
+          title: 'Text Title',
+          hidden: (item: ArtworkImageOverrideInput) => !item.sideTextEnabled
+        },
+        sideTextDescription: {
+          type: ControlType.String,
+          title: 'Text Desc',
+          displayTextArea: true,
+          hidden: (item: ArtworkImageOverrideInput) => !item.sideTextEnabled
+        }
+      }
+    }
   },
   jsonOverrideFile: {
     type: ControlType.File,
@@ -1943,14 +2284,10 @@ addPropertyControls(ScrollixArtGallery, {
     title: 'Artworks',
     maxCount: 48,
     description:
-      'Editar imagen/título/texto por obra y añadir más obras de forma nativa.',
+      'Editar contenido y estilo por obra. Las imagenes se suben en Artwork Images.',
     control: {
       type: ControlType.Object,
       controls: {
-        imageUpload: {
-          type: ControlType.Image,
-          title: 'Image'
-        },
         id: {
           type: ControlType.String,
           title: 'ID',
@@ -2154,4 +2491,6 @@ addPropertyControls(ScrollixArtGallery, {
 })
 
 export default ScrollixArtGallery
+
+
 
