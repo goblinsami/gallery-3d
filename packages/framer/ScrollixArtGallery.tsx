@@ -300,6 +300,71 @@ const SAMPLE_CONFIGS = {
 } as const
 
 type SamplePreset = keyof typeof SAMPLE_CONFIGS
+type SampleConfigMap = Record<SamplePreset, ArtGallerySceneConfig>
+
+const TEMPLATE_PATHS: Record<SamplePreset, string> = {
+  daylight: './templates/daylight-gallery.json',
+  mistery: './templates/mistery-museum.json'
+}
+
+const isValidSceneConfig = (value: unknown): value is ArtGallerySceneConfig => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const candidate = value as Partial<ArtGallerySceneConfig>
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.sceneTitle === 'string' &&
+    candidate.camera !== undefined &&
+    candidate.corridor !== undefined &&
+    Array.isArray(candidate.artworks)
+  )
+}
+
+const resolveTemplateUrl = (relativePath: string): string | null => {
+  try {
+    return new URL(relativePath, import.meta.url).toString()
+  } catch (_error) {
+    return null
+  }
+}
+
+const loadTemplateConfigFromPath = async (
+  preset: SamplePreset,
+  fallback: ArtGallerySceneConfig
+): Promise<ArtGallerySceneConfig> => {
+  const templateUrl = resolveTemplateUrl(TEMPLATE_PATHS[preset])
+  if (!templateUrl) {
+    return fallback
+  }
+
+  try {
+    const response = await fetch(templateUrl, { cache: 'no-store' })
+    if (!response.ok) {
+      return fallback
+    }
+
+    const parsed = (await response.json()) as unknown
+    return isValidSceneConfig(parsed) ? parsed : fallback
+  } catch (_error) {
+    return fallback
+  }
+}
+
+const loadTemplateConfigs = async (fallbackConfigs: SampleConfigMap): Promise<SampleConfigMap> => {
+  const [daylight, mistery] = await Promise.all([
+    loadTemplateConfigFromPath('daylight', fallbackConfigs.daylight),
+    loadTemplateConfigFromPath('mistery', fallbackConfigs.mistery)
+  ])
+
+  return {
+    daylight,
+    mistery
+  }
+}
+
+const cloneSampleConfigs = (): SampleConfigMap => ({
+  daylight: cloneConfig(SAMPLE_CONFIGS.daylight),
+  mistery: cloneConfig(SAMPLE_CONFIGS.mistery)
+})
 
 
 const RUNTIME_SCRIPT_ATTR = 'data-scrollix-runtime-url'
@@ -540,6 +605,7 @@ interface ScrollixArtGalleryProps {
   runtimeVersion: string
   samplePreset: SamplePreset
   artworkSource: ArtworkSource
+  jsonOverrideFile: string
   customConfigJson: string
   sceneId: string
   sceneTitle: string
@@ -610,6 +676,11 @@ interface BuildConfigResult {
   parseError: string | null
 }
 
+interface OverrideParseResult {
+  parsed: DeepPartial<ArtGallerySceneConfig> | null
+  error: string | null
+}
+
 interface ScrollixArtGalleryRuntimeApi {
   init?: (options?: Record<string, unknown>) => unknown
   registerWebComponents?: () => unknown
@@ -634,7 +705,7 @@ declare global {
 }
 
 const SCROLLIX_ART_GALLERY_TAG = 'scrollix-art-gallery'
-const DEFAULT_RUNTIME_SCRIPT_URL = 'https://cdn.scrollix.app/scrollix-art-gallery-runtime.js'
+const DEFAULT_RUNTIME_SCRIPT_URL = 'https://celadon-lily-f8f07b.netlify.app/scrollix-art-gallery-runtime.js'
 const DEFAULT_RUNTIME_VERSION = 'auto'
 const RUNTIME_VERSION_AUTO = 'auto'
 const FRAMER_PREVIEW_HOST_TOKENS = ['framercanvas.com']
@@ -837,7 +908,7 @@ const resolveArtworks = (
   return manual.length > 0 ? manual : sampleConfig.artworks
 }
 
-const parseCustomConfigJson = (value: string): { parsed: DeepPartial<ArtGallerySceneConfig> | null; error: string | null } => {
+const parseCustomConfigJson = (value: string): OverrideParseResult => {
   const trimmed = value.trim()
   if (!trimmed) return { parsed: null, error: null }
 
@@ -858,13 +929,54 @@ const parseCustomConfigJson = (value: string): { parsed: DeepPartial<ArtGalleryS
   }
 }
 
-const buildGalleryConfig = (props: ScrollixArtGalleryProps): BuildConfigResult => {
-  const sampleConfig = props.samplePreset === 'mistery' ? MISTERY_MUSEUM_SAMPLE : DAYLIGHT_GALLERY_SAMPLE
-  const baseConfig = cloneConfig(sampleConfig)
+const loadJsonOverrideFromUrl = async (url: string): Promise<OverrideParseResult> => {
+  const trimmed = url.trim()
+  if (!trimmed) {
+    return { parsed: null, error: null }
+  }
+
+  try {
+    const response = await fetch(trimmed, { cache: 'no-store' })
+    if (!response.ok) {
+      return {
+        parsed: null,
+        error: `[Scrollix] JSON Override File request failed (${response.status}).`
+      }
+    }
+
+    const text = await response.text()
+    const parsed = parseCustomConfigJson(text)
+    if (!parsed.parsed) {
+      return {
+        parsed: null,
+        error: parsed.error
+          ? `[Scrollix] JSON Override File invalid: ${parsed.error}`
+          : '[Scrollix] JSON Override File invalid.'
+      }
+    }
+
+    return parsed
+  } catch (error) {
+    return {
+      parsed: null,
+      error: error instanceof Error
+        ? `[Scrollix] JSON Override File load failed: ${error.message}`
+        : '[Scrollix] JSON Override File load failed.'
+    }
+  }
+}
+
+const buildGalleryConfig = (
+  props: ScrollixArtGalleryProps,
+  sampleConfigs: SampleConfigMap,
+  fileOverride: OverrideParseResult
+): BuildConfigResult => {
+  const sampleConfig = sampleConfigs[props.samplePreset]
+  const controlsBaseline = cloneConfig(sampleConfigs.daylight)
 
   const overrideConfig: DeepPartial<ArtGallerySceneConfig> = {
-    id: props.sceneId.trim() || baseConfig.id,
-    sceneTitle: props.sceneTitle.trim() || baseConfig.sceneTitle,
+    id: props.sceneId.trim() || controlsBaseline.id,
+    sceneTitle: props.sceneTitle.trim() || controlsBaseline.sceneTitle,
     lightingMode: props.lightingMode,
     infiniteCorridor: props.infiniteCorridor,
     sceneBackgroundColor: props.sceneBackgroundColor,
@@ -928,24 +1040,43 @@ const buildGalleryConfig = (props: ScrollixArtGalleryProps): BuildConfigResult =
       focusDuration: props.timingFocusDuration,
       returnDuration: props.timingReturnDuration
     },
-    artworks: resolveArtworks(props.artworkSource, props.artworks, baseConfig)
+    artworks: resolveArtworks(props.artworkSource, props.artworks, controlsBaseline)
   }
 
-  const merged = deepMerge(baseConfig as unknown as Record<string, unknown>, overrideConfig)
-  const withOverrides = merged as unknown as ArtGallerySceneConfig
+  const withControlOverrides = deepMerge(
+    controlsBaseline as unknown as Record<string, unknown>,
+    overrideConfig
+  ) as unknown as ArtGallerySceneConfig
+
+  // Sample selector behaves as a direct JSON override layer.
+  const withSampleOverride = deepMerge(
+    withControlOverrides as unknown as Record<string, unknown>,
+    sampleConfig
+  ) as unknown as ArtGallerySceneConfig
+
+  const withFileOverride = fileOverride.parsed
+    ? (deepMerge(
+        withSampleOverride as unknown as Record<string, unknown>,
+        fileOverride.parsed
+      ) as unknown as ArtGallerySceneConfig)
+    : withSampleOverride
 
   const parsedOverride = parseCustomConfigJson(props.customConfigJson)
   if (!parsedOverride.parsed) {
+    const parseError = parsedOverride.error ?? fileOverride.error
     return {
-      config: withOverrides,
-      parseError: parsedOverride.error
+      config: withFileOverride,
+      parseError
     }
   }
 
-  const finalConfig = deepMerge(withOverrides as unknown as Record<string, unknown>, parsedOverride.parsed)
+  const finalConfig = deepMerge(
+    withFileOverride as unknown as Record<string, unknown>,
+    parsedOverride.parsed
+  )
   return {
     config: finalConfig as unknown as ArtGallerySceneConfig,
-    parseError: null
+    parseError: fileOverride.error
   }
 }
 
@@ -956,6 +1087,38 @@ const buildGalleryConfig = (props: ScrollixArtGalleryProps): BuildConfigResult =
  * @framerIntrinsicHeight 760
  */
 function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
+  const [sampleConfigs, setSampleConfigs] = React.useState<SampleConfigMap>(() => cloneSampleConfigs())
+  const [fileOverride, setFileOverride] = React.useState<OverrideParseResult>({
+    parsed: null,
+    error: null
+  })
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    void loadTemplateConfigs(cloneSampleConfigs()).then((loaded) => {
+      if (cancelled) return
+      setSampleConfigs(loaded)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    void loadJsonOverrideFromUrl(props.jsonOverrideFile).then((result) => {
+      if (cancelled) return
+      setFileOverride(result)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [props.jsonOverrideFile])
+
   const autoRuntimeVersion = React.useMemo(() => getAutoRuntimeVersion(), [])
   const resolvedRuntimeScriptUrl = React.useMemo(
     () => resolveRuntimeUrl(props.runtimeScriptUrl, props.runtimeVersion, autoRuntimeVersion),
@@ -968,7 +1131,10 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
   const [runtimeInitialized, setRuntimeInitialized] = React.useState(false)
   const [runtimeInitError, setRuntimeInitError] = React.useState<string | null>(null)
 
-  const buildResult = React.useMemo(() => buildGalleryConfig(props), [props])
+  const buildResult = React.useMemo(
+    () => buildGalleryConfig(props, sampleConfigs, fileOverride),
+    [props, sampleConfigs, fileOverride]
+  )
   const payload = React.useMemo(() => JSON.stringify(buildResult.config), [buildResult.config])
 
   const frameStyle = React.useMemo<React.CSSProperties>(
@@ -1058,6 +1224,7 @@ ScrollixArtGallery.defaultProps = {
   runtimeVersion: DEFAULT_RUNTIME_VERSION,
   samplePreset: 'daylight',
   artworkSource: 'sample',
+  jsonOverrideFile: '',
   customConfigJson: '',
   sceneId: DAYLIGHT_GALLERY_SAMPLE.id,
   sceneTitle: DAYLIGHT_GALLERY_SAMPLE.sceneTitle,
@@ -1149,6 +1316,11 @@ addPropertyControls(ScrollixArtGallery, {
     options: ['sample', 'manual'],
     optionTitles: ['Sample', 'Manual'],
     defaultValue: 'sample'
+  },
+  jsonOverrideFile: {
+    type: ControlType.File,
+    title: 'JSON File',
+    allowedFileTypes: ['json']
   },
   customConfigJson: {
     type: ControlType.String,
