@@ -4,6 +4,7 @@ import { addPropertyControls, ControlType } from 'framer'
 type LightingMode = 'contrast' | 'day'
 type ArtworkSide = 'left' | 'right'
 type Vec3 = [number, number, number]
+type TitleFontPreset = 'helvetiker' | 'droidSerif' | 'optimer' | 'gentilis' | 'custom'
 
 interface ArtworkMetadata {
   artist?: string
@@ -301,6 +302,21 @@ const SAMPLE_CONFIGS = {
 
 type SamplePreset = keyof typeof SAMPLE_CONFIGS
 type SampleConfigMap = Record<SamplePreset, ArtGallerySceneConfig>
+
+const TITLE_FONT_PRESET_URLS: Record<Exclude<TitleFontPreset, 'custom'>, string> = {
+  helvetiker: '/fonts/helvetiker_regular.typeface.json',
+  droidSerif: '/fonts/droid_serif_regular.typeface.json',
+  optimer: '/fonts/optimer_regular.typeface.json',
+  gentilis: '/fonts/gentilis_regular.typeface.json'
+}
+
+const resolveTitleFontUrl = (preset: TitleFontPreset, customUrl: string): string => {
+  if (preset === 'custom') {
+    const trimmed = customUrl.trim()
+    return trimmed || TITLE_FONT_PRESET_URLS.helvetiker
+  }
+  return TITLE_FONT_PRESET_URLS[preset]
+}
 
 const TEMPLATE_PATHS: Record<SamplePreset, string> = {
   daylight: './templates/daylight-gallery.json',
@@ -649,6 +665,7 @@ interface ScrollixArtGalleryProps {
   corridorCarpetEnabled: boolean
   corridorCarpetWidth: number
   corridorCarpetColor: string
+  titleFontPreset: TitleFontPreset
   titleFontUrl: string
   titleSize: number
   titleDepth: number
@@ -973,6 +990,7 @@ const buildGalleryConfig = (
 ): BuildConfigResult => {
   const sampleConfig = sampleConfigs[props.samplePreset]
   const controlsBaseline = cloneConfig(sampleConfigs.daylight)
+  const selectedTitleFontUrl = resolveTitleFontUrl(props.titleFontPreset, props.titleFontUrl)
 
   const overrideConfig: DeepPartial<ArtGallerySceneConfig> = {
     id: props.sceneId.trim() || controlsBaseline.id,
@@ -1020,7 +1038,7 @@ const buildGalleryConfig = (
       artworkInset: props.corridorArtworkInset
     },
     sceneTitleConfig: {
-      fontUrl: props.titleFontUrl,
+      fontUrl: selectedTitleFontUrl,
       size: props.titleSize,
       depth: props.titleDepth,
       maxWidth: props.titleMaxWidth,
@@ -1054,12 +1072,21 @@ const buildGalleryConfig = (
     sampleConfig
   ) as unknown as ArtGallerySceneConfig
 
+  const withFontSelection = deepMerge(
+    withSampleOverride as unknown as Record<string, unknown>,
+    {
+      sceneTitleConfig: {
+        fontUrl: selectedTitleFontUrl
+      }
+    }
+  ) as unknown as ArtGallerySceneConfig
+
   const withFileOverride = fileOverride.parsed
     ? (deepMerge(
-        withSampleOverride as unknown as Record<string, unknown>,
+        withFontSelection as unknown as Record<string, unknown>,
         fileOverride.parsed
       ) as unknown as ArtGallerySceneConfig)
-    : withSampleOverride
+    : withFontSelection
 
   const parsedOverride = parseCustomConfigJson(props.customConfigJson)
   if (!parsedOverride.parsed) {
@@ -1268,6 +1295,7 @@ ScrollixArtGallery.defaultProps = {
   corridorCarpetEnabled: DAYLIGHT_GALLERY_SAMPLE.corridor.carpetEnabled,
   corridorCarpetWidth: DAYLIGHT_GALLERY_SAMPLE.corridor.carpetWidth,
   corridorCarpetColor: DAYLIGHT_GALLERY_SAMPLE.corridor.carpetColor,
+  titleFontPreset: 'helvetiker',
   titleFontUrl: DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig.fontUrl,
   titleSize: DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig.size,
   titleDepth: DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig.depth,
@@ -1621,10 +1649,24 @@ addPropertyControls(ScrollixArtGallery, {
     title: 'Carpet C',
     defaultValue: DAYLIGHT_GALLERY_SAMPLE.corridor.carpetColor
   },
+  titleFontPreset: {
+    type: ControlType.Enum,
+    title: 'Font',
+    options: ['helvetiker', 'droidSerif', 'optimer', 'gentilis', 'custom'],
+    optionTitles: [
+      'Helvetiker',
+      'Droid Serif (Times)',
+      'Optimer',
+      'Gentilis',
+      'Custom URL'
+    ],
+    defaultValue: 'helvetiker'
+  },
   titleFontUrl: {
     type: ControlType.String,
-    title: 'Font URL',
-    defaultValue: DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig.fontUrl
+    title: 'Custom Font URL',
+    defaultValue: DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig.fontUrl,
+    hidden: (props: ScrollixArtGalleryProps) => props.titleFontPreset !== 'custom'
   },
   titleSize: {
     type: ControlType.Number,
