@@ -1,18 +1,502 @@
 import * as React from 'react'
 import { addPropertyControls, ControlType } from 'framer'
-import { useScrollixArtGalleryRuntime } from './useScrollixArtGalleryRuntime.ts'
-import {
-  DAYLIGHT_GALLERY_SAMPLE,
-  MISTERY_MUSEUM_SAMPLE,
-  SAMPLE_CONFIGS,
-  type ArtGallerySceneConfig,
-  type ArtworkConfig,
-  type ArtworkSide,
-  type ArtworkSideTextAlign,
-  type DeepPartial,
-  type LightingMode,
-  type SamplePreset
-} from './gallerySamples.ts'
+
+type LightingMode = 'contrast' | 'day'
+type ArtworkSide = 'left' | 'right'
+type Vec3 = [number, number, number]
+
+interface ArtworkMetadata {
+  artist?: string
+  year?: string
+  medium?: string
+  tags?: string[]
+}
+
+type ArtworkSideTextAlign = 'before' | 'after'
+
+interface ArtworkSideTextConfig {
+  eyebrow?: string
+  title?: string
+  description?: string
+  width?: number
+  height?: number
+  gap?: number
+  offsetY?: number
+  offsetZ?: number
+  align?: ArtworkSideTextAlign
+  backgroundColor?: string
+  textColor?: string
+  borderEnabled?: boolean
+  borderColor?: string
+  borderIntensity?: number
+  borderWidth?: number
+}
+
+interface ArtworkConfig {
+  id: string
+  title: string
+  description?: string
+  imageUrl: string
+  fallbackImageUrl?: string
+  side?: ArtworkSide
+  width?: number
+  height?: number
+  frameEnabled?: boolean
+  frameColor?: string
+  frameThickness?: number
+  frameDepth?: number
+  spotlightIntensity?: number
+  sideText?: ArtworkSideTextConfig
+  metadata?: ArtworkMetadata
+}
+
+interface SceneTitleConfig {
+  fontUrl: string
+  size: number
+  depth: number
+  maxWidth: number
+  lineHeight: number
+  color: string
+  daylightContrastEnabled: boolean
+  daylightContrastColor: string
+  daylightContrastStrength: number
+  position: Vec3
+  maxOpacity: number
+  fadeStartProgress: number
+  fadeEndProgress: number
+}
+
+interface GalleryCameraConfig {
+  fov: number
+  startPosition: Vec3
+  height: number
+  movementSmoothing: number
+  near: number
+  far: number
+}
+
+interface GalleryCorridorConfig {
+  width: number
+  height: number
+  segmentLength: number
+  wallColor: string
+  floorColor: string
+  ceilingColor: string
+  carpetEnabled: boolean
+  carpetWidth: number
+  carpetColor: string
+  artworkSpacing: number
+  wallThickness: number
+  artworkInset: number
+}
+
+interface GalleryTimingsConfig {
+  introDuration: number
+  travelDuration: number
+  focusDuration: number
+  returnDuration: number
+}
+
+interface ArtGallerySceneConfig {
+  id: string
+  sceneTitle: string
+  lightingMode: LightingMode
+  infiniteCorridor: boolean
+  sceneBackgroundColor: string
+  sceneFogColor: string
+  ceilingSpotsEnabled: boolean
+  ceilingSpotsColor: string
+  ceilingSpotsIntensity: number
+  artworkBacklightEnabled: boolean
+  artworkBacklightColor: string
+  artworkBacklightIntensity: number
+  scrollStrength: number
+  loopWhiteAfterEndWindow: number
+  loopWhiteStartsBeforeEndWindow: number
+  loopWhiteFadeOutRevealWindow: number
+  loopWhiteFadeOutWindow: number
+  loopProgressAdvanceDuringWhiteFadeOut: number
+  artworkFocusFill: number
+  artworkTurnSmoothness: number
+  artworkTurnKeyframes: number
+  artworkTurnLeadIn: number
+  camera: GalleryCameraConfig
+  corridor: GalleryCorridorConfig
+  sceneTitleConfig: SceneTitleConfig
+  artworks: ArtworkConfig[]
+  timings: GalleryTimingsConfig
+}
+
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends (infer U)[]
+    ? DeepPartial<U>[]
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K]
+}
+
+const DAYLIGHT_GALLERY_SAMPLE: ArtGallerySceneConfig = {
+  id: 'daylight-galery',
+  sceneTitle: 'DayLight galery',
+  lightingMode: 'day',
+  infiniteCorridor: true,
+  sceneBackgroundColor: '#e6ebf3',
+  sceneFogColor: '#e7ecf3',
+  ceilingSpotsEnabled: false,
+  ceilingSpotsColor: '#91ff00',
+  ceilingSpotsIntensity: 0.9,
+  artworkBacklightEnabled: false,
+  artworkBacklightColor: '#ffb36b',
+  artworkBacklightIntensity: 1.1,
+  scrollStrength: 1,
+  loopWhiteAfterEndWindow: 0.14,
+  loopWhiteStartsBeforeEndWindow: 0.05,
+  loopWhiteFadeOutRevealWindow: 0.12,
+  loopWhiteFadeOutWindow: 0.22,
+  loopProgressAdvanceDuringWhiteFadeOut: 0.18,
+  artworkFocusFill: 0.78,
+  artworkTurnSmoothness: 0.65,
+  artworkTurnKeyframes: 4,
+  artworkTurnLeadIn: 0.2,
+  camera: {
+    fov: 52,
+    startPosition: [0, 1.7, 10],
+    height: 1.7,
+    movementSmoothing: 0.14,
+    near: 0.1,
+    far: 400
+  },
+  corridor: {
+    width: 8,
+    height: 4.2,
+    segmentLength: 12,
+    wallColor: '#d8d9dd',
+    floorColor: '#656b74',
+    ceilingColor: '#eceff4',
+    carpetEnabled: true,
+    carpetWidth: 0.72,
+    carpetColor: '#8f1319',
+    artworkSpacing: 14,
+    wallThickness: 0.24,
+    artworkInset: 0.02
+  },
+  sceneTitleConfig: {
+    fontUrl: '/fonts/helvetiker_regular.typeface.json',
+    size: 0.1,
+    depth: 0.3,
+    maxWidth: 7.2,
+    lineHeight: 1.18,
+    color: '#ffffff',
+    daylightContrastEnabled: true,
+    daylightContrastColor: '#c6c6c6',
+    daylightContrastStrength: 0.3,
+    position: [0, 1.75, 3.25],
+    maxOpacity: 1,
+    fadeStartProgress: 0.1,
+    fadeEndProgress: 0.22
+  },
+  timings: {
+    introDuration: 1.1,
+    travelDuration: 1,
+    focusDuration: 0.9,
+    returnDuration: 0.75
+  },
+  artworks: [
+    {
+      id: 'w-01',
+      title: 'Echoes of Atrium',
+      description: 'A suspended fragment of stillness.',
+      imageUrl: '/images/work1.jpg',
+      sideText: {
+        eyebrow: 'Gallery Note',
+        title: 'Echoes of Atrium',
+        description: 'A suspended fragment of stillness in atmospheric low-contrast tones.'
+      },
+      metadata: { artist: 'A. Mercer', year: '2026', medium: 'Archival Pigment' }
+    },
+    {
+      id: 'w-02',
+      title: 'Soft Geometry',
+      description: 'Planes, silence, and reflected light.',
+      imageUrl: '/images/work2.jpg',
+      sideText: {
+        eyebrow: 'Collection',
+        title: 'Soft Geometry',
+        description: 'Planes, silence and reflected light arranged in a restrained composition.',
+        align: 'before'
+      },
+      metadata: { artist: 'I. Rowan', year: '2025', medium: 'Digital C-Print' }
+    },
+    {
+      id: 'w-03',
+      title: 'Threshold #4',
+      description: 'A corridor inside another corridor.',
+      imageUrl: '/images/work3.jpg',
+      metadata: { artist: 'Noa Lane', year: '2026', medium: 'Mixed Media' }
+    },
+    {
+      id: 'w-04',
+      title: 'Monochrome Drift',
+      description: 'A cloud-like structure in muted tones.',
+      imageUrl: '/images/work4.jpg',
+      metadata: { artist: 'R. Chen', year: '2024', medium: 'Photography' }
+    }
+  ]
+}
+
+const MISTERY_MUSEUM_SAMPLE: ArtGallerySceneConfig = {
+  ...DAYLIGHT_GALLERY_SAMPLE,
+  id: 'mistery-museum',
+  sceneTitle: 'Mistery Museum',
+  lightingMode: 'contrast',
+  infiniteCorridor: true,
+  sceneBackgroundColor: '#000000',
+  sceneFogColor: '#050505',
+  ceilingSpotsEnabled: true,
+  ceilingSpotsColor: '#ff9a3d',
+  ceilingSpotsIntensity: 4,
+  artworkBacklightEnabled: true,
+  artworkBacklightColor: '#ff7a1f',
+  artworkBacklightIntensity: 4,
+  loopWhiteAfterEndWindow: 0.08,
+  loopWhiteStartsBeforeEndWindow: 0.07,
+  loopWhiteFadeOutRevealWindow: 0.12,
+  loopWhiteFadeOutWindow: 0.24,
+  loopProgressAdvanceDuringWhiteFadeOut: 0.22,
+  corridor: {
+    ...DAYLIGHT_GALLERY_SAMPLE.corridor,
+    wallColor: '#2b2723',
+    floorColor: '#1f1a16',
+    ceilingColor: '#211d1a',
+    carpetColor: '#af141b',
+    carpetWidth: 0.68,
+    artworkSpacing: 12
+  },
+  sceneTitleConfig: {
+    ...DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig,
+    color: '#d8e3f8'
+  },
+  artworks: DAYLIGHT_GALLERY_SAMPLE.artworks.map((artwork, index) => ({
+    ...artwork,
+    id: `m-${index + 1}`,
+    side: index % 2 === 0 ? 'right' : 'left',
+    frameColor: '#242b37',
+    spotlightIntensity: 1.35,
+    sideText: artwork.sideText
+      ? {
+          ...artwork.sideText,
+          borderEnabled: true,
+          borderColor: '#ff8d36',
+          borderIntensity: 2.2,
+          borderWidth: 0.04
+        }
+      : artwork.sideText
+  }))
+}
+
+const SAMPLE_CONFIGS = {
+  daylight: DAYLIGHT_GALLERY_SAMPLE,
+  mistery: MISTERY_MUSEUM_SAMPLE
+} as const
+
+type SamplePreset = keyof typeof SAMPLE_CONFIGS
+
+
+const RUNTIME_SCRIPT_ATTR = 'data-scrollix-runtime-url'
+const DEFAULT_REGISTRATION_TIMEOUT_MS = 7000
+
+interface RuntimeHookState {
+  ready: boolean
+  loading: boolean
+  error: string | null
+}
+
+const runtimeScriptPromiseByUrl = new Map<string, Promise<void>>()
+
+const getRuntimeScriptElement = (runtimeUrl: string) => {
+  const normalizedRuntimeUrl = new URL(runtimeUrl, window.location.href).href
+  const scripts = Array.from(document.querySelectorAll('script'))
+
+  return scripts.find((script) => {
+    if (!(script instanceof HTMLScriptElement)) return false
+    const taggedUrl = script.getAttribute(RUNTIME_SCRIPT_ATTR)
+    if (taggedUrl === runtimeUrl) return true
+    if (!script.src) return false
+
+    try {
+      return new URL(script.src, window.location.href).href === normalizedRuntimeUrl
+    } catch (_error) {
+      return false
+    }
+  }) as HTMLScriptElement | undefined
+}
+
+const waitForScriptLoad = (script: HTMLScriptElement, runtimeUrl: string) =>
+  new Promise<void>((resolve, reject) => {
+    if (script.getAttribute('data-scrollix-loaded') === 'true') {
+      resolve()
+      return
+    }
+
+    const readyState = (script as HTMLScriptElement & { readyState?: string }).readyState
+    if (readyState === 'loaded' || readyState === 'complete') {
+      script.setAttribute('data-scrollix-loaded', 'true')
+      resolve()
+      return
+    }
+
+    const handleLoad = () => {
+      script.setAttribute('data-scrollix-loaded', 'true')
+      resolve()
+    }
+
+    const handleError = () => {
+      reject(
+        new Error(
+          `[Scrollix] Failed to load runtime module: ${runtimeUrl}. ` +
+            `Verify 200 status, JS MIME type, and CORS header Access-Control-Allow-Origin:*`
+        )
+      )
+    }
+
+    script.addEventListener('load', handleLoad, { once: true })
+    script.addEventListener('error', handleError, { once: true })
+  })
+
+const waitForRegistration = async (tagName: string, timeoutMs: number) => {
+  if (window.customElements.get(tagName)) return
+
+  await Promise.race([
+    window.customElements.whenDefined(tagName),
+    new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(`[Scrollix] Timed out waiting for ${tagName} registration.`))
+      }, timeoutMs)
+    })
+  ])
+
+  if (!window.customElements.get(tagName)) {
+    throw new Error(`[Scrollix] ${tagName} is still not registered after module load.`)
+  }
+}
+
+const loadRuntimeModule = async (runtimeUrl: string, tagName: string) => {
+  const normalizedUrl = runtimeUrl.trim()
+  if (!normalizedUrl) return
+
+  if (window.customElements.get(tagName)) return
+
+  const key = `${normalizedUrl}::${tagName}`
+  const existingPromise = runtimeScriptPromiseByUrl.get(key)
+  if (existingPromise) {
+    await existingPromise
+    await waitForRegistration(tagName, DEFAULT_REGISTRATION_TIMEOUT_MS)
+    return
+  }
+
+  const pendingLoad = (async () => {
+    const existingScript = getRuntimeScriptElement(normalizedUrl)
+
+    if (existingScript) {
+      await waitForScriptLoad(existingScript, normalizedUrl)
+    } else {
+      const script = document.createElement('script')
+      script.type = 'module'
+      script.async = true
+      script.src = normalizedUrl
+      script.setAttribute(RUNTIME_SCRIPT_ATTR, normalizedUrl)
+
+      const loadPromise = waitForScriptLoad(script, normalizedUrl)
+      document.head.appendChild(script)
+      await loadPromise
+    }
+
+    await waitForRegistration(tagName, DEFAULT_REGISTRATION_TIMEOUT_MS)
+  })()
+
+  runtimeScriptPromiseByUrl.set(key, pendingLoad)
+
+  try {
+    await pendingLoad
+  } finally {
+    runtimeScriptPromiseByUrl.delete(key)
+  }
+}
+
+const stripRuntimeVersionParam = (runtimeUrl: string) => {
+  try {
+    const url = new URL(runtimeUrl, window.location.href)
+    url.searchParams.delete('v')
+    return url.toString()
+  } catch (_error) {
+    return runtimeUrl
+      .replace(/([?&])v=[^&]*(&|$)/, (_match, lead: string, tail: string) => {
+        if (lead === '?' && tail) return '?'
+        if (lead === '&' && tail) return '&'
+        return ''
+      })
+      .replace(/[?&]$/, '')
+  }
+}
+
+const useScrollixArtGalleryRuntime = (
+  runtimeUrl: string,
+  tagName: string
+): RuntimeHookState => {
+  const [state, setState] = React.useState<RuntimeHookState>({
+    ready: false,
+    loading: false,
+    error: null
+  })
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    const normalizedUrl = runtimeUrl.trim()
+    if (!normalizedUrl) {
+      setState({
+        ready: false,
+        loading: false,
+        error: '[Scrollix] runtimeScriptUrl is required.'
+      })
+      return
+    }
+
+    setState({ ready: false, loading: true, error: null })
+
+    const fallbackUrl = stripRuntimeVersionParam(normalizedUrl)
+    const canRetryWithoutVersion = fallbackUrl !== normalizedUrl
+
+    const loadWithFallback = async () => {
+      try {
+        await loadRuntimeModule(normalizedUrl, tagName)
+      } catch (primaryError) {
+        if (!canRetryWithoutVersion) throw primaryError
+        await loadRuntimeModule(fallbackUrl, tagName)
+      }
+    }
+
+    void loadWithFallback()
+      .then(() => {
+        if (cancelled) return
+        setState({ ready: true, loading: false, error: null })
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setState({
+          ready: false,
+          loading: false,
+          error: error instanceof Error ? error.message : '[Scrollix] runtime load failed.'
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [runtimeUrl, tagName])
+
+  return state
+}
 
 type ArtworkSource = 'sample' | 'manual'
 type ArtworkSideControl = 'auto' | ArtworkSide
@@ -1302,3 +1786,4 @@ addPropertyControls(ScrollixArtGallery, {
 })
 
 export default ScrollixArtGallery
+
