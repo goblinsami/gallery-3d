@@ -5,6 +5,7 @@ type LightingMode = 'contrast' | 'day'
 type ArtworkSide = 'left' | 'right'
 type Vec3 = [number, number, number]
 type TitleFontPreset = 'helvetiker' | 'droidSerif' | 'optimer' | 'gentilis' | 'custom'
+type ArtworkImageSourceMode = 'upload' | 'url' | 'runtimePath' | 'sample'
 
 interface ArtworkMetadata {
   artist?: string
@@ -587,6 +588,11 @@ interface FramerArtworkInput {
   id: string
   title: string
   description: string
+  imageSourceMode?: ArtworkImageSourceMode
+  imageUpload?: FramerImageValue
+  imageExternalUrl?: string
+  imageRuntimePath?: string
+  // Backward compatibility with older Framer projects.
   imageUrl?: FramerImageValue
   fallbackImageUrl?: FramerImageValue
   side: ArtworkSideControl
@@ -754,6 +760,23 @@ const normalizeFramerImageValue = (image: FramerImageValue | undefined): string 
   return undefined
 }
 
+const normalizeExternalUrl = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim() ?? ''
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+const normalizeRuntimePath = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return undefined
+  if (/^(https?:|data:|blob:)/i.test(trimmed) || trimmed.startsWith('//')) {
+    return trimmed
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed
+  }
+  return `/images/${trimmed.replace(/^\.?\//, '')}`
+}
+
 const cloneConfig = (config: ArtGallerySceneConfig): ArtGallerySceneConfig =>
   JSON.parse(JSON.stringify(config)) as ArtGallerySceneConfig
 
@@ -820,63 +843,156 @@ const resolveRuntimeUrl = (runtimeScriptUrl: string, runtimeVersion: string, aut
   }
 }
 
-const createArtworkInputFromConfig = (artwork: ArtworkConfig, index: number): FramerArtworkInput => ({
-  id: artwork.id || `art-${index + 1}`,
-  title: artwork.title || `Artwork ${index + 1}`,
-  description: artwork.description ?? '',
-  imageUrl: artwork.imageUrl,
-  fallbackImageUrl: artwork.fallbackImageUrl,
-  side: artwork.side ?? 'auto',
-  width: artwork.width ?? 2.4,
-  height: artwork.height ?? 1.6,
-  frameEnabled: artwork.frameEnabled ?? false,
-  frameColor: artwork.frameColor ?? '#151515',
-  frameThickness: artwork.frameThickness ?? 0.14,
-  frameDepth: artwork.frameDepth ?? 0.06,
-  spotlightIntensity: artwork.spotlightIntensity ?? 1.15,
-  sideTextEnabled: Boolean(artwork.sideText?.eyebrow || artwork.sideText?.title || artwork.sideText?.description),
-  sideTextEyebrow: artwork.sideText?.eyebrow ?? '',
-  sideTextTitle: artwork.sideText?.title ?? '',
-  sideTextDescription: artwork.sideText?.description ?? '',
-  sideTextAlign: artwork.sideText?.align ?? 'after',
-  sideTextWidth: artwork.sideText?.width ?? 1.55,
-  sideTextHeight: artwork.sideText?.height ?? 1.1,
-  sideTextGap: artwork.sideText?.gap ?? 0.5,
-  sideTextOffsetY: artwork.sideText?.offsetY ?? 0,
-  sideTextOffsetZ: artwork.sideText?.offsetZ ?? 0,
-  sideTextBackgroundColor: artwork.sideText?.backgroundColor ?? '#0e1422',
-  sideTextTextColor: artwork.sideText?.textColor ?? '#f3f6fb',
-  sideTextBorderEnabled: artwork.sideText?.borderEnabled ?? false,
-  sideTextBorderColor: artwork.sideText?.borderColor ?? '#ff9e4b',
-  sideTextBorderIntensity: artwork.sideText?.borderIntensity ?? 1.2,
-  sideTextBorderWidth: artwork.sideText?.borderWidth ?? 0.035
-})
+const createArtworkInputFromConfig = (artwork: ArtworkConfig, index: number): FramerArtworkInput => {
+  return {
+    id: artwork.id || `art-${index + 1}`,
+    title: artwork.title || `Artwork ${index + 1}`,
+    description: artwork.description ?? '',
+    imageSourceMode: 'upload',
+    imageUpload: artwork.imageUrl,
+    imageExternalUrl: '',
+    imageRuntimePath: '',
+    imageUrl: artwork.imageUrl,
+    fallbackImageUrl: artwork.fallbackImageUrl,
+    side: artwork.side ?? 'auto',
+    width: artwork.width ?? 2.4,
+    height: artwork.height ?? 1.6,
+    frameEnabled: artwork.frameEnabled ?? false,
+    frameColor: artwork.frameColor ?? '#151515',
+    frameThickness: artwork.frameThickness ?? 0.14,
+    frameDepth: artwork.frameDepth ?? 0.06,
+    spotlightIntensity: artwork.spotlightIntensity ?? 1.15,
+    sideTextEnabled: Boolean(artwork.sideText?.eyebrow || artwork.sideText?.title || artwork.sideText?.description),
+    sideTextEyebrow: artwork.sideText?.eyebrow ?? '',
+    sideTextTitle: artwork.sideText?.title ?? '',
+    sideTextDescription: artwork.sideText?.description ?? '',
+    sideTextAlign: artwork.sideText?.align ?? 'after',
+    sideTextWidth: artwork.sideText?.width ?? 1.55,
+    sideTextHeight: artwork.sideText?.height ?? 1.1,
+    sideTextGap: artwork.sideText?.gap ?? 0.5,
+    sideTextOffsetY: artwork.sideText?.offsetY ?? 0,
+    sideTextOffsetZ: artwork.sideText?.offsetZ ?? 0,
+    sideTextBackgroundColor: artwork.sideText?.backgroundColor ?? '#0e1422',
+    sideTextTextColor: artwork.sideText?.textColor ?? '#f3f6fb',
+    sideTextBorderEnabled: artwork.sideText?.borderEnabled ?? false,
+    sideTextBorderColor: artwork.sideText?.borderColor ?? '#ff9e4b',
+    sideTextBorderIntensity: artwork.sideText?.borderIntensity ?? 1.2,
+    sideTextBorderWidth: artwork.sideText?.borderWidth ?? 0.035
+  }
+}
 
 const DEFAULT_MANUAL_ARTWORKS: FramerArtworkInput[] = DAYLIGHT_GALLERY_SAMPLE.artworks.map(
   createArtworkInputFromConfig
 )
 
-const toArtworkConfig = (artwork: FramerArtworkInput, index: number): ArtworkConfig | null => {
-  const normalizedId = artwork.id.trim() || `framer-art-${index + 1}`
-  const normalizedTitle = artwork.title.trim()
-  const imageUrl = normalizeFramerImageValue(artwork.imageUrl)
-  const fallbackImageUrl = normalizeFramerImageValue(artwork.fallbackImageUrl)
+const getArtworkSignature = (artwork: FramerArtworkInput) => ({
+  id: artwork.id.trim(),
+  title: artwork.title.trim(),
+  description: artwork.description.trim(),
+  imageUpload: normalizeFramerImageValue(artwork.imageUpload) ?? '',
+  imageUrl: normalizeFramerImageValue(artwork.imageUrl) ?? '',
+  fallbackImageUrl: normalizeFramerImageValue(artwork.fallbackImageUrl) ?? '',
+  side: artwork.side,
+  width: artwork.width,
+  height: artwork.height,
+  frameEnabled: artwork.frameEnabled,
+  frameColor: artwork.frameColor,
+  frameThickness: artwork.frameThickness,
+  frameDepth: artwork.frameDepth,
+  spotlightIntensity: artwork.spotlightIntensity,
+  sideTextEnabled: artwork.sideTextEnabled,
+  sideTextEyebrow: artwork.sideTextEyebrow.trim(),
+  sideTextTitle: artwork.sideTextTitle.trim(),
+  sideTextDescription: artwork.sideTextDescription.trim(),
+  sideTextAlign: artwork.sideTextAlign,
+  sideTextWidth: artwork.sideTextWidth,
+  sideTextHeight: artwork.sideTextHeight,
+  sideTextGap: artwork.sideTextGap,
+  sideTextOffsetY: artwork.sideTextOffsetY,
+  sideTextOffsetZ: artwork.sideTextOffsetZ,
+  sideTextBackgroundColor: artwork.sideTextBackgroundColor,
+  sideTextTextColor: artwork.sideTextTextColor,
+  sideTextBorderEnabled: artwork.sideTextBorderEnabled,
+  sideTextBorderColor: artwork.sideTextBorderColor,
+  sideTextBorderIntensity: artwork.sideTextBorderIntensity,
+  sideTextBorderWidth: artwork.sideTextBorderWidth
+})
 
-  if (!normalizedTitle || !imageUrl) {
+const getArtworksSignature = (artworks: FramerArtworkInput[]): string =>
+  JSON.stringify(artworks.map(getArtworkSignature))
+
+const DEFAULT_MANUAL_ARTWORKS_SIGNATURE = getArtworksSignature(DEFAULT_MANUAL_ARTWORKS)
+
+const resolveArtworkImageUrl = (
+  artwork: FramerArtworkInput,
+  sampleArtwork: ArtworkConfig | undefined
+): string | undefined => {
+  const legacyImage = normalizeFramerImageValue(artwork.imageUrl)
+  const uploadImage = normalizeFramerImageValue(artwork.imageUpload)
+  const externalImage = normalizeExternalUrl(artwork.imageExternalUrl)
+  const runtimeImage = normalizeRuntimePath(artwork.imageRuntimePath)
+  const sampleImage = sampleArtwork?.imageUrl?.trim() || undefined
+  const sourceMode = artwork.imageSourceMode ?? 'upload'
+
+  if (sourceMode === 'sample') {
+    return sampleImage ?? uploadImage ?? externalImage ?? runtimeImage ?? legacyImage
+  }
+  if (sourceMode === 'url') {
+    return externalImage ?? uploadImage ?? runtimeImage ?? legacyImage ?? sampleImage
+  }
+  if (sourceMode === 'runtimePath') {
+    return runtimeImage ?? uploadImage ?? externalImage ?? legacyImage ?? sampleImage
+  }
+  return uploadImage ?? legacyImage ?? externalImage ?? runtimeImage ?? sampleImage
+}
+
+const hasSideTextContent = (sideText: ArtworkSideTextConfig | undefined): boolean =>
+  Boolean(sideText?.eyebrow || sideText?.title || sideText?.description)
+
+const toArtworkConfig = (
+  artwork: FramerArtworkInput,
+  index: number,
+  sampleArtwork: ArtworkConfig | undefined
+): ArtworkConfig | null => {
+  const normalizedId = artwork.id.trim() || `framer-art-${index + 1}`
+  const normalizedTitle = artwork.title.trim() || sampleArtwork?.title || `Artwork ${index + 1}`
+  const imageUrl = resolveArtworkImageUrl(artwork, sampleArtwork) ?? sampleArtwork?.imageUrl?.trim()
+  const fallbackImageUrl =
+    normalizeFramerImageValue(artwork.fallbackImageUrl) ?? sampleArtwork?.fallbackImageUrl
+
+  if (!imageUrl) {
     return null
   }
 
-  const side = artwork.side === 'left' || artwork.side === 'right' ? artwork.side : undefined
-  const hasSideText =
-    artwork.sideTextEnabled &&
-    (artwork.sideTextEyebrow.trim() ||
-      artwork.sideTextTitle.trim() ||
-      artwork.sideTextDescription.trim())
+  const side =
+    artwork.side === 'left' || artwork.side === 'right'
+      ? artwork.side
+      : sampleArtwork?.side
+
+  const sideTextFromControls: ArtworkSideTextConfig | undefined = artwork.sideTextEnabled
+    ? {
+        eyebrow: artwork.sideTextEyebrow.trim() || sampleArtwork?.sideText?.eyebrow,
+        title: artwork.sideTextTitle.trim() || sampleArtwork?.sideText?.title,
+        description: artwork.sideTextDescription.trim() || sampleArtwork?.sideText?.description,
+        align: artwork.sideTextAlign,
+        width: artwork.sideTextWidth,
+        height: artwork.sideTextHeight,
+        gap: artwork.sideTextGap,
+        offsetY: artwork.sideTextOffsetY,
+        offsetZ: artwork.sideTextOffsetZ,
+        backgroundColor: artwork.sideTextBackgroundColor,
+        textColor: artwork.sideTextTextColor,
+        borderEnabled: artwork.sideTextBorderEnabled,
+        borderColor: artwork.sideTextBorderColor,
+        borderIntensity: artwork.sideTextBorderIntensity,
+        borderWidth: artwork.sideTextBorderWidth
+      }
+    : undefined
 
   return {
     id: normalizedId,
     title: normalizedTitle,
-    description: artwork.description.trim() || undefined,
+    description: artwork.description.trim() || sampleArtwork?.description || undefined,
     imageUrl,
     fallbackImageUrl,
     side,
@@ -887,25 +1003,7 @@ const toArtworkConfig = (artwork: FramerArtworkInput, index: number): ArtworkCon
     frameThickness: artwork.frameThickness,
     frameDepth: artwork.frameDepth,
     spotlightIntensity: artwork.spotlightIntensity,
-    sideText: hasSideText
-      ? {
-          eyebrow: artwork.sideTextEyebrow.trim() || undefined,
-          title: artwork.sideTextTitle.trim() || undefined,
-          description: artwork.sideTextDescription.trim() || undefined,
-          align: artwork.sideTextAlign,
-          width: artwork.sideTextWidth,
-          height: artwork.sideTextHeight,
-          gap: artwork.sideTextGap,
-          offsetY: artwork.sideTextOffsetY,
-          offsetZ: artwork.sideTextOffsetZ,
-          backgroundColor: artwork.sideTextBackgroundColor,
-          textColor: artwork.sideTextTextColor,
-          borderEnabled: artwork.sideTextBorderEnabled,
-          borderColor: artwork.sideTextBorderColor,
-          borderIntensity: artwork.sideTextBorderIntensity,
-          borderWidth: artwork.sideTextBorderWidth
-        }
-      : undefined
+    sideText: hasSideTextContent(sideTextFromControls) ? sideTextFromControls : undefined
   }
 }
 
@@ -915,11 +1013,46 @@ const resolveArtworks = (
   sampleConfig: ArtGallerySceneConfig
 ) => {
   if (artworkSource === 'sample') {
-    return sampleConfig.artworks
+    const hasAnyArrayEdit = getArtworksSignature(artworks) !== DEFAULT_MANUAL_ARTWORKS_SIGNATURE
+    if (!hasAnyArrayEdit) {
+      return sampleConfig.artworks
+    }
+
+    const merged: ArtworkConfig[] = []
+    const maxLength = Math.max(sampleConfig.artworks.length, artworks.length)
+    for (let index = 0; index < maxLength; index += 1) {
+      const sampleArtwork = sampleConfig.artworks[index]
+      const manualArtwork = artworks[index]
+
+      if (!manualArtwork) {
+        if (sampleArtwork) merged.push(sampleArtwork)
+        continue
+      }
+
+      const baselineManualArtwork = DEFAULT_MANUAL_ARTWORKS[index]
+      const isEditedFromBaseline =
+        !baselineManualArtwork ||
+        JSON.stringify(getArtworkSignature(manualArtwork)) !==
+          JSON.stringify(getArtworkSignature(baselineManualArtwork))
+
+      if (!isEditedFromBaseline) {
+        if (sampleArtwork) merged.push(sampleArtwork)
+        continue
+      }
+
+      const editedArtwork = toArtworkConfig(manualArtwork, index, sampleArtwork)
+      if (editedArtwork) {
+        merged.push(editedArtwork)
+      } else if (sampleArtwork) {
+        merged.push(sampleArtwork)
+      }
+    }
+
+    return merged.length > 0 ? merged : sampleConfig.artworks
   }
 
   const manual = artworks
-    .map((artwork, index) => toArtworkConfig(artwork, index))
+    .map((artwork, index) => toArtworkConfig(artwork, index, sampleConfig.artworks[index]))
     .filter((item): item is ArtworkConfig => Boolean(item))
 
   return manual.length > 0 ? manual : sampleConfig.artworks
@@ -1342,8 +1475,10 @@ addPropertyControls(ScrollixArtGallery, {
     type: ControlType.Enum,
     title: 'Artworks',
     options: ['sample', 'manual'],
-    optionTitles: ['Sample', 'Manual'],
-    defaultValue: 'sample'
+    optionTitles: ['Template + Edit', 'Manual Only'],
+    defaultValue: 'sample',
+    description:
+      'Template + Edit usa el sample como base y permite editar cada obra desde Framer.'
   },
   jsonOverrideFile: {
     type: ControlType.File,
@@ -1806,11 +1941,16 @@ addPropertyControls(ScrollixArtGallery, {
   artworks: {
     type: ControlType.Array,
     title: 'Artworks',
-    maxCount: 24,
-    hidden: (props: ScrollixArtGalleryProps) => props.artworkSource !== 'manual',
+    maxCount: 48,
+    description:
+      'Editar imagen/título/texto por obra y añadir más obras de forma nativa.',
     control: {
       type: ControlType.Object,
       controls: {
+        imageUpload: {
+          type: ControlType.Image,
+          title: 'Image'
+        },
         id: {
           type: ControlType.String,
           title: 'ID',
@@ -1825,10 +1965,6 @@ addPropertyControls(ScrollixArtGallery, {
           type: ControlType.String,
           title: 'Description',
           displayTextArea: true
-        },
-        imageUrl: {
-          type: ControlType.Image,
-          title: 'Image'
         },
         fallbackImageUrl: {
           type: ControlType.Image,
@@ -1899,24 +2035,28 @@ addPropertyControls(ScrollixArtGallery, {
         sideTextEyebrow: {
           type: ControlType.String,
           title: 'Eyebrow',
-          defaultValue: ''
+          defaultValue: '',
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextTitle: {
           type: ControlType.String,
           title: 'Text Title',
-          defaultValue: ''
+          defaultValue: '',
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextDescription: {
           type: ControlType.String,
           title: 'Text Desc',
-          displayTextArea: true
+          displayTextArea: true,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextAlign: {
           type: ControlType.Enum,
           title: 'Text Align',
           options: ['before', 'after'],
           optionTitles: ['Before', 'After'],
-          defaultValue: 'after'
+          defaultValue: 'after',
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextWidth: {
           type: ControlType.Number,
@@ -1924,7 +2064,8 @@ addPropertyControls(ScrollixArtGallery, {
           min: 0.8,
           max: 3.6,
           step: 0.01,
-          defaultValue: 1.55
+          defaultValue: 1.55,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextHeight: {
           type: ControlType.Number,
@@ -1932,7 +2073,8 @@ addPropertyControls(ScrollixArtGallery, {
           min: 0.6,
           max: 2.6,
           step: 0.01,
-          defaultValue: 1.1
+          defaultValue: 1.1,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextGap: {
           type: ControlType.Number,
@@ -1940,7 +2082,8 @@ addPropertyControls(ScrollixArtGallery, {
           min: 0.08,
           max: 2.2,
           step: 0.01,
-          defaultValue: 0.5
+          defaultValue: 0.5,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextOffsetY: {
           type: ControlType.Number,
@@ -1948,7 +2091,8 @@ addPropertyControls(ScrollixArtGallery, {
           min: -2,
           max: 2,
           step: 0.01,
-          defaultValue: 0
+          defaultValue: 0,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextOffsetZ: {
           type: ControlType.Number,
@@ -1956,27 +2100,33 @@ addPropertyControls(ScrollixArtGallery, {
           min: -3,
           max: 3,
           step: 0.01,
-          defaultValue: 0
+          defaultValue: 0,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextBackgroundColor: {
           type: ControlType.Color,
           title: 'Text BG',
-          defaultValue: '#0e1422'
+          defaultValue: '#0e1422',
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextTextColor: {
           type: ControlType.Color,
           title: 'Text C',
-          defaultValue: '#f3f6fb'
+          defaultValue: '#f3f6fb',
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextBorderEnabled: {
           type: ControlType.Boolean,
           title: 'Text Border',
-          defaultValue: false
+          defaultValue: false,
+          hidden: (item: FramerArtworkInput) => !item.sideTextEnabled
         },
         sideTextBorderColor: {
           type: ControlType.Color,
           title: 'Border C',
-          defaultValue: '#ff9e4b'
+          defaultValue: '#ff9e4b',
+          hidden: (item: FramerArtworkInput) =>
+            !item.sideTextEnabled || !item.sideTextBorderEnabled
         },
         sideTextBorderIntensity: {
           type: ControlType.Number,
@@ -1984,7 +2134,9 @@ addPropertyControls(ScrollixArtGallery, {
           min: 0,
           max: 4,
           step: 0.01,
-          defaultValue: 1.2
+          defaultValue: 1.2,
+          hidden: (item: FramerArtworkInput) =>
+            !item.sideTextEnabled || !item.sideTextBorderEnabled
         },
         sideTextBorderWidth: {
           type: ControlType.Number,
@@ -1992,7 +2144,9 @@ addPropertyControls(ScrollixArtGallery, {
           min: 0.01,
           max: 0.16,
           step: 0.01,
-          defaultValue: 0.035
+          defaultValue: 0.035,
+          hidden: (item: FramerArtworkInput) =>
+            !item.sideTextEnabled || !item.sideTextBorderEnabled
         }
       }
     }
