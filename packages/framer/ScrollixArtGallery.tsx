@@ -12,6 +12,7 @@ type TitleFontPreset =
     | "custom"
 type ArtworkImageSourceMode = "upload" | "url" | "runtimePath" | "sample"
 type RuntimeChannel = "stable" | "beta"
+type RuntimeSourceMode = "manifest" | "legacyUrl"
 
 interface ArtworkMetadata {
     artist?: string
@@ -552,9 +553,41 @@ interface RuntimeHookState {
 }
 
 const runtimeScriptPromiseByUrl = new Map<string, Promise<void>>()
+const getBrowserHref = (): string =>
+    typeof window === "undefined" ? DEFAULT_RUNTIME_ORIGIN : window.location.href
+
+const normalizeRuntimeUrlForCompare = (runtimeUrl: string): string => {
+    try {
+        return new URL(runtimeUrl, getBrowserHref()).href
+    } catch (_error) {
+        return runtimeUrl.trim()
+    }
+}
+
+const getRuntimeUrlRegistryByTag = (): Record<string, string> => {
+    if (typeof window === "undefined") {
+        return {}
+    }
+    if (!window.__SCROLLIX_RUNTIME_TAG_RUNTIME_URLS__) {
+        window.__SCROLLIX_RUNTIME_TAG_RUNTIME_URLS__ = {}
+    }
+    return window.__SCROLLIX_RUNTIME_TAG_RUNTIME_URLS__
+}
+
+const createRuntimeConflictError = (
+    tagName: string,
+    activeRuntimeUrl: string,
+    requestedRuntimeUrl: string
+) =>
+    new Error(
+        `[Scrollix] ${tagName} is already registered with a different runtime URL.\n` +
+            `Active: ${activeRuntimeUrl}\n` +
+            `Requested: ${requestedRuntimeUrl}\n` +
+            `Use one runtime version per page (or switch Runtime Mode to manifest and keep one shared channel/version).`
+    )
 
 const getRuntimeScriptElement = (runtimeUrl: string) => {
-    const normalizedRuntimeUrl = new URL(runtimeUrl, window.location.href).href
+    const normalizedRuntimeUrl = normalizeRuntimeUrlForCompare(runtimeUrl)
     const scripts = Array.from(document.querySelectorAll("script"))
 
     return scripts.find((script) => {
@@ -565,7 +598,7 @@ const getRuntimeScriptElement = (runtimeUrl: string) => {
 
         try {
             return (
-                new URL(script.src, window.location.href).href ===
+                new URL(script.src, getBrowserHref()).href ===
                 normalizedRuntimeUrl
             )
         } catch (_error) {
@@ -632,12 +665,47 @@ const waitForRegistration = async (tagName: string, timeoutMs: number) => {
 }
 
 const loadRuntimeModule = async (runtimeUrl: string, tagName: string) => {
-    const normalizedUrl = runtimeUrl.trim()
-    if (!normalizedUrl) return
+    const trimmedRuntimeUrl = runtimeUrl.trim()
+    if (!trimmedRuntimeUrl) return
 
-    if (window.customElements.get(tagName)) return
+    const requestedRuntimeUrl = normalizeRuntimeUrlForCompare(trimmedRuntimeUrl)
+    const runtimeUrlsByTag = getRuntimeUrlRegistryByTag()
+    const existingRuntimeUrl = runtimeUrlsByTag[tagName]
+    if (existingRuntimeUrl && existingRuntimeUrl !== requestedRuntimeUrl) {
+        throw createRuntimeConflictError(
+            tagName,
+            existingRuntimeUrl,
+            requestedRuntimeUrl
+        )
+    }
 
-    const key = `${normalizedUrl}::${tagName}`
+    if (window.customElements.get(tagName)) {
+        if (!runtimeUrlsByTag[tagName]) {
+            const loadedRuntimeScript = document.querySelector(
+                `script[${RUNTIME_SCRIPT_ATTR}][data-scrollix-loaded="true"]`
+            )
+            if (loadedRuntimeScript instanceof HTMLScriptElement) {
+                const taggedUrl = loadedRuntimeScript.getAttribute(
+                    RUNTIME_SCRIPT_ATTR
+                )
+                runtimeUrlsByTag[tagName] = normalizeRuntimeUrlForCompare(
+                    taggedUrl || loadedRuntimeScript.src
+                )
+            }
+        }
+
+        runtimeUrlsByTag[tagName] = runtimeUrlsByTag[tagName] ?? requestedRuntimeUrl
+        if (runtimeUrlsByTag[tagName] !== requestedRuntimeUrl) {
+            throw createRuntimeConflictError(
+                tagName,
+                runtimeUrlsByTag[tagName],
+                requestedRuntimeUrl
+            )
+        }
+        return
+    }
+
+    const key = `${requestedRuntimeUrl}::${tagName}`
     const existingPromise = runtimeScriptPromiseByUrl.get(key)
     if (existingPromise) {
         await existingPromise
@@ -646,23 +714,24 @@ const loadRuntimeModule = async (runtimeUrl: string, tagName: string) => {
     }
 
     const pendingLoad = (async () => {
-        const existingScript = getRuntimeScriptElement(normalizedUrl)
+        const existingScript = getRuntimeScriptElement(requestedRuntimeUrl)
 
         if (existingScript) {
-            await waitForScriptLoad(existingScript, normalizedUrl)
+            await waitForScriptLoad(existingScript, requestedRuntimeUrl)
         } else {
             const script = document.createElement("script")
             script.type = "module"
             script.async = true
-            script.src = normalizedUrl
-            script.setAttribute(RUNTIME_SCRIPT_ATTR, normalizedUrl)
+            script.src = requestedRuntimeUrl
+            script.setAttribute(RUNTIME_SCRIPT_ATTR, requestedRuntimeUrl)
 
-            const loadPromise = waitForScriptLoad(script, normalizedUrl)
+            const loadPromise = waitForScriptLoad(script, requestedRuntimeUrl)
             document.head.appendChild(script)
             await loadPromise
         }
 
         await waitForRegistration(tagName, DEFAULT_REGISTRATION_TIMEOUT_MS)
+        runtimeUrlsByTag[tagName] = requestedRuntimeUrl
     })()
 
     runtimeScriptPromiseByUrl.set(key, pendingLoad)
@@ -722,6 +791,7 @@ const useScrollixArtGalleryRuntime = (
             cancelled = true
         }
     }, [
+        runtimeLocatorOptions.runtimeSourceMode,
         runtimeLocatorOptions.runtimeBaseUrl,
         runtimeLocatorOptions.runtimeManifestUrl,
         runtimeLocatorOptions.runtimeChannel,
@@ -828,6 +898,7 @@ interface DurationControls {
 
 interface ScrollixArtGalleryProps {
     style?: React.CSSProperties
+    runtimeSourceMode: RuntimeSourceMode
     runtimeBaseUrl: string
     runtimeManifestUrl: string
     runtimeChannel: RuntimeChannel
@@ -929,6 +1000,7 @@ interface ScrollixArtGalleryRuntimeApi {
 declare global {
     interface Window {
         ScrollixArtGalleryRuntime?: ScrollixArtGalleryRuntimeApi
+        __SCROLLIX_RUNTIME_TAG_RUNTIME_URLS__?: Record<string, string>
     }
 
     namespace JSX {
@@ -1088,6 +1160,191 @@ const normalizeRuntimePath = (
     return `/images/${trimmed.replace(/^\.?\//, "")}`
 }
 
+const extractFramerColorString = (value: unknown): string | null => {
+    if (typeof value === "string") {
+        const trimmed = value.trim()
+        return trimmed.length > 0 ? trimmed : null
+    }
+
+    if (!value || typeof value !== "object") {
+        return null
+    }
+
+    const tokenCandidate = value as Record<string, unknown>
+    const tokenValue = tokenCandidate.value
+    if (typeof tokenValue === "string") {
+        const trimmed = tokenValue.trim()
+        if (trimmed.length > 0) return trimmed
+    }
+
+    const lightValue = tokenCandidate.light
+    if (typeof lightValue === "string") {
+        const trimmed = lightValue.trim()
+        if (trimmed.length > 0) return trimmed
+    }
+
+    const darkValue = tokenCandidate.dark
+    if (typeof darkValue === "string") {
+        const trimmed = darkValue.trim()
+        if (trimmed.length > 0) return trimmed
+    }
+
+    return null
+}
+
+const resolveFramerColor = (fallback: string, ...candidates: unknown[]): string => {
+    for (const candidate of candidates) {
+        const resolved = extractFramerColorString(candidate)
+        if (resolved) return resolved
+    }
+    return fallback
+}
+
+interface ParsedColorRgba {
+    r: number
+    g: number
+    b: number
+    a: number
+}
+
+const clampColorByte = (value: number): number =>
+    Math.max(0, Math.min(255, Math.round(value)))
+
+const clampUnit = (value: number): number =>
+    Math.max(0, Math.min(1, value))
+
+const parseColorComponent = (value: string): number | null => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    if (trimmed.endsWith("%")) {
+        const parsedPercent = Number.parseFloat(trimmed.slice(0, -1))
+        if (!Number.isFinite(parsedPercent)) return null
+        return clampColorByte((parsedPercent / 100) * 255)
+    }
+
+    const parsed = Number.parseFloat(trimmed)
+    if (!Number.isFinite(parsed)) return null
+    return clampColorByte(parsed)
+}
+
+const parseAlphaComponent = (value: string): number | null => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    if (trimmed.endsWith("%")) {
+        const parsedPercent = Number.parseFloat(trimmed.slice(0, -1))
+        if (!Number.isFinite(parsedPercent)) return null
+        return clampUnit(parsedPercent / 100)
+    }
+
+    const parsed = Number.parseFloat(trimmed)
+    if (!Number.isFinite(parsed)) return null
+    return clampUnit(parsed)
+}
+
+const parseHexColor = (value: string): ParsedColorRgba | null => {
+    const normalized = value.trim().toLowerCase()
+    if (!normalized.startsWith("#")) return null
+
+    const hex = normalized.slice(1)
+    if (![3, 4, 6, 8].includes(hex.length)) return null
+    if (!/^[0-9a-f]+$/i.test(hex)) return null
+
+    const expandNibble = (char: string): number =>
+        Number.parseInt(char + char, 16)
+
+    if (hex.length === 3) {
+        return {
+            r: expandNibble(hex[0]),
+            g: expandNibble(hex[1]),
+            b: expandNibble(hex[2]),
+            a: 1,
+        }
+    }
+
+    if (hex.length === 4) {
+        return {
+            r: expandNibble(hex[0]),
+            g: expandNibble(hex[1]),
+            b: expandNibble(hex[2]),
+            a: clampUnit(expandNibble(hex[3]) / 255),
+        }
+    }
+
+    if (hex.length === 6) {
+        return {
+            r: Number.parseInt(hex.slice(0, 2), 16),
+            g: Number.parseInt(hex.slice(2, 4), 16),
+            b: Number.parseInt(hex.slice(4, 6), 16),
+            a: 1,
+        }
+    }
+
+    return {
+        r: Number.parseInt(hex.slice(0, 2), 16),
+        g: Number.parseInt(hex.slice(2, 4), 16),
+        b: Number.parseInt(hex.slice(4, 6), 16),
+        a: clampUnit(Number.parseInt(hex.slice(6, 8), 16) / 255),
+    }
+}
+
+const parseRgbColor = (value: string): ParsedColorRgba | null => {
+    const normalized = value.trim().toLowerCase()
+    const match = normalized.match(/^rgba?\((.+)\)$/i)
+    if (!match) return null
+
+    const inside = match[1].trim()
+    if (!inside) return null
+
+    const [rgbSegment, alphaSegment] = inside.includes("/")
+        ? inside.split("/")
+        : [inside, ""]
+
+    const parts = rgbSegment.includes(",")
+        ? rgbSegment.split(",")
+        : rgbSegment.trim().split(/\s+/)
+    if (parts.length < 3) return null
+
+    const red = parseColorComponent(parts[0])
+    const green = parseColorComponent(parts[1])
+    const blue = parseColorComponent(parts[2])
+    if (red === null || green === null || blue === null) return null
+
+    let alpha = 1
+    if (alphaSegment.trim()) {
+        const parsedAlpha = parseAlphaComponent(alphaSegment)
+        if (parsedAlpha === null) return null
+        alpha = parsedAlpha
+    } else if (parts.length >= 4) {
+        const parsedAlpha = parseAlphaComponent(parts[3])
+        if (parsedAlpha === null) return null
+        alpha = parsedAlpha
+    }
+
+    return {
+        r: red,
+        g: green,
+        b: blue,
+        a: alpha,
+    }
+}
+
+const normalizeColorForComparison = (value: string): string => {
+    const parsed =
+        parseHexColor(value) ??
+        parseRgbColor(value)
+
+    if (!parsed) {
+        return value.trim().toLowerCase()
+    }
+
+    return `${parsed.r},${parsed.g},${parsed.b},${parsed.a.toFixed(3)}`
+}
+
+const areColorValuesEqual = (left: string, right: string): boolean =>
+    normalizeColorForComparison(left) === normalizeColorForComparison(right)
+
 const cloneConfig = (config: ArtGallerySceneConfig): ArtGallerySceneConfig =>
     JSON.parse(JSON.stringify(config)) as ArtGallerySceneConfig
 
@@ -1133,6 +1390,7 @@ interface RuntimeReleaseManifest {
 }
 
 interface RuntimeLocatorOptions {
+    runtimeSourceMode: RuntimeSourceMode
     runtimeBaseUrl: string
     runtimeManifestUrl: string
     runtimeChannel: RuntimeChannel
@@ -1187,7 +1445,7 @@ const appendLegacyRuntimeQueryParams = (
     if (queryParts.length === 0) return trimmedUrl
 
     try {
-        const url = new URL(trimmedUrl, window.location.href)
+        const url = new URL(trimmedUrl, getBrowserHref())
         for (const part of queryParts) {
             const [key, value] = part.split("=")
             url.searchParams.set(key, value ?? "")
@@ -1371,8 +1629,16 @@ const resolveRuntimeScriptFromManifest = (
 const resolveRuntimeScriptUrl = async (
     options: RuntimeLocatorOptions
 ): Promise<string> => {
+    const useLegacyRuntimeUrl = options.runtimeSourceMode === "legacyUrl"
     const manualRuntimeScriptUrl = options.runtimeScriptUrl.trim()
-    if (manualRuntimeScriptUrl) {
+
+    if (useLegacyRuntimeUrl && !manualRuntimeScriptUrl) {
+        throw new Error(
+            "[Scrollix] runtimeScriptUrl is required when Runtime Mode is Legacy URL."
+        )
+    }
+
+    if (useLegacyRuntimeUrl && manualRuntimeScriptUrl) {
         return appendLegacyRuntimeQueryParams(
             manualRuntimeScriptUrl,
             options.runtimeVersion,
@@ -1932,29 +2198,65 @@ const buildGalleryConfig = (
 ): BuildConfigResult => {
     const sampleConfig = sampleConfigs[props.samplePreset]
     const controlsBaseline = cloneConfig(sampleConfigs.daylight)
+
+    const resolvedSceneBackgroundColor = resolveFramerColor(
+        controlsBaseline.sceneBackgroundColor,
+        props.geometryColors?.backgroundColor,
+        props.sceneBackgroundColor
+    )
+    const resolvedSceneFogColor = resolveFramerColor(
+        controlsBaseline.sceneFogColor,
+        props.geometryColors?.fogColor,
+        props.sceneFogColor
+    )
+    const resolvedFloorColor = resolveFramerColor(
+        controlsBaseline.corridor.floorColor,
+        props.geometryColors?.floorColor,
+        props.corridorFloorColor
+    )
+    const resolvedCarpetColor = resolveFramerColor(
+        controlsBaseline.corridor.carpetColor,
+        props.carpet?.color,
+        props.corridorCarpetColor
+    )
+    const resolvedTitleColor = resolveFramerColor(
+        controlsBaseline.sceneTitleConfig.color,
+        props.title?.color,
+        props.titleColor
+    )
+    const resolvedTitleDaylightContrastColor = resolveFramerColor(
+        controlsBaseline.sceneTitleConfig.daylightContrastColor,
+        props.title?.daylightContrastColor,
+        props.titleDaylightContrastColor
+    )
+    const resolvedCeilingSpotsColor = resolveFramerColor(
+        controlsBaseline.ceilingSpotsColor,
+        props.ceilingSpotsColor
+    )
+    const resolvedArtworkBacklightColor = resolveFramerColor(
+        controlsBaseline.artworkBacklightColor,
+        props.artworkBacklightColor
+    )
+    const resolvedCorridorWallColor = resolveFramerColor(
+        controlsBaseline.corridor.wallColor,
+        props.corridorWallColor
+    )
+    const resolvedCorridorCeilingColor = resolveFramerColor(
+        controlsBaseline.corridor.ceilingColor,
+        props.corridorCeilingColor
+    )
+
     const geometryColors: GeometryColorsControls = {
-        backgroundColor:
-            props.geometryColors?.backgroundColor ??
-            props.sceneBackgroundColor ??
-            controlsBaseline.sceneBackgroundColor,
-        fogColor:
-            props.geometryColors?.fogColor ??
-            props.sceneFogColor ??
-            controlsBaseline.sceneFogColor,
-        floorColor:
-            props.geometryColors?.floorColor ??
-            props.corridorFloorColor ??
-            controlsBaseline.corridor.floorColor,
+        backgroundColor: resolvedSceneBackgroundColor,
+        fogColor: resolvedSceneFogColor,
+        floorColor: resolvedFloorColor,
     }
     const carpet: CarpetControls = {
         enabled:
             props.carpet?.enabled ??
             props.corridorCarpetEnabled ??
             controlsBaseline.corridor.carpetEnabled,
-        color:
-            props.carpet?.color ??
-            props.corridorCarpetColor ??
-            controlsBaseline.corridor.carpetColor,
+        color: resolvedCarpetColor,
         width:
             props.carpet?.width ??
             props.corridorCarpetWidth ??
@@ -1989,18 +2291,12 @@ const buildGalleryConfig = (
             props.title?.lineHeight ??
             props.titleLineHeight ??
             controlsBaseline.sceneTitleConfig.lineHeight,
-        color:
-            props.title?.color ??
-            props.titleColor ??
-            controlsBaseline.sceneTitleConfig.color,
+        color: resolvedTitleColor,
         daylightContrastEnabled:
             props.title?.daylightContrastEnabled ??
             props.titleDaylightContrastEnabled ??
             controlsBaseline.sceneTitleConfig.daylightContrastEnabled,
-        daylightContrastColor:
-            props.title?.daylightContrastColor ??
-            props.titleDaylightContrastColor ??
-            controlsBaseline.sceneTitleConfig.daylightContrastColor,
+        daylightContrastColor: resolvedTitleDaylightContrastColor,
         daylightContrastStrength:
             props.title?.daylightContrastStrength ??
             props.titleDaylightContrastStrength ??
@@ -2061,13 +2357,25 @@ const buildGalleryConfig = (
         isDayPreset || resolvedSceneTitle !== controlsBaseline.sceneTitle
     const shouldOverrideGeometryColors =
         isDayPreset ||
-        geometryColors.backgroundColor !== controlsBaseline.sceneBackgroundColor ||
-        geometryColors.fogColor !== controlsBaseline.sceneFogColor ||
-        geometryColors.floorColor !== controlsBaseline.corridor.floorColor
+        !areColorValuesEqual(
+            geometryColors.backgroundColor,
+            controlsBaseline.sceneBackgroundColor
+        ) ||
+        !areColorValuesEqual(
+            geometryColors.fogColor,
+            controlsBaseline.sceneFogColor
+        ) ||
+        !areColorValuesEqual(
+            geometryColors.floorColor,
+            controlsBaseline.corridor.floorColor
+        )
     const shouldOverrideCarpet =
         isDayPreset ||
         carpet.enabled !== controlsBaseline.corridor.carpetEnabled ||
-        carpet.color !== controlsBaseline.corridor.carpetColor ||
+        !areColorValuesEqual(
+            carpet.color,
+            controlsBaseline.corridor.carpetColor
+        ) ||
         carpet.width !== controlsBaseline.corridor.carpetWidth
     const shouldOverrideArtworkSpacing =
         isDayPreset ||
@@ -2134,10 +2442,10 @@ const buildGalleryConfig = (
         sceneBackgroundColor: geometryColors.backgroundColor,
         sceneFogColor: geometryColors.fogColor,
         ceilingSpotsEnabled: props.ceilingSpotsEnabled,
-        ceilingSpotsColor: props.ceilingSpotsColor,
+        ceilingSpotsColor: resolvedCeilingSpotsColor,
         ceilingSpotsIntensity: props.ceilingSpotsIntensity,
         artworkBacklightEnabled: props.artworkBacklightEnabled,
-        artworkBacklightColor: props.artworkBacklightColor,
+        artworkBacklightColor: resolvedArtworkBacklightColor,
         artworkBacklightIntensity: props.artworkBacklightIntensity,
         scrollStrength: props.scrollStrength,
         loopWhiteAfterEndWindow: props.loopWhiteAfterEndWindow,
@@ -2166,9 +2474,9 @@ const buildGalleryConfig = (
             width: props.corridorWidth,
             height: props.corridorHeight,
             segmentLength: props.corridorSegmentLength,
-            wallColor: props.corridorWallColor,
+            wallColor: resolvedCorridorWallColor,
             floorColor: geometryColors.floorColor,
-            ceilingColor: props.corridorCeilingColor,
+            ceilingColor: resolvedCorridorCeilingColor,
             carpetEnabled: carpet.enabled,
             carpetWidth: carpet.width,
             carpetColor: carpet.color,
@@ -2311,6 +2619,7 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
 
     const runtimeLocatorOptions = React.useMemo<RuntimeLocatorOptions>(
         () => ({
+            runtimeSourceMode: props.runtimeSourceMode,
             runtimeBaseUrl: props.runtimeBaseUrl,
             runtimeManifestUrl: props.runtimeManifestUrl,
             runtimeChannel: props.runtimeChannel,
@@ -2320,6 +2629,7 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
             runtimeCacheKey: props.runtimeCacheKey,
         }),
         [
+            props.runtimeSourceMode,
             props.runtimeBaseUrl,
             props.runtimeManifestUrl,
             props.runtimeChannel,
@@ -2450,6 +2760,7 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
 }
 
 ScrollixArtGallery.defaultProps = {
+    runtimeSourceMode: "manifest",
     runtimeBaseUrl: DEFAULT_RUNTIME_BASE_URL,
     runtimeManifestUrl: "",
     runtimeChannel: DEFAULT_RUNTIME_CHANNEL,
@@ -2577,10 +2888,19 @@ ScrollixArtGallery.defaultProps = {
 } as ScrollixArtGalleryProps
 
 addPropertyControls(ScrollixArtGallery, {
+    runtimeSourceMode: {
+        type: ControlType.Enum,
+        title: "Runtime Mode",
+        options: ["manifest", "legacyUrl"],
+        optionTitles: ["Manifest", "Legacy URL"],
+        defaultValue: "manifest",
+    },
     runtimeBaseUrl: {
         type: ControlType.String,
         title: "Runtime Base",
         defaultValue: DEFAULT_RUNTIME_BASE_URL,
+        hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode === "legacyUrl",
     },
     runtimeChannel: {
         type: ControlType.Enum,
@@ -2588,27 +2908,36 @@ addPropertyControls(ScrollixArtGallery, {
         options: ["stable", "beta"],
         optionTitles: ["Stable", "Beta"],
         defaultValue: DEFAULT_RUNTIME_CHANNEL,
+        hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode === "legacyUrl",
     },
     runtimePinnedVersion: {
         type: ControlType.String,
         title: "Pin Version",
         defaultValue: "",
+        hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode === "legacyUrl",
     },
     runtimeManifestUrl: {
         type: ControlType.String,
         title: "Manifest URL",
         defaultValue: "",
+        hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode === "legacyUrl",
     },
     runtimeScriptUrl: {
         type: ControlType.String,
         title: "Legacy URL",
         defaultValue: "",
+        hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode !== "legacyUrl",
     },
     runtimeVersion: {
         type: ControlType.String,
         title: "Legacy Ver",
         defaultValue: DEFAULT_RUNTIME_VERSION,
         hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode !== "legacyUrl" ||
             !props.runtimeScriptUrl.trim(),
     },
     runtimeCacheKey: {
@@ -2616,6 +2945,7 @@ addPropertyControls(ScrollixArtGallery, {
         title: "Legacy Key",
         defaultValue: "",
         hidden: (props: ScrollixArtGalleryProps) =>
+            props.runtimeSourceMode !== "legacyUrl" ||
             !props.runtimeScriptUrl.trim(),
     },
     samplePreset: {
