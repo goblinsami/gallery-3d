@@ -61,6 +61,8 @@ export class GalleryEngine {
   private readonly baseFogColor = new Color();
   private readonly mixedBackgroundColor = new Color();
   private readonly mixedFogColor = new Color();
+  private lastViewportWidth = 0;
+  private lastViewportHeight = 0;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -75,11 +77,19 @@ export class GalleryEngine {
     this.scene = createScene(this.config);
     this.camera = createCamera(this.config);
     this.renderer = createRenderer(this.config);
+    this.renderer.domElement.style.display = "block";
+    this.renderer.domElement.style.width = "100%";
+    this.renderer.domElement.style.height = "100%";
+    this.renderer.domElement.style.maxWidth = "100%";
+    this.renderer.domElement.style.maxHeight = "100%";
+    this.renderer.domElement.style.position = "absolute";
+    this.renderer.domElement.style.inset = "0";
+    this.renderer.domElement.style.touchAction = "none";
     this.container.appendChild(this.renderer.domElement);
     this.resetAtmosphereBase();
 
     await this.rebuildScene();
-    this.resize();
+    this.resize(true);
     this.applyState();
     this.startRenderLoop();
 
@@ -112,13 +122,21 @@ export class GalleryEngine {
     this.applyState();
   }
 
-  resize(): void {
+  resize(force = false): void {
     if (!this.camera || !this.renderer) {
       return;
     }
 
-    const width = Math.max(1, this.container.clientWidth);
-    const height = Math.max(1, this.container.clientHeight);
+    const rect = this.container.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+
+    if (!force && width === this.lastViewportWidth && height === this.lastViewportHeight) {
+      return;
+    }
+
+    this.lastViewportWidth = width;
+    this.lastViewportHeight = height;
 
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
@@ -154,6 +172,9 @@ export class GalleryEngine {
       if (!this.scene || !this.camera || !this.renderer) {
         return;
       }
+
+      // Mobile browsers can mutate viewport metrics without reliable layout events.
+      this.resize();
 
       this.renderer.render(this.scene, this.camera);
       this.animationFrameId = requestAnimationFrame(render);

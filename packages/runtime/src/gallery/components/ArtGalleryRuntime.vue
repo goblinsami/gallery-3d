@@ -29,6 +29,32 @@ let engine: GalleryEngine | null = null;
 let scrollController: ScrollProgressController | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeTimeout: number | null = null;
+let viewportResizeTimeout: number | null = null;
+
+const requestResize = (delayMs = 0): void => {
+  if (viewportResizeTimeout !== null) {
+    window.clearTimeout(viewportResizeTimeout);
+    viewportResizeTimeout = null;
+  }
+
+  viewportResizeTimeout = window.setTimeout(() => {
+    viewportResizeTimeout = null;
+    engine?.resize();
+  }, delayMs);
+};
+
+const handleWindowResize = (): void => {
+  requestResize(20);
+};
+
+const handleOrientationChange = (): void => {
+  requestResize(40);
+  requestResize(220);
+};
+
+const handleVisualViewportResize = (): void => {
+  requestResize(20);
+};
 
 const resolvedConfig = computed(() => validateGalleryConfig(props.config).config);
 const whiteOverlayStyle = computed(() => ({
@@ -78,6 +104,13 @@ onMounted(async () => {
   });
 
   resizeObserver.observe(containerRef.value);
+  window.addEventListener("resize", handleWindowResize);
+  window.addEventListener("orientationchange", handleOrientationChange);
+  window.visualViewport?.addEventListener("resize", handleVisualViewportResize);
+  window.visualViewport?.addEventListener("scroll", handleVisualViewportResize);
+  requestResize(0);
+  requestResize(120);
+  requestResize(320);
 });
 
 watch(
@@ -114,6 +147,16 @@ onBeforeUnmount(() => {
     window.clearTimeout(resizeTimeout);
     resizeTimeout = null;
   }
+
+  if (viewportResizeTimeout !== null) {
+    window.clearTimeout(viewportResizeTimeout);
+    viewportResizeTimeout = null;
+  }
+
+  window.removeEventListener("resize", handleWindowResize);
+  window.removeEventListener("orientationchange", handleOrientationChange);
+  window.visualViewport?.removeEventListener("resize", handleVisualViewportResize);
+  window.visualViewport?.removeEventListener("scroll", handleVisualViewportResize);
 
   engine?.dispose();
   engine = null;
