@@ -1,7 +1,19 @@
 import { createApp, reactive, type App } from "vue";
 import RuntimeArtGallery from "../vue/RuntimeArtGallery.vue";
 
-const RUNTIME_CSS_HREF = new URL(/* @vite-ignore */ "./scrollix-art-gallery-runtime.css", import.meta.url).toString();
+const resolveRuntimeCssHref = (): string => {
+  const moduleUrl = new URL(import.meta.url);
+  const cssUrl = new URL(/* @vite-ignore */ "./scrollix-art-gallery-runtime.css", moduleUrl);
+
+  // Keep CSS and JS on the same cache-busting version (e.g. ?v=..., ?cb=...).
+  moduleUrl.searchParams.forEach((value, key) => {
+    cssUrl.searchParams.set(key, value);
+  });
+
+  return cssUrl.toString();
+};
+
+const RUNTIME_CSS_HREF = resolveRuntimeCssHref();
 const RUNTIME_MODULE_BASE_URL = new URL(/* @vite-ignore */ "./", import.meta.url).toString();
 
 interface RuntimeArtGalleryProps {
@@ -76,4 +88,3 @@ export class ScrollixArtGalleryElement extends HTMLElement {
     this.props.assetBaseUrl = RUNTIME_MODULE_BASE_URL;
   }
 }
-
