@@ -319,9 +319,127 @@ const MISTERY_MUSEUM_SAMPLE: ArtGallerySceneConfig = {
     })),
 }
 
+const CABARET_GALLERY_SAMPLE: ArtGallerySceneConfig = {
+    ...DAYLIGHT_GALLERY_SAMPLE,
+    id: "cabaret-nocturno",
+    sceneTitle: "Cabaret Nocturno",
+    lightingMode: "contrast",
+    infiniteCorridor: true,
+    sceneBackgroundColor: "#18060f",
+    sceneFogColor: "#2f0f1d",
+    ceilingSpotsEnabled: true,
+    ceilingSpotsColor: "#ff4f9b",
+    ceilingSpotsIntensity: 3.2,
+    artworkBacklightEnabled: true,
+    artworkBacklightColor: "#ffbb4d",
+    artworkBacklightIntensity: 2.6,
+    loopWhiteAfterEndWindow: 0.09,
+    loopWhiteStartsBeforeEndWindow: 0.06,
+    loopWhiteFadeOutRevealWindow: 0.12,
+    loopWhiteFadeOutWindow: 0.22,
+    loopProgressAdvanceDuringWhiteFadeOut: 0.2,
+    corridor: {
+        ...DAYLIGHT_GALLERY_SAMPLE.corridor,
+        wallColor: "#3f1328",
+        floorColor: "#2a101b",
+        ceilingColor: "#24111a",
+        carpetEnabled: true,
+        carpetColor: "#d10f58",
+        carpetWidth: 1.2,
+        artworkSpacing: 11,
+    },
+    sceneTitleConfig: {
+        ...DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig,
+        color: "#ffe8f3",
+        daylightContrastEnabled: false,
+        daylightContrastColor: "#5f1f3b",
+        daylightContrastStrength: 0.5,
+        position: [0, 1.85, 3.15],
+    },
+    artworks: DAYLIGHT_GALLERY_SAMPLE.artworks.map((artwork, index) => ({
+        ...artwork,
+        id: `c-${index + 1}`,
+        side: index % 2 === 0 ? "left" : "right",
+        frameEnabled: true,
+        frameColor: "#6e1b40",
+        spotlightIntensity: 1.55,
+        sideText: artwork.sideText
+            ? {
+                  ...artwork.sideText,
+                  backgroundColor: "#170810",
+                  textColor: "#ffdbe9",
+                  borderEnabled: true,
+                  borderColor: "#ff6aa8",
+                  borderIntensity: 2.5,
+                  borderWidth: 0.05,
+              }
+            : artwork.sideText,
+    })),
+}
+
+const NAVE_NODRIZA_SAMPLE: ArtGallerySceneConfig = {
+    ...DAYLIGHT_GALLERY_SAMPLE,
+    id: "nave-nodriza",
+    sceneTitle: "Nave Nodriza",
+    lightingMode: "contrast",
+    infiniteCorridor: true,
+    sceneBackgroundColor: "#040a14",
+    sceneFogColor: "#0a2136",
+    ceilingSpotsEnabled: true,
+    ceilingSpotsColor: "#66efff",
+    ceilingSpotsIntensity: 4.1,
+    artworkBacklightEnabled: true,
+    artworkBacklightColor: "#4fb4ff",
+    artworkBacklightIntensity: 3.2,
+    loopWhiteAfterEndWindow: 0.07,
+    loopWhiteStartsBeforeEndWindow: 0.08,
+    loopWhiteFadeOutRevealWindow: 0.14,
+    loopWhiteFadeOutWindow: 0.26,
+    loopProgressAdvanceDuringWhiteFadeOut: 0.23,
+    corridor: {
+        ...DAYLIGHT_GALLERY_SAMPLE.corridor,
+        wallColor: "#12314a",
+        floorColor: "#0d1d2f",
+        ceilingColor: "#1b3a58",
+        carpetEnabled: true,
+        carpetColor: "#00e5a8",
+        carpetWidth: 0.56,
+        artworkSpacing: 16,
+    },
+    sceneTitleConfig: {
+        ...DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig,
+        color: "#d7f7ff",
+        daylightContrastEnabled: true,
+        daylightContrastColor: "#144060",
+        daylightContrastStrength: 0.65,
+        position: [0, 1.82, 3.05],
+    },
+    artworks: DAYLIGHT_GALLERY_SAMPLE.artworks.map((artwork, index) => ({
+        ...artwork,
+        id: `n-${index + 1}`,
+        side: index % 2 === 0 ? "right" : "left",
+        frameEnabled: true,
+        frameColor: "#1f5f83",
+        spotlightIntensity: 1.65,
+        sideText: artwork.sideText
+            ? {
+                  ...artwork.sideText,
+                  backgroundColor: "#081a2b",
+                  textColor: "#dff9ff",
+                  borderEnabled: true,
+                  borderColor: "#55dbff",
+                  borderIntensity: 2.8,
+                  borderWidth: 0.05,
+              }
+            : artwork.sideText,
+    })),
+}
+
 const SAMPLE_CONFIGS = {
     daylight: DAYLIGHT_GALLERY_SAMPLE,
     mistery: MISTERY_MUSEUM_SAMPLE,
+    cabaret: CABARET_GALLERY_SAMPLE,
+    naveNodriza: NAVE_NODRIZA_SAMPLE,
 } as const
 
 type SamplePreset = keyof typeof SAMPLE_CONFIGS
@@ -351,6 +469,8 @@ const resolveTitleFontUrl = (
 const TEMPLATE_PATHS: Record<SamplePreset, string> = {
     daylight: "./templates/daylight-gallery.json",
     mistery: "./templates/mistery-museum.json",
+    cabaret: "./templates/cabaret-nocturno.json",
+    naveNodriza: "./templates/nave-nodriza.json",
 }
 
 const isValidSceneConfig = (value: unknown): value is ArtGallerySceneConfig => {
@@ -399,20 +519,26 @@ const loadTemplateConfigFromPath = async (
 const loadTemplateConfigs = async (
     fallbackConfigs: SampleConfigMap
 ): Promise<SampleConfigMap> => {
-    const [daylight, mistery] = await Promise.all([
+    const [daylight, mistery, cabaret, naveNodriza] = await Promise.all([
         loadTemplateConfigFromPath("daylight", fallbackConfigs.daylight),
         loadTemplateConfigFromPath("mistery", fallbackConfigs.mistery),
+        loadTemplateConfigFromPath("cabaret", fallbackConfigs.cabaret),
+        loadTemplateConfigFromPath("naveNodriza", fallbackConfigs.naveNodriza),
     ])
 
     return {
         daylight,
         mistery,
+        cabaret,
+        naveNodriza,
     }
 }
 
 const cloneSampleConfigs = (): SampleConfigMap => ({
     daylight: cloneConfig(SAMPLE_CONFIGS.daylight),
     mistery: cloneConfig(SAMPLE_CONFIGS.mistery),
+    cabaret: cloneConfig(SAMPLE_CONFIGS.cabaret),
+    naveNodriza: cloneConfig(SAMPLE_CONFIGS.naveNodriza),
 })
 
 const RUNTIME_SCRIPT_ATTR = "data-scrollix-runtime-url"
@@ -1689,19 +1815,73 @@ const buildGalleryConfig = (
         typeof title.text === "string" ? title.text : controlsBaseline.sceneTitle
     const resolvedSceneTitle =
         resolvedTitleText.trim() || controlsBaseline.sceneTitle
+    const isDayPreset = props.samplePreset === "daylight"
+    const shouldOverrideSceneTitle =
+        isDayPreset || resolvedSceneTitle !== controlsBaseline.sceneTitle
+    const shouldOverrideGeometryColors =
+        isDayPreset ||
+        geometryColors.backgroundColor !== controlsBaseline.sceneBackgroundColor ||
+        geometryColors.fogColor !== controlsBaseline.sceneFogColor ||
+        geometryColors.floorColor !== controlsBaseline.corridor.floorColor
+    const shouldOverrideCarpet =
+        isDayPreset ||
+        carpet.enabled !== controlsBaseline.corridor.carpetEnabled ||
+        carpet.color !== controlsBaseline.corridor.carpetColor ||
+        carpet.width !== controlsBaseline.corridor.carpetWidth
+    const shouldOverrideArtworkSpacing =
+        isDayPreset ||
+        props.corridorArtworkSpacing !== controlsBaseline.corridor.artworkSpacing
+    const shouldOverrideDurations =
+        isDayPreset ||
+        durations.intro !== controlsBaseline.timings.introDuration ||
+        durations.travel !== controlsBaseline.timings.travelDuration ||
+        durations.focus !== controlsBaseline.timings.focusDuration ||
+        durations.return !== controlsBaseline.timings.returnDuration
     const withResolvedSceneControls = (
         config: ArtGallerySceneConfig
     ): ArtGallerySceneConfig => ({
         ...config,
-        sceneTitle: resolvedSceneTitle,
-        sceneBackgroundColor: geometryColors.backgroundColor,
-        sceneFogColor: geometryColors.fogColor,
+        sceneTitle: shouldOverrideSceneTitle
+            ? resolvedSceneTitle
+            : config.sceneTitle,
+        sceneBackgroundColor: shouldOverrideGeometryColors
+            ? geometryColors.backgroundColor
+            : config.sceneBackgroundColor,
+        sceneFogColor: shouldOverrideGeometryColors
+            ? geometryColors.fogColor
+            : config.sceneFogColor,
         corridor: {
             ...config.corridor,
-            floorColor: geometryColors.floorColor,
-            carpetEnabled: carpet.enabled,
-            carpetColor: carpet.color,
-            carpetWidth: carpet.width,
+            floorColor: shouldOverrideGeometryColors
+                ? geometryColors.floorColor
+                : config.corridor.floorColor,
+            carpetEnabled: shouldOverrideCarpet
+                ? carpet.enabled
+                : config.corridor.carpetEnabled,
+            carpetColor: shouldOverrideCarpet
+                ? carpet.color
+                : config.corridor.carpetColor,
+            carpetWidth: shouldOverrideCarpet
+                ? carpet.width
+                : config.corridor.carpetWidth,
+            artworkSpacing: shouldOverrideArtworkSpacing
+                ? props.corridorArtworkSpacing
+                : config.corridor.artworkSpacing,
+        },
+        timings: {
+            ...config.timings,
+            introDuration: shouldOverrideDurations
+                ? durations.intro
+                : config.timings.introDuration,
+            travelDuration: shouldOverrideDurations
+                ? durations.travel
+                : config.timings.travelDuration,
+            focusDuration: shouldOverrideDurations
+                ? durations.focus
+                : config.timings.focusDuration,
+            returnDuration: shouldOverrideDurations
+                ? durations.return
+                : config.timings.returnDuration,
         },
     })
 
@@ -2145,7 +2325,12 @@ addPropertyControls(ScrollixArtGallery, {
         type: ControlType.Enum,
         title: "Template",
         options: Object.keys(SAMPLE_CONFIGS),
-        optionTitles: ["DayLight", "Mistery"],
+        optionTitles: [
+            "DayLight",
+            "Mistery",
+            "Cabaret",
+            "Nave Nodriza",
+        ],
         defaultValue: "daylight",
     },
     artworkImageOverrides: {
@@ -2243,6 +2428,14 @@ addPropertyControls(ScrollixArtGallery, {
                 defaultValue: DAYLIGHT_GALLERY_SAMPLE.corridor.carpetWidth,
             },
         },
+    },
+    corridorArtworkSpacing: {
+        type: ControlType.Number,
+        title: "Artwork Gap",
+        min: 4,
+        max: 30,
+        step: 0.1,
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.corridor.artworkSpacing,
     },
     title: {
         type: ControlType.Object,
