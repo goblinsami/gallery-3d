@@ -188,16 +188,27 @@ Independent packaging has been added inside this project:
 Runtime build output:
 
 - `packages/runtime/dist/scrollix-art-gallery-runtime.js`
-- `packages/runtime/dist/scrollix-art-gallery-runtime.css`
 - `packages/runtime/dist/images/*`
 - `packages/runtime/dist/fonts/*`
 
-`npm run build:all` copies those artifacts into root `dist/`:
+`npm run build:all` copies artifacts into root `dist/` using versioned runtime folders:
+
+- `dist/runtime/<version>/scrollix-art-gallery-runtime.js`
+- `dist/runtime/<version>/images/*`
+- `dist/runtime/<version>/fonts/*`
+- `dist/runtime/latest.json` (channel -> version mapping)
+
+For compatibility, legacy root copies are still emitted:
 
 - `dist/scrollix-art-gallery-runtime.js`
-- `dist/scrollix-art-gallery-runtime.css`
 - `dist/images/*`
 - `dist/fonts/*`
+
+Optional release env vars for `npm run sync:runtime-assets`:
+
+- `RUNTIME_VERSION` (forces folder/version name)
+- `RUNTIME_CHANNEL` (default: `stable`)
+- `RUNTIME_CHANNEL_ALIASES` (comma-separated extra channel names pointing to the same version)
 
 ## Netlify
 
@@ -207,7 +218,7 @@ It includes:
 
 - build command: `npm run build:all`
 - publish dir: `dist`
-- CORS headers for runtime JS/CSS and fonts/images assets
+- cache policy split between immutable versioned runtime assets and non-cached `runtime/latest.json`
 
 ## Future Integration Readiness
 

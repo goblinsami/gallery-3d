@@ -11,6 +11,7 @@ type TitleFontPreset =
     | "gentilis"
     | "custom"
 type ArtworkImageSourceMode = "upload" | "url" | "runtimePath" | "sample"
+type RuntimeChannel = "stable" | "beta"
 
 interface ArtworkMetadata {
     artist?: string
@@ -673,27 +674,8 @@ const loadRuntimeModule = async (runtimeUrl: string, tagName: string) => {
     }
 }
 
-const stripRuntimeVersionParam = (runtimeUrl: string) => {
-    try {
-        const url = new URL(runtimeUrl, window.location.href)
-        url.searchParams.delete("v")
-        return url.toString()
-    } catch (_error) {
-        return runtimeUrl
-            .replace(
-                /([?&])v=[^&]*(&|$)/,
-                (_match, lead: string, tail: string) => {
-                    if (lead === "?" && tail) return "?"
-                    if (lead === "&" && tail) return "&"
-                    return ""
-                }
-            )
-            .replace(/[?&]$/, "")
-    }
-}
-
 const useScrollixArtGalleryRuntime = (
-    runtimeUrl: string,
+    runtimeLocatorOptions: RuntimeLocatorOptions,
     tagName: string
 ): RuntimeHookState => {
     const [state, setState] = React.useState<RuntimeHookState>({
@@ -705,31 +687,21 @@ const useScrollixArtGalleryRuntime = (
     React.useEffect(() => {
         let cancelled = false
 
-        const normalizedUrl = runtimeUrl.trim()
-        if (!normalizedUrl) {
-            setState({
-                ready: false,
-                loading: false,
-                error: "[Scrollix] runtimeScriptUrl is required.",
-            })
-            return
-        }
-
         setState({ ready: false, loading: true, error: null })
 
-        const fallbackUrl = stripRuntimeVersionParam(normalizedUrl)
-        const canRetryWithoutVersion = fallbackUrl !== normalizedUrl
-
-        const loadWithFallback = async () => {
-            try {
-                await loadRuntimeModule(normalizedUrl, tagName)
-            } catch (primaryError) {
-                if (!canRetryWithoutVersion) throw primaryError
-                await loadRuntimeModule(fallbackUrl, tagName)
+        const loadRuntime = async () => {
+            const resolvedRuntimeUrl = await resolveRuntimeScriptUrl(
+                runtimeLocatorOptions
+            )
+            if (!resolvedRuntimeUrl.trim()) {
+                throw new Error(
+                    "[Scrollix] runtime script URL could not be resolved."
+                )
             }
+            await loadRuntimeModule(resolvedRuntimeUrl, tagName)
         }
 
-        void loadWithFallback()
+        void loadRuntime()
             .then(() => {
                 if (cancelled) return
                 setState({ ready: true, loading: false, error: null })
@@ -749,7 +721,16 @@ const useScrollixArtGalleryRuntime = (
         return () => {
             cancelled = true
         }
-    }, [runtimeUrl, tagName])
+    }, [
+        runtimeLocatorOptions.runtimeBaseUrl,
+        runtimeLocatorOptions.runtimeManifestUrl,
+        runtimeLocatorOptions.runtimeChannel,
+        runtimeLocatorOptions.runtimePinnedVersion,
+        runtimeLocatorOptions.runtimeScriptUrl,
+        runtimeLocatorOptions.runtimeVersion,
+        runtimeLocatorOptions.runtimeCacheKey,
+        tagName,
+    ])
 
     return state
 }
@@ -847,7 +828,13 @@ interface DurationControls {
 
 interface ScrollixArtGalleryProps {
     style?: React.CSSProperties
+    runtimeBaseUrl: string
+    runtimeManifestUrl: string
+    runtimeChannel: RuntimeChannel
+    runtimePinnedVersion: string
+    // Legacy direct JS URL override.
     runtimeScriptUrl: string
+    // Legacy cache-busting controls (only applied when runtimeScriptUrl is used).
     runtimeVersion: string
     runtimeCacheKey: string
     samplePreset: SamplePreset
@@ -942,7 +929,6 @@ interface ScrollixArtGalleryRuntimeApi {
 declare global {
     interface Window {
         ScrollixArtGalleryRuntime?: ScrollixArtGalleryRuntimeApi
-        __SCROLLIX_ART_GALLERY_RUNTIME_AUTO_VERSION__?: string
     }
 
     namespace JSX {
@@ -961,15 +947,12 @@ declare global {
 }
 
 const SCROLLIX_ART_GALLERY_TAG = "scrollix-art-gallery"
-const DEFAULT_RUNTIME_SCRIPT_URL =
-    "https://celadon-lily-f8f07b.netlify.app/scrollix-art-gallery-runtime.js"
+const DEFAULT_RUNTIME_ORIGIN = "https://celadon-lily-f8f07b.netlify.app"
+const DEFAULT_RUNTIME_BASE_URL = `${DEFAULT_RUNTIME_ORIGIN}/runtime`
+const DEFAULT_RUNTIME_MANIFEST_FILE = "latest.json"
+const DEFAULT_RUNTIME_CHANNEL: RuntimeChannel = "stable"
 const DEFAULT_RUNTIME_VERSION = "auto"
 const RUNTIME_VERSION_AUTO = "auto"
-const FRAMER_PREVIEW_HOST_TOKENS = ["framercanvas.com"]
-const FRAMER_PREVIEW_PATH_TOKENS = [
-    "canvas-sandbox.html",
-    "preview-module.html",
-]
 
 const runtimePlaceholderStyle: React.CSSProperties = {
     width: "100%",
@@ -1135,61 +1118,303 @@ const deepMerge = <T extends Record<string, unknown>>(
     return output as T
 }
 
-const isFramerPreviewRuntime = () => {
-    if (typeof window === "undefined") return false
-    const host = window.location.hostname.toLowerCase()
-    const path = window.location.pathname.toLowerCase()
-    return (
-        FRAMER_PREVIEW_HOST_TOKENS.some((token) => host.includes(token)) ||
-        FRAMER_PREVIEW_PATH_TOKENS.some((token) => path.includes(token))
-    )
+interface RuntimeReleaseManifestVersionEntry {
+    script?: string
 }
 
-const getAutoRuntimeVersion = () => {
-    if (!window.__SCROLLIX_ART_GALLERY_RUNTIME_AUTO_VERSION__) {
-        window.__SCROLLIX_ART_GALLERY_RUNTIME_AUTO_VERSION__ = `auto-${Date.now().toString(36)}`
-    }
-    return window.__SCROLLIX_ART_GALLERY_RUNTIME_AUTO_VERSION__
+interface RuntimeReleaseManifest {
+    schemaVersion?: number
+    updatedAt?: string
+    defaultChannel?: string
+    channels?: Record<string, string>
+    versions?: Record<string, RuntimeReleaseManifestVersionEntry>
+    version?: string
+    script?: string
 }
 
-const resolveRuntimeUrl = (
+interface RuntimeLocatorOptions {
+    runtimeBaseUrl: string
+    runtimeManifestUrl: string
+    runtimeChannel: RuntimeChannel
+    runtimePinnedVersion: string
+    runtimeScriptUrl: string
+    runtimeVersion: string
+    runtimeCacheKey: string
+}
+
+const runtimeManifestPromiseByUrl = new Map<
+    string,
+    Promise<RuntimeReleaseManifest>
+>()
+
+const runtimeManifestDataByUrl = new Map<string, RuntimeReleaseManifest>()
+
+const toRecord = (value: unknown): Record<string, unknown> | null =>
+    value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null
+
+const normalizeRuntimeBaseUrl = (runtimeBaseUrl: string): string => {
+    const trimmed = runtimeBaseUrl.trim()
+    if (!trimmed) return ""
+
+    const withoutTrailingSlashes = trimmed.replace(/\/+$/, "")
+    if (!withoutTrailingSlashes) return ""
+    return withoutTrailingSlashes
+}
+
+const appendLegacyRuntimeQueryParams = (
     runtimeScriptUrl: string,
     runtimeVersion: string,
-    runtimeCacheKey: string,
-    autoRuntimeVersion: string
-) => {
+    runtimeCacheKey: string
+): string => {
     const trimmedUrl = runtimeScriptUrl.trim()
     if (!trimmedUrl) return ""
 
     const trimmedVersion = runtimeVersion.trim()
     const trimmedCacheKey = runtimeCacheKey.trim()
-    const resolvedVersion =
-        !trimmedVersion || trimmedVersion.toLowerCase() === RUNTIME_VERSION_AUTO
-            ? autoRuntimeVersion
-            : trimmedVersion
-    if (!resolvedVersion && !trimmedCacheKey) return trimmedUrl
+    const queryParts: string[] = []
+
+    if (
+        trimmedVersion &&
+        trimmedVersion.toLowerCase() !== RUNTIME_VERSION_AUTO
+    ) {
+        queryParts.push(`v=${encodeURIComponent(trimmedVersion)}`)
+    }
+    if (trimmedCacheKey) {
+        queryParts.push(`cb=${encodeURIComponent(trimmedCacheKey)}`)
+    }
+    if (queryParts.length === 0) return trimmedUrl
 
     try {
         const url = new URL(trimmedUrl, window.location.href)
-        if (resolvedVersion) {
-            url.searchParams.set("v", resolvedVersion)
-        }
-        if (trimmedCacheKey) {
-            url.searchParams.set("cb", trimmedCacheKey)
+        for (const part of queryParts) {
+            const [key, value] = part.split("=")
+            url.searchParams.set(key, value ?? "")
         }
         return url.toString()
     } catch (_error) {
-        const queryParts: string[] = []
-        if (resolvedVersion) {
-            queryParts.push(`v=${encodeURIComponent(resolvedVersion)}`)
-        }
-        if (trimmedCacheKey) {
-            queryParts.push(`cb=${encodeURIComponent(trimmedCacheKey)}`)
-        }
-        if (queryParts.length === 0) return trimmedUrl
-
         const separator = trimmedUrl.includes("?") ? "&" : "?"
         return `${trimmedUrl}${separator}${queryParts.join("&")}`
+    }
+}
+
+const toAbsoluteUrl = (value: string, baseUrl: string): string => {
+    try {
+        return new URL(value, baseUrl).toString()
+    } catch (_error) {
+        return value
+    }
+}
+
+const resolveRuntimeManifestUrl = (
+    runtimeBaseUrl: string,
+    runtimeManifestUrl: string
+): string => {
+    const trimmedManifestUrl = runtimeManifestUrl.trim()
+    if (trimmedManifestUrl) {
+        const fallbackBase =
+            typeof window === "undefined"
+                ? DEFAULT_RUNTIME_ORIGIN
+                : window.location.href
+        return toAbsoluteUrl(trimmedManifestUrl, fallbackBase)
+    }
+
+    const normalizedBaseUrl = normalizeRuntimeBaseUrl(runtimeBaseUrl)
+    if (!normalizedBaseUrl) return ""
+
+    const manifestPath = `${normalizedBaseUrl}/${DEFAULT_RUNTIME_MANIFEST_FILE}`
+    return toAbsoluteUrl(manifestPath, normalizedBaseUrl)
+}
+
+const parseRuntimeManifest = (
+    payload: unknown
+): RuntimeReleaseManifest | null => {
+    const record = toRecord(payload)
+    if (!record) return null
+
+    const manifest: RuntimeReleaseManifest = {}
+
+    if (typeof record.schemaVersion === "number") {
+        manifest.schemaVersion = record.schemaVersion
+    }
+    if (typeof record.updatedAt === "string") {
+        manifest.updatedAt = record.updatedAt
+    }
+    if (typeof record.defaultChannel === "string") {
+        manifest.defaultChannel = record.defaultChannel
+    }
+    if (typeof record.version === "string") {
+        manifest.version = record.version
+    }
+    if (typeof record.script === "string") {
+        manifest.script = record.script
+    }
+
+    const channelsRecord = toRecord(record.channels)
+    if (channelsRecord) {
+        const channels: Record<string, string> = {}
+        for (const [key, value] of Object.entries(channelsRecord)) {
+            if (typeof value !== "string") continue
+            channels[key] = value
+        }
+        manifest.channels = channels
+    }
+
+    const versionsRecord = toRecord(record.versions)
+    if (versionsRecord) {
+        const versions: Record<string, RuntimeReleaseManifestVersionEntry> = {}
+        for (const [version, value] of Object.entries(versionsRecord)) {
+            const valueRecord = toRecord(value)
+            if (!valueRecord) continue
+            const script =
+                typeof valueRecord.script === "string"
+                    ? valueRecord.script
+                    : undefined
+            versions[version] = { script }
+        }
+        manifest.versions = versions
+    }
+
+    return manifest
+}
+
+const fetchRuntimeManifest = async (
+    runtimeManifestUrl: string
+): Promise<RuntimeReleaseManifest> => {
+    const normalizedManifestUrl = runtimeManifestUrl.trim()
+    if (!normalizedManifestUrl) {
+        throw new Error("[Scrollix] runtime manifest URL is required.")
+    }
+
+    const cachedManifest = runtimeManifestDataByUrl.get(normalizedManifestUrl)
+    if (cachedManifest) return cachedManifest
+
+    const existingRequest = runtimeManifestPromiseByUrl.get(normalizedManifestUrl)
+    if (existingRequest) return existingRequest
+
+    const pendingRequest = (async () => {
+        const response = await fetch(normalizedManifestUrl, {
+            cache: "no-store",
+        })
+        if (!response.ok) {
+            throw new Error(
+                `[Scrollix] runtime manifest request failed (${response.status}): ${normalizedManifestUrl}`
+            )
+        }
+
+        const parsed = parseRuntimeManifest((await response.json()) as unknown)
+        if (!parsed) {
+            throw new Error(
+                `[Scrollix] runtime manifest has invalid JSON shape: ${normalizedManifestUrl}`
+            )
+        }
+
+        runtimeManifestDataByUrl.set(normalizedManifestUrl, parsed)
+        return parsed
+    })()
+
+    runtimeManifestPromiseByUrl.set(normalizedManifestUrl, pendingRequest)
+
+    try {
+        return await pendingRequest
+    } finally {
+        runtimeManifestPromiseByUrl.delete(normalizedManifestUrl)
+    }
+}
+
+const resolveRuntimeScriptFromManifest = (
+    manifest: RuntimeReleaseManifest,
+    runtimeManifestUrl: string,
+    runtimeBaseUrl: string,
+    runtimeChannel: RuntimeChannel,
+    runtimePinnedVersion: string
+): string => {
+    const normalizedBaseUrl = normalizeRuntimeBaseUrl(runtimeBaseUrl)
+    const normalizedManifestUrl = runtimeManifestUrl.trim()
+
+    const pinnedVersion = runtimePinnedVersion.trim()
+    const channelVersion = manifest.channels?.[runtimeChannel]
+    const defaultChannelName = manifest.defaultChannel?.trim()
+    const defaultChannelVersion = defaultChannelName
+        ? manifest.channels?.[defaultChannelName]
+        : undefined
+
+    const resolvedVersion =
+        pinnedVersion ||
+        channelVersion ||
+        defaultChannelVersion ||
+        manifest.version?.trim() ||
+        ""
+
+    const versionScript = resolvedVersion
+        ? manifest.versions?.[resolvedVersion]?.script?.trim()
+        : ""
+
+    if (versionScript) {
+        return toAbsoluteUrl(versionScript, normalizedManifestUrl)
+    }
+
+    if (manifest.script?.trim()) {
+        return toAbsoluteUrl(manifest.script.trim(), normalizedManifestUrl)
+    }
+
+    if (resolvedVersion && normalizedBaseUrl) {
+        return `${normalizedBaseUrl}/${resolvedVersion}/scrollix-art-gallery-runtime.js`
+    }
+
+    throw new Error(
+        `[Scrollix] Could not resolve runtime script for channel "${runtimeChannel}".`
+    )
+}
+
+const resolveRuntimeScriptUrl = async (
+    options: RuntimeLocatorOptions
+): Promise<string> => {
+    const manualRuntimeScriptUrl = options.runtimeScriptUrl.trim()
+    if (manualRuntimeScriptUrl) {
+        return appendLegacyRuntimeQueryParams(
+            manualRuntimeScriptUrl,
+            options.runtimeVersion,
+            options.runtimeCacheKey
+        )
+    }
+
+    const normalizedBaseUrl = normalizeRuntimeBaseUrl(options.runtimeBaseUrl)
+    if (!normalizedBaseUrl) {
+        throw new Error(
+            "[Scrollix] runtimeBaseUrl is required when runtimeScriptUrl is empty."
+        )
+    }
+    const pinnedVersion = options.runtimePinnedVersion.trim()
+    if (pinnedVersion && !options.runtimeManifestUrl.trim()) {
+        return `${normalizedBaseUrl}/${pinnedVersion}/scrollix-art-gallery-runtime.js`
+    }
+
+    const manifestUrl = resolveRuntimeManifestUrl(
+        normalizedBaseUrl,
+        options.runtimeManifestUrl
+    )
+    if (!manifestUrl) {
+        throw new Error(
+            "[Scrollix] Could not resolve runtime manifest URL. Check runtimeBaseUrl/runtimeManifestUrl."
+        )
+    }
+
+    try {
+        const manifest = await fetchRuntimeManifest(manifestUrl)
+        return resolveRuntimeScriptFromManifest(
+            manifest,
+            manifestUrl,
+            normalizedBaseUrl,
+            options.runtimeChannel,
+            options.runtimePinnedVersion
+        )
+    } catch (error) {
+        if (pinnedVersion) {
+            return `${normalizedBaseUrl}/${pinnedVersion}/scrollix-art-gallery-runtime.js`
+        }
+        throw error
     }
 }
 
@@ -2084,20 +2309,24 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
         }
     }, [props.jsonOverrideFile])
 
-    const autoRuntimeVersion = React.useMemo(() => getAutoRuntimeVersion(), [])
-    const resolvedRuntimeScriptUrl = React.useMemo(
-        () =>
-            resolveRuntimeUrl(
-                props.runtimeScriptUrl,
-                props.runtimeVersion,
-                props.runtimeCacheKey,
-                autoRuntimeVersion
-            ),
+    const runtimeLocatorOptions = React.useMemo<RuntimeLocatorOptions>(
+        () => ({
+            runtimeBaseUrl: props.runtimeBaseUrl,
+            runtimeManifestUrl: props.runtimeManifestUrl,
+            runtimeChannel: props.runtimeChannel,
+            runtimePinnedVersion: props.runtimePinnedVersion,
+            runtimeScriptUrl: props.runtimeScriptUrl,
+            runtimeVersion: props.runtimeVersion,
+            runtimeCacheKey: props.runtimeCacheKey,
+        }),
         [
+            props.runtimeBaseUrl,
+            props.runtimeManifestUrl,
+            props.runtimeChannel,
+            props.runtimePinnedVersion,
             props.runtimeScriptUrl,
             props.runtimeVersion,
             props.runtimeCacheKey,
-            autoRuntimeVersion,
         ]
     )
 
@@ -2106,7 +2335,7 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
         loading: runtimeLoading,
         error: runtimeLoadError,
     } = useScrollixArtGalleryRuntime(
-        resolvedRuntimeScriptUrl,
+        runtimeLocatorOptions,
         SCROLLIX_ART_GALLERY_TAG
     )
 
@@ -2221,7 +2450,11 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
 }
 
 ScrollixArtGallery.defaultProps = {
-    runtimeScriptUrl: DEFAULT_RUNTIME_SCRIPT_URL,
+    runtimeBaseUrl: DEFAULT_RUNTIME_BASE_URL,
+    runtimeManifestUrl: "",
+    runtimeChannel: DEFAULT_RUNTIME_CHANNEL,
+    runtimePinnedVersion: "",
+    runtimeScriptUrl: "",
     runtimeVersion: DEFAULT_RUNTIME_VERSION,
     runtimeCacheKey: "",
     samplePreset: "daylight",
@@ -2344,20 +2577,46 @@ ScrollixArtGallery.defaultProps = {
 } as ScrollixArtGalleryProps
 
 addPropertyControls(ScrollixArtGallery, {
+    runtimeBaseUrl: {
+        type: ControlType.String,
+        title: "Runtime Base",
+        defaultValue: DEFAULT_RUNTIME_BASE_URL,
+    },
+    runtimeChannel: {
+        type: ControlType.Enum,
+        title: "Channel",
+        options: ["stable", "beta"],
+        optionTitles: ["Stable", "Beta"],
+        defaultValue: DEFAULT_RUNTIME_CHANNEL,
+    },
+    runtimePinnedVersion: {
+        type: ControlType.String,
+        title: "Pin Version",
+        defaultValue: "",
+    },
+    runtimeManifestUrl: {
+        type: ControlType.String,
+        title: "Manifest URL",
+        defaultValue: "",
+    },
     runtimeScriptUrl: {
         type: ControlType.String,
-        title: "Runtime URL",
-        defaultValue: DEFAULT_RUNTIME_SCRIPT_URL,
+        title: "Legacy URL",
+        defaultValue: "",
     },
     runtimeVersion: {
         type: ControlType.String,
-        title: "Runtime Ver",
+        title: "Legacy Ver",
         defaultValue: DEFAULT_RUNTIME_VERSION,
+        hidden: (props: ScrollixArtGalleryProps) =>
+            !props.runtimeScriptUrl.trim(),
     },
     runtimeCacheKey: {
         type: ControlType.String,
-        title: "Cache Key",
+        title: "Legacy Key",
         defaultValue: "",
+        hidden: (props: ScrollixArtGalleryProps) =>
+            !props.runtimeScriptUrl.trim(),
     },
     samplePreset: {
         type: ControlType.Enum,

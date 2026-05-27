@@ -12,7 +12,8 @@ Responsibilities:
 
 Runtime:
 
-- loads ESM script URL (`scrollix-art-gallery-runtime.js`)
+- resolves runtime from `runtimeBaseUrl + runtime/latest.json` by channel (`stable`/`beta`)
+- supports `runtimePinnedVersion` for deterministic rollbacks/repro
+- keeps `runtimeScriptUrl` as a legacy manual override path
 - waits for custom element registration
 - shows loading/error placeholders if runtime is unavailable
-

@@ -72,6 +72,9 @@ const parsedPayload = computed<{
 const runtimeConfig = computed(() => parsedPayload.value.config);
 const parseError = computed(() => parsedPayload.value.parseError);
 
+const shouldResolveWithRuntimeBase = (assetPath: string): boolean =>
+  assetPath.startsWith("/images/") || assetPath.startsWith("/fonts/");
+
 const resolveAssetUrl = (value: string | undefined): string | undefined => {
   if (!value) return value;
   const trimmed = value.trim();
@@ -79,6 +82,17 @@ const resolveAssetUrl = (value: string | undefined): string | undefined => {
 
   if (/^(https?:|data:|blob:)/i.test(trimmed) || trimmed.startsWith("//")) {
     return trimmed;
+  }
+
+  if (trimmed.startsWith("/")) {
+    if (!props.assetBaseUrl.trim() || !shouldResolveWithRuntimeBase(trimmed)) {
+      return trimmed;
+    }
+    try {
+      return new URL(trimmed.slice(1), props.assetBaseUrl).toString();
+    } catch (_error) {
+      return trimmed;
+    }
   }
 
   if (!props.assetBaseUrl.trim()) {
@@ -125,15 +139,3 @@ const resolvedRuntimeConfig = computed<ArtGallerySceneConfig | DeepPartial<ArtGa
   return cloned;
 });
 </script>
-
-<style scoped>
-.art-gallery-runtime-root {
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  min-width: 0;
-  position: relative;
-  overflow: hidden;
-}
-</style>
-

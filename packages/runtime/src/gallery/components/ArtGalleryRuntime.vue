@@ -126,22 +126,4 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
-<style scoped>
-.art-gallery-runtime {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  touch-action: none;
-}
-
-.white-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-  transition: opacity 80ms linear;
-}
-</style>
 

@@ -1,20 +1,17 @@
 import { createApp, reactive, type App } from "vue";
 import RuntimeArtGallery from "../vue/RuntimeArtGallery.vue";
+import runtimeStyles from "../styles/runtime.scss?inline";
 
-const resolveRuntimeCssHref = (): string => {
-  const moduleUrl = new URL(import.meta.url);
-  const cssUrl = new URL(/* @vite-ignore */ "./scrollix-art-gallery-runtime.css", moduleUrl);
-
-  // Keep CSS and JS on the same cache-busting version (e.g. ?v=..., ?cb=...).
-  moduleUrl.searchParams.forEach((value, key) => {
-    cssUrl.searchParams.set(key, value);
-  });
-
-  return cssUrl.toString();
-};
-
-const RUNTIME_CSS_HREF = resolveRuntimeCssHref();
+const RUNTIME_STYLE_ATTR = "data-scrollix-runtime-style";
 const RUNTIME_MODULE_BASE_URL = new URL(/* @vite-ignore */ "./", import.meta.url).toString();
+
+const ensureRuntimeStyle = (shadowRoot: ShadowRoot): void => {
+  if (shadowRoot.querySelector(`style[${RUNTIME_STYLE_ATTR}]`)) return;
+  const styleTag = document.createElement("style");
+  styleTag.setAttribute(RUNTIME_STYLE_ATTR, "true");
+  styleTag.textContent = runtimeStyles;
+  shadowRoot.prepend(styleTag);
+};
 
 interface RuntimeArtGalleryProps {
   configJson: string;
@@ -50,17 +47,12 @@ export class ScrollixArtGalleryElement extends HTMLElement {
     this.style.minWidth = "0";
 
     const shadowRoot = this.shadowRoot ?? this.attachShadow({ mode: "open" });
+    ensureRuntimeStyle(shadowRoot);
 
     if (!this.mountNode) {
       this.mountNode = document.createElement("div");
       this.mountNode.className = "scrollix-runtime-host";
-
-      const styleLink = document.createElement("link");
-      styleLink.setAttribute("rel", "stylesheet");
-      styleLink.setAttribute("href", RUNTIME_CSS_HREF);
-      styleLink.setAttribute("data-scrollix-runtime-style", "true");
-
-      shadowRoot.append(styleLink, this.mountNode);
+      shadowRoot.append(this.mountNode);
     }
 
     this.syncPropsFromAttributes();
