@@ -34,7 +34,17 @@ interface ArtworkSpotlightEntry {
   baseIntensity: number;
 }
 
+interface RenderViewport {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  aspect: number;
+}
+
 const LOOP_FOG_BOOST = 0.08;
+const MIN_LANDSCAPE_ASPECT = 1.35;
+const MAX_LANDSCAPE_ASPECT = 2.4;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -61,8 +71,9 @@ export class GalleryEngine {
   private readonly baseFogColor = new Color();
   private readonly mixedBackgroundColor = new Color();
   private readonly mixedFogColor = new Color();
-  private lastViewportWidth = 0;
-  private lastViewportHeight = 0;
+  private lastContainerWidth = 0;
+  private lastContainerHeight = 0;
+  private renderViewport: RenderViewport | null = null;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -128,20 +139,44 @@ export class GalleryEngine {
     }
 
     const rect = this.container.getBoundingClientRect();
-    const width = Math.max(1, Math.round(rect.width));
-    const height = Math.max(1, Math.round(rect.height));
+    const containerWidth = Math.max(1, Math.round(rect.width));
+    const containerHeight = Math.max(1, Math.round(rect.height));
+    const nextViewport = this.calculateRenderViewport(containerWidth, containerHeight);
 
-    if (!force && width === this.lastViewportWidth && height === this.lastViewportHeight) {
+    if (
+      !force &&
+      containerWidth === this.lastContainerWidth &&
+      containerHeight === this.lastContainerHeight &&
+      this.renderViewport &&
+      nextViewport.x === this.renderViewport.x &&
+      nextViewport.y === this.renderViewport.y &&
+      nextViewport.width === this.renderViewport.width &&
+      nextViewport.height === this.renderViewport.height
+    ) {
       return;
     }
 
-    this.lastViewportWidth = width;
-    this.lastViewportHeight = height;
+    this.lastContainerWidth = containerWidth;
+    this.lastContainerHeight = containerHeight;
+    this.renderViewport = nextViewport;
 
-    this.camera.aspect = width / height;
+    this.camera.aspect = nextViewport.aspect;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(width, height, false);
+    this.renderer.setSize(containerWidth, containerHeight, false);
+    this.renderer.setViewport(
+      nextViewport.x,
+      nextViewport.y,
+      nextViewport.width,
+      nextViewport.height,
+    );
+    this.renderer.setScissor(
+      nextViewport.x,
+      nextViewport.y,
+      nextViewport.width,
+      nextViewport.height,
+    );
+    this.renderer.setScissorTest(true);
   }
 
   dispose(): void {
@@ -176,11 +211,65 @@ export class GalleryEngine {
       // Mobile browsers can mutate viewport metrics without reliable layout events.
       this.resize();
 
+      // Clear the full drawing buffer first, then render only into the viewport box.
+      this.renderer.setScissorTest(false);
+      this.renderer.clear(true, true, true);
+
+      if (this.renderViewport) {
+        this.renderer.setViewport(
+          this.renderViewport.x,
+          this.renderViewport.y,
+          this.renderViewport.width,
+          this.renderViewport.height,
+        );
+        this.renderer.setScissor(
+          this.renderViewport.x,
+          this.renderViewport.y,
+          this.renderViewport.width,
+          this.renderViewport.height,
+        );
+        this.renderer.setScissorTest(true);
+      }
+
       this.renderer.render(this.scene, this.camera);
       this.animationFrameId = requestAnimationFrame(render);
     };
 
     render();
+  }
+
+  private getPreferredAspectRatio(): number {
+    const corridor = this.config.corridor;
+    const corridorAspect = corridor.width / Math.max(corridor.height, 0.001);
+    return clamp(corridorAspect, MIN_LANDSCAPE_ASPECT, MAX_LANDSCAPE_ASPECT);
+  }
+
+  private calculateRenderViewport(
+    containerWidth: number,
+    containerHeight: number,
+  ): RenderViewport {
+    const targetAspect = this.getPreferredAspectRatio();
+    const containerAspect = containerWidth / containerHeight;
+
+    let viewportWidth = containerWidth;
+    let viewportHeight = containerHeight;
+
+    if (containerAspect > targetAspect) {
+      viewportWidth = Math.round(containerHeight * targetAspect);
+    } else {
+      viewportHeight = Math.round(containerWidth / targetAspect);
+    }
+
+    viewportWidth = Math.max(1, Math.min(containerWidth, viewportWidth));
+    viewportHeight = Math.max(1, Math.min(containerHeight, viewportHeight));
+
+    return {
+      x: Math.floor((containerWidth - viewportWidth) / 2),
+      y: Math.floor((containerHeight - viewportHeight) / 2),
+      width: viewportWidth,
+      height: viewportHeight,
+      aspect: viewportWidth / viewportHeight,
+    };
   }
 
   private applyState(): void {
