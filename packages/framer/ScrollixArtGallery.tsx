@@ -849,6 +849,7 @@ interface ScrollixArtGalleryProps {
     style?: React.CSSProperties
     runtimeScriptUrl: string
     runtimeVersion: string
+    runtimeCacheKey: string
     samplePreset: SamplePreset
     artworkSource: ArtworkSource
     artworkImageOverrides: ArtworkImageOverrideValue[]
@@ -1145,7 +1146,6 @@ const isFramerPreviewRuntime = () => {
 }
 
 const getAutoRuntimeVersion = () => {
-    if (!isFramerPreviewRuntime()) return ""
     if (!window.__SCROLLIX_ART_GALLERY_RUNTIME_AUTO_VERSION__) {
         window.__SCROLLIX_ART_GALLERY_RUNTIME_AUTO_VERSION__ = `auto-${Date.now().toString(36)}`
     }
@@ -1155,25 +1155,41 @@ const getAutoRuntimeVersion = () => {
 const resolveRuntimeUrl = (
     runtimeScriptUrl: string,
     runtimeVersion: string,
+    runtimeCacheKey: string,
     autoRuntimeVersion: string
 ) => {
     const trimmedUrl = runtimeScriptUrl.trim()
     if (!trimmedUrl) return ""
 
     const trimmedVersion = runtimeVersion.trim()
+    const trimmedCacheKey = runtimeCacheKey.trim()
     const resolvedVersion =
         !trimmedVersion || trimmedVersion.toLowerCase() === RUNTIME_VERSION_AUTO
             ? autoRuntimeVersion
             : trimmedVersion
-    if (!resolvedVersion) return trimmedUrl
+    if (!resolvedVersion && !trimmedCacheKey) return trimmedUrl
 
     try {
         const url = new URL(trimmedUrl, window.location.href)
-        url.searchParams.set("v", resolvedVersion)
+        if (resolvedVersion) {
+            url.searchParams.set("v", resolvedVersion)
+        }
+        if (trimmedCacheKey) {
+            url.searchParams.set("cb", trimmedCacheKey)
+        }
         return url.toString()
     } catch (_error) {
+        const queryParts: string[] = []
+        if (resolvedVersion) {
+            queryParts.push(`v=${encodeURIComponent(resolvedVersion)}`)
+        }
+        if (trimmedCacheKey) {
+            queryParts.push(`cb=${encodeURIComponent(trimmedCacheKey)}`)
+        }
+        if (queryParts.length === 0) return trimmedUrl
+
         const separator = trimmedUrl.includes("?") ? "&" : "?"
-        return `${trimmedUrl}${separator}v=${encodeURIComponent(resolvedVersion)}`
+        return `${trimmedUrl}${separator}${queryParts.join("&")}`
     }
 }
 
@@ -2074,9 +2090,15 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
             resolveRuntimeUrl(
                 props.runtimeScriptUrl,
                 props.runtimeVersion,
+                props.runtimeCacheKey,
                 autoRuntimeVersion
             ),
-        [props.runtimeScriptUrl, props.runtimeVersion, autoRuntimeVersion]
+        [
+            props.runtimeScriptUrl,
+            props.runtimeVersion,
+            props.runtimeCacheKey,
+            autoRuntimeVersion,
+        ]
     )
 
     const {
@@ -2201,6 +2223,7 @@ function ScrollixArtGallery(props: ScrollixArtGalleryProps) {
 ScrollixArtGallery.defaultProps = {
     runtimeScriptUrl: DEFAULT_RUNTIME_SCRIPT_URL,
     runtimeVersion: DEFAULT_RUNTIME_VERSION,
+    runtimeCacheKey: "",
     samplePreset: "daylight",
     artworkSource: "sample",
     artworkImageOverrides: DEFAULT_ARTWORK_IMAGE_OVERRIDES,
@@ -2321,6 +2344,21 @@ ScrollixArtGallery.defaultProps = {
 } as ScrollixArtGalleryProps
 
 addPropertyControls(ScrollixArtGallery, {
+    runtimeScriptUrl: {
+        type: ControlType.String,
+        title: "Runtime URL",
+        defaultValue: DEFAULT_RUNTIME_SCRIPT_URL,
+    },
+    runtimeVersion: {
+        type: ControlType.String,
+        title: "Runtime Ver",
+        defaultValue: DEFAULT_RUNTIME_VERSION,
+    },
+    runtimeCacheKey: {
+        type: ControlType.String,
+        title: "Cache Key",
+        defaultValue: "",
+    },
     samplePreset: {
         type: ControlType.Enum,
         title: "Template",
