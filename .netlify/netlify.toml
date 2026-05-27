@@ -35,7 +35,7 @@ Access-Control-Allow-Origin = "*"
 Access-Control-Allow-Methods = "GET, HEAD, OPTIONS"
 Access-Control-Allow-Headers = "*"
 Cross-Origin-Resource-Policy = "cross-origin"
-Cache-Control = "public, max-age=31536000, immutable"
+Cache-Control = "public, max-age=0, must-revalidate"
 Content-Type = "application/javascript; charset=utf-8"
 
 [[headers]]
@@ -46,7 +46,7 @@ Access-Control-Allow-Origin = "*"
 Access-Control-Allow-Methods = "GET, HEAD, OPTIONS"
 Access-Control-Allow-Headers = "*"
 Cross-Origin-Resource-Policy = "cross-origin"
-Cache-Control = "public, max-age=31536000, immutable"
+Cache-Control = "public, max-age=0, must-revalidate"
 Content-Type = "text/css; charset=utf-8"
 
 [[headers]]
@@ -57,7 +57,7 @@ Access-Control-Allow-Origin = "*"
 Access-Control-Allow-Methods = "GET, HEAD, OPTIONS"
 Access-Control-Allow-Headers = "*"
 Cross-Origin-Resource-Policy = "cross-origin"
-Cache-Control = "public, max-age=31536000, immutable"
+Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
 for = "/scrollix-art-gallery-runtime.css"
@@ -67,7 +67,7 @@ Access-Control-Allow-Origin = "*"
 Access-Control-Allow-Methods = "GET, HEAD, OPTIONS"
 Access-Control-Allow-Headers = "*"
 Cross-Origin-Resource-Policy = "cross-origin"
-Cache-Control = "public, max-age=31536000, immutable"
+Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
 for = "/images/*"
