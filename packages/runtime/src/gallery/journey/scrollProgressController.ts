@@ -39,6 +39,8 @@ export class ScrollProgressController {
   private velocity = 0;
   private progress = 0;
   private targetProgress = 0;
+  private activeTouchId: number | null = null;
+  private lastTouchY: number | null = null;
   private readonly smoothstep = (value: number): number => {
     const t = clamp(value, 0, 1);
     return t * t * (3 - 2 * t);
@@ -58,8 +60,7 @@ export class ScrollProgressController {
     return event.deltaY;
   };
 
-  private readonly normalizeWheelDelta = (event: WheelEvent): number => {
-    const pixelDelta = this.toPixelDelta(event);
+  private readonly normalizePixelDelta = (pixelDelta: number): number => {
     if (!Number.isFinite(pixelDelta)) {
       return 0;
     }
@@ -73,6 +74,10 @@ export class ScrollProgressController {
     return clamp(compressed, -4, 4);
   };
 
+  private readonly normalizeWheelDelta = (event: WheelEvent): number => {
+    return this.normalizePixelDelta(this.toPixelDelta(event));
+  };
+
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
     if (event.ctrlKey) {
@@ -81,6 +86,60 @@ export class ScrollProgressController {
 
     const normalizedDelta = this.normalizeWheelDelta(event);
     this.velocity += normalizedDelta * this.sensitivity;
+  };
+
+  private readonly onTouchStart = (event: TouchEvent): void => {
+    const touch = event.touches[0];
+    if (!touch) {
+      return;
+    }
+
+    this.activeTouchId = touch.identifier;
+    this.lastTouchY = touch.clientY;
+  };
+
+  private readonly onTouchMove = (event: TouchEvent): void => {
+    if (this.lastTouchY === null) {
+      return;
+    }
+
+    const touches = Array.from(event.touches);
+    if (touches.length === 0) {
+      return;
+    }
+
+    const trackedTouch =
+      touches.find((touch) => touch.identifier === this.activeTouchId) ?? touches[0];
+
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+
+    const pixelDelta = this.lastTouchY - trackedTouch.clientY;
+    this.lastTouchY = trackedTouch.clientY;
+    this.activeTouchId = trackedTouch.identifier;
+
+    const normalizedDelta = this.normalizePixelDelta(pixelDelta);
+    this.velocity += normalizedDelta * this.sensitivity;
+  };
+
+  private readonly onTouchEnd = (event: TouchEvent): void => {
+    const touches = Array.from(event.touches);
+    if (touches.length === 0) {
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+      return;
+    }
+
+    const trackedTouch =
+      touches.find((touch) => touch.identifier === this.activeTouchId) ?? touches[0];
+    this.activeTouchId = trackedTouch.identifier;
+    this.lastTouchY = trackedTouch.clientY;
+  };
+
+  private readonly onTouchCancel = (): void => {
+    this.activeTouchId = null;
+    this.lastTouchY = null;
   };
 
   constructor(options: ScrollProgressControllerOptions) {
@@ -117,6 +176,10 @@ export class ScrollProgressController {
 
     this.running = true;
     this.element.addEventListener("wheel", this.onWheel, { passive: false });
+    this.element.addEventListener("touchstart", this.onTouchStart, { passive: true });
+    this.element.addEventListener("touchmove", this.onTouchMove, { passive: false });
+    this.element.addEventListener("touchend", this.onTouchEnd, { passive: true });
+    this.element.addEventListener("touchcancel", this.onTouchCancel, { passive: true });
     gsap.ticker.add(this.tick);
   }
 
@@ -172,6 +235,10 @@ export class ScrollProgressController {
   dispose(): void {
     this.running = false;
     this.element.removeEventListener("wheel", this.onWheel);
+    this.element.removeEventListener("touchstart", this.onTouchStart);
+    this.element.removeEventListener("touchmove", this.onTouchMove);
+    this.element.removeEventListener("touchend", this.onTouchEnd);
+    this.element.removeEventListener("touchcancel", this.onTouchCancel);
     gsap.ticker.remove(this.tick);
   }
 

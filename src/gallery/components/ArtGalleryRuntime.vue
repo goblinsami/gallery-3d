@@ -134,6 +134,7 @@ onBeforeUnmount(() => {
   min-height: 420px;
   overflow: hidden;
   border-radius: 14px;
+  touch-action: none;
 }
 
 .white-overlay {
