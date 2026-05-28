@@ -84,6 +84,8 @@ interface SceneTitleConfig {
 interface GalleryCameraConfig {
     fov: number
     targetAspectRatio?: number
+    mobileTargetAspectRatio?: number
+    mobileBreakpointWidth?: number
     startPosition: Vec3
     height: number
     movementSmoothing: number
@@ -610,6 +612,18 @@ const createRuntimeConflictError = (
             `Use one runtime version per page (or switch Runtime Mode to manifest and keep one shared channel/version).`
     )
 
+const logRuntimeConflictFallback = (
+    tagName: string,
+    activeRuntimeUrl: string,
+    requestedRuntimeUrl: string
+) => {
+    console.warn(
+        `[Scrollix] ${tagName} requested a different runtime URL. Reusing already-registered runtime instead.\n` +
+            `Active: ${activeRuntimeUrl}\n` +
+            `Requested: ${requestedRuntimeUrl}`
+    )
+}
+
 const getRuntimeScriptElement = (runtimeUrl: string) => {
     const normalizedRuntimeUrl = normalizeRuntimeUrlForCompare(runtimeUrl)
     const scripts = Array.from(document.querySelectorAll("script"))
@@ -696,6 +710,14 @@ const loadRuntimeModule = async (runtimeUrl: string, tagName: string) => {
     const runtimeUrlsByTag = getRuntimeUrlRegistryByTag()
     const existingRuntimeUrl = runtimeUrlsByTag[tagName]
     if (existingRuntimeUrl && existingRuntimeUrl !== requestedRuntimeUrl) {
+        if (window.customElements.get(tagName)) {
+            logRuntimeConflictFallback(
+                tagName,
+                existingRuntimeUrl,
+                requestedRuntimeUrl
+            )
+            return
+        }
         throw createRuntimeConflictError(
             tagName,
             existingRuntimeUrl,
@@ -720,11 +742,12 @@ const loadRuntimeModule = async (runtimeUrl: string, tagName: string) => {
 
         runtimeUrlsByTag[tagName] = runtimeUrlsByTag[tagName] ?? requestedRuntimeUrl
         if (runtimeUrlsByTag[tagName] !== requestedRuntimeUrl) {
-            throw createRuntimeConflictError(
+            logRuntimeConflictFallback(
                 tagName,
                 runtimeUrlsByTag[tagName],
                 requestedRuntimeUrl
             )
+            return
         }
         return
     }
@@ -964,6 +987,8 @@ interface ScrollixArtGalleryProps {
     artworkTurnKeyframes: number
     artworkTurnLeadIn: number
     cameraAspectPreset: CameraAspectPreset
+    mobileCameraAspectPreset: CameraAspectPreset
+    mobileBreakpointWidth: number
     cameraFov: number
     cameraStartX: number
     cameraStartY: number
@@ -2376,6 +2401,9 @@ const buildGalleryConfig = (
     const resolvedCameraAspectRatio = resolveCameraAspectRatio(
         props.cameraAspectPreset
     )
+    const resolvedMobileCameraAspectRatio = resolveCameraAspectRatio(
+        props.mobileCameraAspectPreset
+    )
     const resolvedTitleText =
         typeof title.text === "string" ? title.text : controlsBaseline.sceneTitle
     const resolvedSceneTitle =
@@ -2416,6 +2444,10 @@ const buildGalleryConfig = (
         durations.return !== controlsBaseline.timings.returnDuration
     const shouldOverrideCameraAspectRatio =
         isDayPreset || props.cameraAspectPreset !== "auto"
+    const shouldOverrideMobileCameraAspectRatio =
+        isDayPreset || props.mobileCameraAspectPreset !== "auto"
+    const shouldOverrideMobileBreakpointWidth =
+        isDayPreset || props.mobileBreakpointWidth !== 820
     const shouldOverrideScrollStrength =
         isDayPreset ||
         props.scrollStrength !== controlsBaseline.scrollStrength
@@ -2431,6 +2463,12 @@ const buildGalleryConfig = (
             targetAspectRatio: shouldOverrideCameraAspectRatio
                 ? resolvedCameraAspectRatio
                 : config.camera.targetAspectRatio,
+            mobileTargetAspectRatio: shouldOverrideMobileCameraAspectRatio
+                ? resolvedMobileCameraAspectRatio
+                : config.camera.mobileTargetAspectRatio,
+            mobileBreakpointWidth: shouldOverrideMobileBreakpointWidth
+                ? props.mobileBreakpointWidth
+                : config.camera.mobileBreakpointWidth,
         },
         sceneTitle: shouldOverrideSceneTitle
             ? resolvedSceneTitle
@@ -2503,6 +2541,8 @@ const buildGalleryConfig = (
         camera: {
             fov: props.cameraFov,
             targetAspectRatio: resolvedCameraAspectRatio,
+            mobileTargetAspectRatio: resolvedMobileCameraAspectRatio,
+            mobileBreakpointWidth: props.mobileBreakpointWidth,
             startPosition: [
                 props.cameraStartX,
                 props.cameraStartY,
@@ -2883,6 +2923,8 @@ ScrollixArtGallery.defaultProps = {
     artworkTurnKeyframes: DAYLIGHT_GALLERY_SAMPLE.artworkTurnKeyframes,
     artworkTurnLeadIn: DAYLIGHT_GALLERY_SAMPLE.artworkTurnLeadIn,
     cameraAspectPreset: "auto",
+    mobileCameraAspectPreset: "ratio_3_4",
+    mobileBreakpointWidth: 820,
     cameraFov: DAYLIGHT_GALLERY_SAMPLE.camera.fov,
     cameraStartX: DAYLIGHT_GALLERY_SAMPLE.camera.startPosition[0],
     cameraStartY: DAYLIGHT_GALLERY_SAMPLE.camera.startPosition[1],
@@ -3075,6 +3117,27 @@ addPropertyControls(ScrollixArtGallery, {
         ],
         optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9"],
         defaultValue: "auto",
+    },
+    mobileCameraAspectPreset: {
+        type: ControlType.Enum,
+        title: "Mobile Aspect",
+        options: [
+            "auto",
+            "ratio_3_4",
+            "ratio_1_1",
+            "ratio_4_3",
+            "ratio_16_9",
+        ],
+        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9"],
+        defaultValue: "ratio_3_4",
+    },
+    mobileBreakpointWidth: {
+        type: ControlType.Number,
+        title: "Mobile BP",
+        min: 320,
+        max: 1600,
+        step: 1,
+        defaultValue: 820,
     },
     geometryColors: {
         type: ControlType.Object,

@@ -48,6 +48,7 @@ const MAX_AUTO_ASPECT = 2.4;
 const PORTRAIT_MAX_AUTO_ASPECT = 4 / 3;
 const MIN_EXPLICIT_ASPECT = 0.7;
 const MAX_EXPLICIT_ASPECT = 2.6;
+const DEFAULT_MOBILE_BREAKPOINT = 820;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -77,6 +78,7 @@ export class GalleryEngine {
   private lastContainerWidth = 0;
   private lastContainerHeight = 0;
   private renderViewport: RenderViewport | null = null;
+  private activeArtworkIndex: number | null = null;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -118,6 +120,10 @@ export class GalleryEngine {
   setLoopWhiteMix(whiteMix: number): void {
     this.loopWhiteMix = clamp(whiteMix, 0, 1);
     this.applyState();
+  }
+
+  getActiveArtworkIndex(): number | null {
+    return this.activeArtworkIndex;
   }
 
   async updateConfig(config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>): Promise<void> {
@@ -199,6 +205,7 @@ export class GalleryEngine {
 
     textureCache.clear();
     this.loopWhiteMix = 0;
+    this.activeArtworkIndex = null;
     this.initialized = false;
     this.scene = null;
     this.camera = null;
@@ -241,7 +248,23 @@ export class GalleryEngine {
     render();
   }
 
-  private getPreferredAspectRatio(containerAspect: number): number {
+  private getPreferredAspectRatio(containerWidth: number, containerHeight: number): number {
+    const containerAspect = containerWidth / containerHeight;
+    const mobileBreakpoint = clamp(
+      this.config.camera.mobileBreakpointWidth ?? DEFAULT_MOBILE_BREAKPOINT,
+      320,
+      1600,
+    );
+    const shortestSide = Math.min(containerWidth, containerHeight);
+    const isMobileViewport = shortestSide <= mobileBreakpoint;
+
+    if (isMobileViewport) {
+      const mobileAspect = this.config.camera.mobileTargetAspectRatio;
+      if (typeof mobileAspect === "number" && Number.isFinite(mobileAspect)) {
+        return clamp(mobileAspect, MIN_EXPLICIT_ASPECT, MAX_EXPLICIT_ASPECT);
+      }
+    }
+
     const explicitAspect = this.config.camera.targetAspectRatio;
     if (typeof explicitAspect === "number" && Number.isFinite(explicitAspect)) {
       return clamp(explicitAspect, MIN_EXPLICIT_ASPECT, MAX_EXPLICIT_ASPECT);
@@ -267,7 +290,7 @@ export class GalleryEngine {
     containerHeight: number,
   ): RenderViewport {
     const containerAspect = containerWidth / containerHeight;
-    const targetAspect = this.getPreferredAspectRatio(containerAspect);
+    const targetAspect = this.getPreferredAspectRatio(containerWidth, containerHeight);
 
     let viewportWidth = containerWidth;
     let viewportHeight = containerHeight;
@@ -300,6 +323,7 @@ export class GalleryEngine {
     const desiredLookAt = state.lookAt;
     const titleOpacity = state.titleOpacity;
     const whiteMix = this.config.infiniteCorridor ? this.loopWhiteMix : 0;
+    this.activeArtworkIndex = state.activeArtworkIndex;
 
     this.applyAtmosphere(whiteMix);
 

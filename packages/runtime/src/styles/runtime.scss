@@ -54,3 +54,104 @@
   z-index: 3;
   transition: opacity 80ms linear;
 }
+
+.mobile-overlay-toggle {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.5rem;
+  height: 2.25rem;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(9, 14, 28, 0.76);
+  color: #f4f7ff;
+  font: 600 0.78rem/1 "Segoe UI", Tahoma, sans-serif;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+  user-select: none;
+}
+
+.mobile-overlay-toggle:focus-visible {
+  outline: 2px solid rgba(126, 205, 255, 0.95);
+  outline-offset: 2px;
+}
+
+.mobile-artwork-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.75rem;
+  background: linear-gradient(
+    to top,
+    rgba(2, 7, 20, 0.78) 0%,
+    rgba(2, 7, 20, 0.35) 42%,
+    rgba(2, 7, 20, 0.08) 100%
+  );
+}
+
+.mobile-artwork-overlay-card {
+  width: min(100%, 30rem);
+  max-height: min(62%, 24rem);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.9rem;
+  padding: 0.85rem 0.9rem 0.95rem;
+  background: rgba(9, 14, 28, 0.92);
+  color: #eef4ff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.34);
+}
+
+.mobile-artwork-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mobile-artwork-overlay-eyebrow {
+  margin: 0;
+  font: 600 0.67rem/1.1 "Segoe UI", Tahoma, sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(224, 236, 255, 0.76);
+}
+
+.mobile-artwork-overlay-close {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 0.55rem;
+  min-height: 1.9rem;
+  padding: 0 0.55rem;
+  background: rgba(12, 20, 38, 0.85);
+  color: #f4f8ff;
+  font: 600 0.74rem/1 "Segoe UI", Tahoma, sans-serif;
+  cursor: pointer;
+}
+
+.mobile-artwork-overlay-close:focus-visible {
+  outline: 2px solid rgba(126, 205, 255, 0.95);
+  outline-offset: 2px;
+}
+
+.mobile-artwork-overlay-title {
+  margin: 0.55rem 0 0;
+  font: 700 1.02rem/1.24 "Segoe UI", Tahoma, sans-serif;
+  color: #f6f9ff;
+}
+
+.mobile-artwork-overlay-description {
+  margin: 0.45rem 0 0;
+  font: 400 0.84rem/1.42 "Segoe UI", Tahoma, sans-serif;
+  color: rgba(233, 241, 255, 0.93);
+  white-space: pre-wrap;
+}

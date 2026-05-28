@@ -286,6 +286,14 @@ export const validateGalleryConfig = (
         typeof source.camera?.targetAspectRatio === "number"
           ? clamp(source.camera.targetAspectRatio, 0.7, 2.6)
           : undefined,
+      mobileTargetAspectRatio:
+        typeof source.camera?.mobileTargetAspectRatio === "number"
+          ? clamp(source.camera.mobileTargetAspectRatio, 0.7, 2.6)
+          : undefined,
+      mobileBreakpointWidth:
+        typeof source.camera?.mobileBreakpointWidth === "number"
+          ? clamp(source.camera.mobileBreakpointWidth, 320, 1600)
+          : 820,
       startPosition: toVec3(source.camera?.startPosition, defaultConfig.camera.startPosition),
       height: source.camera?.height ?? defaultConfig.camera.height,
       movementSmoothing: clamp(

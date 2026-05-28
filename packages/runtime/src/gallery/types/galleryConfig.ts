@@ -66,6 +66,8 @@ export interface SceneTitleConfig {
 export interface GalleryCameraConfig {
   fov: number;
   targetAspectRatio?: number;
+  mobileTargetAspectRatio?: number;
+  mobileBreakpointWidth?: number;
   startPosition: Vec3;
   height: number;
   movementSmoothing: number;
