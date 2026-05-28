@@ -72,6 +72,28 @@ describe("buildCameraKeyframes", () => {
     expect(closeDistance).toBeLessThan(farDistance);
   });
 
+  it("moves camera farther on narrow viewport aspects to keep artwork in frame", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworks: [
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          width: 2.8,
+          height: 1.6,
+          sideText: undefined,
+        },
+      ],
+    };
+
+    const wideLayout = calculateArtworkLayout(config, { viewportAspect: 16 / 9 });
+    const narrowLayout = calculateArtworkLayout(config, { viewportAspect: 3 / 4 });
+
+    const wideDistance = Math.abs(wideLayout[0].focusPosition[0] - wideLayout[0].focusTarget[0]);
+    const narrowDistance = Math.abs(narrowLayout[0].focusPosition[0] - narrowLayout[0].focusTarget[0]);
+
+    expect(narrowDistance).toBeGreaterThan(wideDistance);
+  });
+
   it("adds more focus-turn keyframes when artworkTurnKeyframes is higher", () => {
     const lowTurnConfig = {
       ...DEFAULT_GALLERY_CONFIG,

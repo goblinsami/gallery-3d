@@ -49,6 +49,8 @@ const PORTRAIT_MAX_AUTO_ASPECT = 4 / 3;
 const MIN_EXPLICIT_ASPECT = 0.7;
 const MAX_EXPLICIT_ASPECT = 2.6;
 const DEFAULT_MOBILE_BREAKPOINT = 820;
+const DEFAULT_JOURNEY_ASPECT = 16 / 9;
+const JOURNEY_ASPECT_EPSILON = 0.01;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -79,6 +81,7 @@ export class GalleryEngine {
   private lastContainerHeight = 0;
   private renderViewport: RenderViewport | null = null;
   private activeArtworkIndex: number | null = null;
+  private journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -186,6 +189,7 @@ export class GalleryEngine {
       nextViewport.height,
     );
     this.renderer.setScissorTest(true);
+    this.updateJourneyViewportAspect(nextViewport.aspect, force);
   }
 
   dispose(): void {
@@ -206,6 +210,7 @@ export class GalleryEngine {
     textureCache.clear();
     this.loopWhiteMix = 0;
     this.activeArtworkIndex = null;
+    this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
     this.scene = null;
     this.camera = null;
@@ -313,6 +318,34 @@ export class GalleryEngine {
     };
   }
 
+  private updateJourneyViewportAspect(nextAspect: number, force = false): void {
+    if (!this.buildArtifacts) {
+      this.journeyViewportAspect = nextAspect;
+      return;
+    }
+
+    if (
+      !force &&
+      Math.abs(nextAspect - this.journeyViewportAspect) < JOURNEY_ASPECT_EPSILON
+    ) {
+      return;
+    }
+
+    this.journeyViewportAspect = nextAspect;
+    const layout = calculateArtworkLayout(this.config, {
+      viewportAspect: this.journeyViewportAspect,
+    });
+    const keyframes = buildCameraKeyframes(this.config, layout);
+    this.keyframes = keyframes;
+    this.buildArtifacts = {
+      config: this.config,
+      layout,
+      keyframes,
+    };
+    this.smoothedLookAt = null;
+    this.applyState();
+  }
+
   private applyState(): void {
     if (!this.camera || !this.scene || !this.renderer || this.keyframes.length === 0) {
       return;
@@ -353,7 +386,9 @@ export class GalleryEngine {
     this.clearSceneGraph();
     textureCache.clear();
 
-    const layout = calculateArtworkLayout(this.config);
+    const layout = calculateArtworkLayout(this.config, {
+      viewportAspect: this.journeyViewportAspect,
+    });
     const keyframes = buildCameraKeyframes(this.config, layout);
 
     const corridorRoot = createCorridor(this.config);

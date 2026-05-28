@@ -6,6 +6,8 @@ import { lerp, lerpVec3 } from "../utils/math";
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 const ASSUMED_VIEWPORT_ASPECT = 16 / 9;
+const MIN_VIEWPORT_ASPECT = 0.45;
+const MAX_VIEWPORT_ASPECT = 3.2;
 const IMAGE_SURFACE_OFFSET = 0.02;
 const smootherstep = (t: number): number => {
   const clamped = clamp01(t);
@@ -13,6 +15,19 @@ const smootherstep = (t: number): number => {
 };
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
+
+export interface ArtworkLayoutOptions {
+  viewportAspect?: number;
+}
+
+const resolveViewportAspect = (options?: ArtworkLayoutOptions): number => {
+  const rawAspect = options?.viewportAspect;
+  if (typeof rawAspect !== "number" || !Number.isFinite(rawAspect)) {
+    return ASSUMED_VIEWPORT_ASPECT;
+  }
+
+  return clamp(rawAspect, MIN_VIEWPORT_ASPECT, MAX_VIEWPORT_ASPECT);
+};
 
 const titleOpacityAt = (config: ArtGallerySceneConfig, progress: number): number => {
   const { fadeStartProgress, fadeEndProgress, maxOpacity } = config.sceneTitleConfig;
@@ -48,13 +63,15 @@ const getArtworkSide = (
 const getFocusDistance = (
   config: ArtGallerySceneConfig,
   artwork: { width?: number; height?: number },
+  options?: ArtworkLayoutOptions,
 ): number => {
   const artworkWidth = artwork.width ?? GALLERY_DEFAULTS.artwork.width;
   const artworkHeight = artwork.height ?? GALLERY_DEFAULTS.artwork.height;
   const focusFill = Math.min(0.98, Math.max(0.3, config.artworkFocusFill));
+  const viewportAspect = resolveViewportAspect(options);
 
   const halfVerticalFov = (config.camera.fov * Math.PI) / 360;
-  const halfHorizontalFov = Math.atan(Math.tan(halfVerticalFov) * ASSUMED_VIEWPORT_ASPECT);
+  const halfHorizontalFov = Math.atan(Math.tan(halfVerticalFov) * viewportAspect);
 
   const distanceByHeight =
     (artworkHeight * 0.5) / Math.max(0.0001, Math.tan(halfVerticalFov) * focusFill);
@@ -64,7 +81,10 @@ const getFocusDistance = (
   return Math.max(0.9, Math.max(distanceByHeight, distanceByWidth));
 };
 
-export const calculateArtworkLayout = (config: ArtGallerySceneConfig): PositionedArtwork[] => {
+export const calculateArtworkLayout = (
+  config: ArtGallerySceneConfig,
+  options?: ArtworkLayoutOptions,
+): PositionedArtwork[] => {
   const sideStart: ArtworkSide = config.artworks[0]?.side === "right" ? "right" : "left";
   const wallHalfWidth = config.corridor.width / 2;
   const baseZ = -config.corridor.segmentLength;
@@ -98,7 +118,7 @@ export const calculateArtworkLayout = (config: ArtGallerySceneConfig): Positione
     const focusDistance = getFocusDistance(config, {
       width: compositionWidth,
       height: compositionHeight,
-    });
+    }, options);
 
     const position: Vec3 = [x, cameraHeight, z];
     const lookAt: Vec3 = [0, cameraHeight, focusTargetZ];

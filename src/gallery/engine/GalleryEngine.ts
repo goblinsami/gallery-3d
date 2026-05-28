@@ -35,6 +35,8 @@ interface ArtworkSpotlightEntry {
 }
 
 const LOOP_FOG_BOOST = 0.08;
+const DEFAULT_JOURNEY_ASPECT = 16 / 9;
+const JOURNEY_ASPECT_EPSILON = 0.01;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -61,6 +63,7 @@ export class GalleryEngine {
   private readonly baseFogColor = new Color();
   private readonly mixedBackgroundColor = new Color();
   private readonly mixedFogColor = new Color();
+  private journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -112,18 +115,20 @@ export class GalleryEngine {
     this.applyState();
   }
 
-  resize(): void {
+  resize(force = false): void {
     if (!this.camera || !this.renderer) {
       return;
     }
 
     const width = Math.max(1, this.container.clientWidth);
     const height = Math.max(1, this.container.clientHeight);
+    const viewportAspect = width / height;
 
-    this.camera.aspect = width / height;
+    this.camera.aspect = viewportAspect;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(width, height, false);
+    this.updateJourneyViewportAspect(viewportAspect, force);
   }
 
   dispose(): void {
@@ -143,6 +148,7 @@ export class GalleryEngine {
 
     textureCache.clear();
     this.loopWhiteMix = 0;
+    this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
     this.scene = null;
     this.camera = null;
@@ -160,6 +166,34 @@ export class GalleryEngine {
     };
 
     render();
+  }
+
+  private updateJourneyViewportAspect(nextAspect: number, force = false): void {
+    if (!this.buildArtifacts) {
+      this.journeyViewportAspect = nextAspect;
+      return;
+    }
+
+    if (
+      !force &&
+      Math.abs(nextAspect - this.journeyViewportAspect) < JOURNEY_ASPECT_EPSILON
+    ) {
+      return;
+    }
+
+    this.journeyViewportAspect = nextAspect;
+    const layout = calculateArtworkLayout(this.config, {
+      viewportAspect: this.journeyViewportAspect,
+    });
+    const keyframes = buildCameraKeyframes(this.config, layout);
+    this.keyframes = keyframes;
+    this.buildArtifacts = {
+      config: this.config,
+      layout,
+      keyframes,
+    };
+    this.smoothedLookAt = null;
+    this.applyState();
   }
 
   private applyState(): void {
@@ -201,7 +235,9 @@ export class GalleryEngine {
     this.clearSceneGraph();
     textureCache.clear();
 
-    const layout = calculateArtworkLayout(this.config);
+    const layout = calculateArtworkLayout(this.config, {
+      viewportAspect: this.journeyViewportAspect,
+    });
     const keyframes = buildCameraKeyframes(this.config, layout);
 
     const corridorRoot = createCorridor(this.config);
