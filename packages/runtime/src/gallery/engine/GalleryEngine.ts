@@ -43,9 +43,11 @@ interface RenderViewport {
 }
 
 const LOOP_FOG_BOOST = 0.08;
-const MIN_LANDSCAPE_ASPECT = 1.35;
-const MAX_LANDSCAPE_ASPECT = 2.4;
-const PORTRAIT_MAX_ASPECT = 4 / 3;
+const MIN_AUTO_LANDSCAPE_ASPECT = 1.35;
+const MAX_AUTO_ASPECT = 2.4;
+const PORTRAIT_MAX_AUTO_ASPECT = 4 / 3;
+const MIN_EXPLICIT_ASPECT = 0.7;
+const MAX_EXPLICIT_ASPECT = 2.6;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -240,16 +242,21 @@ export class GalleryEngine {
   }
 
   private getPreferredAspectRatio(containerAspect: number): number {
+    const explicitAspect = this.config.camera.targetAspectRatio;
+    if (typeof explicitAspect === "number" && Number.isFinite(explicitAspect)) {
+      return clamp(explicitAspect, MIN_EXPLICIT_ASPECT, MAX_EXPLICIT_ASPECT);
+    }
+
     const corridor = this.config.corridor;
     const corridorAspect = clamp(
       corridor.width / Math.max(corridor.height, 0.001),
-      MIN_LANDSCAPE_ASPECT,
-      MAX_LANDSCAPE_ASPECT,
+      MIN_AUTO_LANDSCAPE_ASPECT,
+      MAX_AUTO_ASPECT,
     );
 
     // On portrait screens, forcing a very wide ratio creates an overly short band.
     if (containerAspect < 1) {
-      return Math.min(corridorAspect, PORTRAIT_MAX_ASPECT);
+      return Math.min(corridorAspect, PORTRAIT_MAX_AUTO_ASPECT);
     }
 
     return corridorAspect;

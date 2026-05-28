@@ -13,6 +13,12 @@ type TitleFontPreset =
 type ArtworkImageSourceMode = "upload" | "url" | "runtimePath" | "sample"
 type RuntimeChannel = "stable" | "beta"
 type RuntimeSourceMode = "manifest" | "legacyUrl"
+type CameraAspectPreset =
+    | "auto"
+    | "ratio_3_4"
+    | "ratio_1_1"
+    | "ratio_4_3"
+    | "ratio_16_9"
 
 interface ArtworkMetadata {
     artist?: string
@@ -77,6 +83,7 @@ interface SceneTitleConfig {
 
 interface GalleryCameraConfig {
     fov: number
+    targetAspectRatio?: number
     startPosition: Vec3
     height: number
     movementSmoothing: number
@@ -466,6 +473,23 @@ const resolveTitleFontUrl = (
         return trimmed || TITLE_FONT_PRESET_URLS.helvetiker
     }
     return TITLE_FONT_PRESET_URLS[preset]
+}
+
+const resolveCameraAspectRatio = (
+    preset: CameraAspectPreset
+): number | undefined => {
+    switch (preset) {
+        case "ratio_3_4":
+            return 3 / 4
+        case "ratio_1_1":
+            return 1
+        case "ratio_4_3":
+            return 4 / 3
+        case "ratio_16_9":
+            return 16 / 9
+        default:
+            return undefined
+    }
 }
 
 const TEMPLATE_PATHS: Record<SamplePreset, string> = {
@@ -939,6 +963,7 @@ interface ScrollixArtGalleryProps {
     artworkTurnSmoothness: number
     artworkTurnKeyframes: number
     artworkTurnLeadIn: number
+    cameraAspectPreset: CameraAspectPreset
     cameraFov: number
     cameraStartX: number
     cameraStartY: number
@@ -2348,6 +2373,9 @@ const buildGalleryConfig = (
         title.fontPreset,
         title.customFontUrl
     )
+    const resolvedCameraAspectRatio = resolveCameraAspectRatio(
+        props.cameraAspectPreset
+    )
     const resolvedTitleText =
         typeof title.text === "string" ? title.text : controlsBaseline.sceneTitle
     const resolvedSceneTitle =
@@ -2386,10 +2414,24 @@ const buildGalleryConfig = (
         durations.travel !== controlsBaseline.timings.travelDuration ||
         durations.focus !== controlsBaseline.timings.focusDuration ||
         durations.return !== controlsBaseline.timings.returnDuration
+    const shouldOverrideCameraAspectRatio =
+        isDayPreset || props.cameraAspectPreset !== "auto"
+    const shouldOverrideScrollStrength =
+        isDayPreset ||
+        props.scrollStrength !== controlsBaseline.scrollStrength
     const withResolvedSceneControls = (
         config: ArtGallerySceneConfig
     ): ArtGallerySceneConfig => ({
         ...config,
+        scrollStrength: shouldOverrideScrollStrength
+            ? props.scrollStrength
+            : config.scrollStrength,
+        camera: {
+            ...config.camera,
+            targetAspectRatio: shouldOverrideCameraAspectRatio
+                ? resolvedCameraAspectRatio
+                : config.camera.targetAspectRatio,
+        },
         sceneTitle: shouldOverrideSceneTitle
             ? resolvedSceneTitle
             : config.sceneTitle,
@@ -2460,6 +2502,7 @@ const buildGalleryConfig = (
         artworkTurnLeadIn: props.artworkTurnLeadIn,
         camera: {
             fov: props.cameraFov,
+            targetAspectRatio: resolvedCameraAspectRatio,
             startPosition: [
                 props.cameraStartX,
                 props.cameraStartY,
@@ -2839,6 +2882,7 @@ ScrollixArtGallery.defaultProps = {
     artworkTurnSmoothness: DAYLIGHT_GALLERY_SAMPLE.artworkTurnSmoothness,
     artworkTurnKeyframes: DAYLIGHT_GALLERY_SAMPLE.artworkTurnKeyframes,
     artworkTurnLeadIn: DAYLIGHT_GALLERY_SAMPLE.artworkTurnLeadIn,
+    cameraAspectPreset: "auto",
     cameraFov: DAYLIGHT_GALLERY_SAMPLE.camera.fov,
     cameraStartX: DAYLIGHT_GALLERY_SAMPLE.camera.startPosition[0],
     cameraStartY: DAYLIGHT_GALLERY_SAMPLE.camera.startPosition[1],
@@ -3010,6 +3054,27 @@ addPropertyControls(ScrollixArtGallery, {
         type: ControlType.Boolean,
         title: "Infinite Corridor",
         defaultValue: DAYLIGHT_GALLERY_SAMPLE.infiniteCorridor,
+    },
+    scrollStrength: {
+        type: ControlType.Number,
+        title: "Scroll Strength",
+        min: 0.25,
+        max: 8,
+        step: 0.05,
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.scrollStrength,
+    },
+    cameraAspectPreset: {
+        type: ControlType.Enum,
+        title: "Aspect Ratio",
+        options: [
+            "auto",
+            "ratio_3_4",
+            "ratio_1_1",
+            "ratio_4_3",
+            "ratio_16_9",
+        ],
+        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9"],
+        defaultValue: "auto",
     },
     geometryColors: {
         type: ControlType.Object,

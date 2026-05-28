@@ -282,6 +282,10 @@ export const validateGalleryConfig = (
     ),
     camera: {
       fov: clamp(source.camera?.fov ?? defaultConfig.camera.fov, 35, 90),
+      targetAspectRatio:
+        typeof source.camera?.targetAspectRatio === "number"
+          ? clamp(source.camera.targetAspectRatio, 0.7, 2.6)
+          : undefined,
       startPosition: toVec3(source.camera?.startPosition, defaultConfig.camera.startPosition),
       height: source.camera?.height ?? defaultConfig.camera.height,
       movementSmoothing: clamp(
