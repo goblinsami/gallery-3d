@@ -55,6 +55,9 @@ const updateContainerMetrics = (): void => {
   containerHeight.value = Math.max(1, Math.round(rect.height));
 };
 
+const resolveMobileBreakpoint = (config: ArtGallerySceneConfig): number =>
+  Math.max(320, Math.min(1600, config.camera.mobileBreakpointWidth ?? DEFAULT_MOBILE_BREAKPOINT));
+
 const requestResize = (delayMs = 0): void => {
   if (viewportResizeTimeout !== null) {
     window.clearTimeout(viewportResizeTimeout);
@@ -80,9 +83,10 @@ const handleOrientationChange = (): void => {
 const resolvedConfig = computed(() => validateGalleryConfig(props.config).config);
 const isMobileLayout = computed(() => {
   if (props.forceMobileMode) return true;
+  const config = resolvedConfig.value;
+  const breakpoint = resolveMobileBreakpoint(config);
   const width = containerWidth.value || (typeof window !== "undefined" ? window.innerWidth : 0);
-  const height = containerHeight.value || (typeof window !== "undefined" ? window.innerHeight : 0);
-  return Math.min(width, height) <= DEFAULT_MOBILE_BREAKPOINT;
+  return width <= breakpoint;
 });
 const runtimeSceneConfig = computed<ArtGallerySceneConfig>(() => {
   const config = resolvedConfig.value;

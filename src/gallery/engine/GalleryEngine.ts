@@ -266,8 +266,7 @@ export class GalleryEngine {
       320,
       1600,
     );
-    const shortestSide = Math.min(containerWidth, containerHeight);
-    const isMobileViewport = shortestSide <= mobileBreakpoint;
+    const isMobileViewport = containerWidth <= mobileBreakpoint;
 
     if (isMobileViewport) {
       const mobileAspect = this.config.camera.mobileTargetAspectRatio;
