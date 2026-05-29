@@ -421,11 +421,11 @@ export const validateGalleryConfig = (
       fov: clamp(source.camera?.fov ?? defaultConfig.camera.fov, 35, 90),
       targetAspectRatio:
         typeof source.camera?.targetAspectRatio === "number"
-          ? clamp(source.camera.targetAspectRatio, 0.7, 2.6)
+          ? clamp(source.camera.targetAspectRatio, 9 / 20, 2.6)
           : undefined,
       mobileTargetAspectRatio:
         typeof source.camera?.mobileTargetAspectRatio === "number"
-          ? clamp(source.camera.mobileTargetAspectRatio, 0.7, 2.6)
+          ? clamp(source.camera.mobileTargetAspectRatio, 9 / 20, 2.6)
           : undefined,
       mobileBreakpointWidth:
         typeof source.camera?.mobileBreakpointWidth === "number"

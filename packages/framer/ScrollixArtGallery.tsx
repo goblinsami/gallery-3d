@@ -15,6 +15,7 @@ type RuntimeChannel = "stable" | "beta"
 type RuntimeSourceMode = "manifest" | "legacyUrl"
 type CameraAspectPreset =
     | "auto"
+    | "ratio_9_20"
     | "ratio_3_4"
     | "ratio_1_1"
     | "ratio_4_3"
@@ -538,6 +539,8 @@ const resolveCameraAspectRatio = (
     preset: CameraAspectPreset
 ): number | undefined => {
     switch (preset) {
+        case "ratio_9_20":
+            return 9 / 20
         case "ratio_3_4":
             return 3 / 4
         case "ratio_1_1":
@@ -3576,13 +3579,14 @@ addPropertyControls(ScrollixArtGallery, {
         title: "Aspect Ratio",
         options: [
             "auto",
+            "ratio_9_20",
             "ratio_3_4",
             "ratio_1_1",
             "ratio_4_3",
             "ratio_16_9",
             "ratio_20_9",
         ],
-        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9", "20:9"],
+        optionTitles: ["Auto", "9:20", "3:4", "1:1", "4:3", "16:9", "20:9"],
         defaultValue: "auto",
     },
     mobileCameraAspectPreset: {
@@ -3590,13 +3594,14 @@ addPropertyControls(ScrollixArtGallery, {
         title: "Mobile Aspect",
         options: [
             "auto",
+            "ratio_9_20",
             "ratio_3_4",
             "ratio_1_1",
             "ratio_4_3",
             "ratio_16_9",
             "ratio_20_9",
         ],
-        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9", "20:9"],
+        optionTitles: ["Auto", "9:20", "3:4", "1:1", "4:3", "16:9", "20:9"],
         defaultValue: "ratio_3_4",
     },
     mobileBreakpointWidth: {

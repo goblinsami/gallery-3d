@@ -8,6 +8,7 @@ import { GALLERY_TOKENS } from "../config/galleryTokens";
 
 const ASPECT_RATIO_PRESETS = {
   auto: undefined,
+  "9:20": 9 / 20,
   "20:9": 20 / 9,
   "16:9": 16 / 9,
   "4:3": 4 / 3,
@@ -130,6 +131,7 @@ const onRuntimeProgress = (progress: number): void => {
         Aspect Ratio
         <select v-model="activeAspectRatioPreset">
           <option value="auto">auto</option>
+          <option value="9:20">9:20</option>
           <option value="20:9">20:9</option>
           <option value="16:9">16:9</option>
           <option value="4:3">4:3</option>
@@ -142,6 +144,7 @@ const onRuntimeProgress = (progress: number): void => {
         Mobile Aspect Ratio
         <select v-model="activeMobileAspectRatioPreset">
           <option value="auto">auto</option>
+          <option value="9:20">9:20</option>
           <option value="20:9">20:9</option>
           <option value="16:9">16:9</option>
           <option value="4:3">4:3</option>
@@ -354,4 +357,3 @@ button {
   }
 }
 </style>
-

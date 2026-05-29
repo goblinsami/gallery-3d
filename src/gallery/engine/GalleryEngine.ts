@@ -46,7 +46,21 @@ interface FocusSurfaceEntry {
   damping: number;
 }
 
+interface RenderViewport {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  aspect: number;
+}
+
 const LOOP_FOG_BOOST = 0.08;
+const MIN_AUTO_LANDSCAPE_ASPECT = 1.35;
+const MAX_AUTO_ASPECT = 2.4;
+const PORTRAIT_MAX_AUTO_ASPECT = 4 / 3;
+const MIN_EXPLICIT_ASPECT = 9 / 20;
+const MAX_EXPLICIT_ASPECT = 2.6;
+const DEFAULT_MOBILE_BREAKPOINT = 820;
 const DEFAULT_JOURNEY_ASPECT = 16 / 9;
 const JOURNEY_ASPECT_EPSILON = 0.01;
 
@@ -76,6 +90,9 @@ export class GalleryEngine {
   private readonly baseFogColor = new Color();
   private readonly mixedBackgroundColor = new Color();
   private readonly mixedFogColor = new Color();
+  private lastContainerWidth = 0;
+  private lastContainerHeight = 0;
+  private renderViewport: RenderViewport | null = null;
   private journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
   private activeItemIndex: number | null = null;
 
@@ -142,15 +159,45 @@ export class GalleryEngine {
       return;
     }
 
-    const width = Math.max(1, this.container.clientWidth);
-    const height = Math.max(1, this.container.clientHeight);
-    const viewportAspect = width / height;
+    const containerWidth = Math.max(1, this.container.clientWidth);
+    const containerHeight = Math.max(1, this.container.clientHeight);
+    const nextViewport = this.calculateRenderViewport(containerWidth, containerHeight);
 
-    this.camera.aspect = viewportAspect;
+    if (
+      !force &&
+      containerWidth === this.lastContainerWidth &&
+      containerHeight === this.lastContainerHeight &&
+      this.renderViewport &&
+      nextViewport.x === this.renderViewport.x &&
+      nextViewport.y === this.renderViewport.y &&
+      nextViewport.width === this.renderViewport.width &&
+      nextViewport.height === this.renderViewport.height
+    ) {
+      return;
+    }
+
+    this.lastContainerWidth = containerWidth;
+    this.lastContainerHeight = containerHeight;
+    this.renderViewport = nextViewport;
+
+    this.camera.aspect = nextViewport.aspect;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(width, height, false);
-    this.updateJourneyViewportAspect(viewportAspect, force);
+    this.renderer.setSize(containerWidth, containerHeight, false);
+    this.renderer.setViewport(
+      nextViewport.x,
+      nextViewport.y,
+      nextViewport.width,
+      nextViewport.height,
+    );
+    this.renderer.setScissor(
+      nextViewport.x,
+      nextViewport.y,
+      nextViewport.width,
+      nextViewport.height,
+    );
+    this.renderer.setScissorTest(true);
+    this.updateJourneyViewportAspect(nextViewport.aspect, force);
   }
 
   dispose(): void {
@@ -171,6 +218,7 @@ export class GalleryEngine {
     textureCache.clear();
     this.loopWhiteMix = 0;
     this.activeItemIndex = null;
+    this.renderViewport = null;
     this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
     this.scene = null;
@@ -184,11 +232,95 @@ export class GalleryEngine {
         return;
       }
 
+      this.resize();
+      this.renderer.setScissorTest(false);
+      this.renderer.clear(true, true, true);
+
+      if (this.renderViewport) {
+        this.renderer.setViewport(
+          this.renderViewport.x,
+          this.renderViewport.y,
+          this.renderViewport.width,
+          this.renderViewport.height,
+        );
+        this.renderer.setScissor(
+          this.renderViewport.x,
+          this.renderViewport.y,
+          this.renderViewport.width,
+          this.renderViewport.height,
+        );
+        this.renderer.setScissorTest(true);
+      }
+
       this.renderer.render(this.scene, this.camera);
       this.animationFrameId = requestAnimationFrame(render);
     };
 
     render();
+  }
+
+  private getPreferredAspectRatio(containerWidth: number, containerHeight: number): number {
+    const containerAspect = containerWidth / containerHeight;
+    const mobileBreakpoint = clamp(
+      this.config.camera.mobileBreakpointWidth ?? DEFAULT_MOBILE_BREAKPOINT,
+      320,
+      1600,
+    );
+    const shortestSide = Math.min(containerWidth, containerHeight);
+    const isMobileViewport = shortestSide <= mobileBreakpoint;
+
+    if (isMobileViewport) {
+      const mobileAspect = this.config.camera.mobileTargetAspectRatio;
+      if (typeof mobileAspect === "number" && Number.isFinite(mobileAspect)) {
+        return clamp(mobileAspect, MIN_EXPLICIT_ASPECT, MAX_EXPLICIT_ASPECT);
+      }
+    }
+
+    const explicitAspect = this.config.camera.targetAspectRatio;
+    if (typeof explicitAspect === "number" && Number.isFinite(explicitAspect)) {
+      return clamp(explicitAspect, MIN_EXPLICIT_ASPECT, MAX_EXPLICIT_ASPECT);
+    }
+
+    const corridor = this.config.corridor;
+    const corridorAspect = clamp(
+      corridor.width / Math.max(corridor.height, 0.001),
+      MIN_AUTO_LANDSCAPE_ASPECT,
+      MAX_AUTO_ASPECT,
+    );
+
+    if (containerAspect < 1) {
+      return Math.min(corridorAspect, PORTRAIT_MAX_AUTO_ASPECT);
+    }
+
+    return corridorAspect;
+  }
+
+  private calculateRenderViewport(
+    containerWidth: number,
+    containerHeight: number,
+  ): RenderViewport {
+    const containerAspect = containerWidth / containerHeight;
+    const targetAspect = this.getPreferredAspectRatio(containerWidth, containerHeight);
+
+    let viewportWidth = containerWidth;
+    let viewportHeight = containerHeight;
+
+    if (containerAspect > targetAspect) {
+      viewportWidth = Math.round(containerHeight * targetAspect);
+    } else {
+      viewportHeight = Math.round(containerWidth / targetAspect);
+    }
+
+    viewportWidth = Math.max(1, Math.min(containerWidth, viewportWidth));
+    viewportHeight = Math.max(1, Math.min(containerHeight, viewportHeight));
+
+    return {
+      x: Math.floor((containerWidth - viewportWidth) / 2),
+      y: Math.floor((containerHeight - viewportHeight) / 2),
+      width: viewportWidth,
+      height: viewportHeight,
+      aspect: viewportWidth / viewportHeight,
+    };
   }
 
   private updateJourneyViewportAspect(nextAspect: number, force = false): void {
