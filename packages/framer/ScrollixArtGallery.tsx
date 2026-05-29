@@ -19,6 +19,7 @@ type CameraAspectPreset =
     | "ratio_1_1"
     | "ratio_4_3"
     | "ratio_16_9"
+    | "ratio_20_9"
 
 interface ArtworkMetadata {
     artist?: string
@@ -545,6 +546,8 @@ const resolveCameraAspectRatio = (
             return 4 / 3
         case "ratio_16_9":
             return 16 / 9
+        case "ratio_20_9":
+            return 20 / 9
         default:
             return undefined
     }
@@ -3577,8 +3580,9 @@ addPropertyControls(ScrollixArtGallery, {
             "ratio_1_1",
             "ratio_4_3",
             "ratio_16_9",
+            "ratio_20_9",
         ],
-        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9"],
+        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9", "20:9"],
         defaultValue: "auto",
     },
     mobileCameraAspectPreset: {
@@ -3590,8 +3594,9 @@ addPropertyControls(ScrollixArtGallery, {
             "ratio_1_1",
             "ratio_4_3",
             "ratio_16_9",
+            "ratio_20_9",
         ],
-        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9"],
+        optionTitles: ["Auto", "3:4", "1:1", "4:3", "16:9", "20:9"],
         defaultValue: "ratio_3_4",
     },
     mobileBreakpointWidth: {

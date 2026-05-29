@@ -6,8 +6,20 @@ import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 import { validateGalleryConfig } from "../utils/validateGalleryConfig";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 
+const ASPECT_RATIO_PRESETS = {
+  auto: undefined,
+  "20:9": 20 / 9,
+  "16:9": 16 / 9,
+  "4:3": 4 / 3,
+  "1:1": 1,
+  "3:4": 3 / 4,
+} as const;
+
 const activeSampleId = ref(sampleGalleryConfigs[0].id);
 const activeLightingMode = ref(sampleGalleryConfigs[0].lightingMode);
+const activeAspectRatioPreset = ref<keyof typeof ASPECT_RATIO_PRESETS>("auto");
+const activeMobileAspectRatioPreset = ref<keyof typeof ASPECT_RATIO_PRESETS>("3:4");
+const mobileBreakpointWidth = ref(820);
 const runtimeConfig = ref<ArtGallerySceneConfig>(sampleGalleryConfigs[0]);
 const jsonDraft = ref(JSON.stringify(runtimeConfig.value, null, 2));
 const parseError = ref("");
@@ -24,14 +36,37 @@ const sampleOptions = computed(() =>
 
 const tokens = GALLERY_TOKENS;
 
+const updateConfigWithAspectRatios = (): void => {
+  runtimeConfig.value = {
+    ...runtimeConfig.value,
+    camera: {
+      ...runtimeConfig.value.camera,
+      targetAspectRatio: ASPECT_RATIO_PRESETS[activeAspectRatioPreset.value],
+      mobileTargetAspectRatio: ASPECT_RATIO_PRESETS[activeMobileAspectRatioPreset.value],
+      mobileBreakpointWidth: mobileBreakpointWidth.value,
+    },
+  };
+  jsonDraft.value = JSON.stringify(runtimeConfig.value, null, 2);
+};
+
 watch([activeSampleId, activeLightingMode], ([sampleId, lightingMode]) => {
   const selected = sampleGalleryConfigs.find((sample) => sample.id === sampleId) ?? sampleGalleryConfigs[0];
   runtimeConfig.value = {
     ...selected,
     lightingMode,
+    camera: {
+      ...selected.camera,
+      targetAspectRatio: ASPECT_RATIO_PRESETS[activeAspectRatioPreset.value],
+      mobileTargetAspectRatio: ASPECT_RATIO_PRESETS[activeMobileAspectRatioPreset.value],
+      mobileBreakpointWidth: mobileBreakpointWidth.value,
+    },
   };
   jsonDraft.value = JSON.stringify(runtimeConfig.value, null, 2);
   parseError.value = "";
+});
+
+watch([activeAspectRatioPreset, activeMobileAspectRatioPreset, mobileBreakpointWidth], () => {
+  updateConfigWithAspectRatios();
 });
 
 const applyJsonDraft = (): void => {
@@ -89,6 +124,35 @@ const onRuntimeProgress = (progress: number): void => {
           <option value="contrast">contrast</option>
           <option value="day">day</option>
         </select>
+      </label>
+
+      <label>
+        Aspect Ratio
+        <select v-model="activeAspectRatioPreset">
+          <option value="auto">auto</option>
+          <option value="20:9">20:9</option>
+          <option value="16:9">16:9</option>
+          <option value="4:3">4:3</option>
+          <option value="1:1">1:1</option>
+          <option value="3:4">3:4</option>
+        </select>
+      </label>
+
+      <label>
+        Mobile Aspect Ratio
+        <select v-model="activeMobileAspectRatioPreset">
+          <option value="auto">auto</option>
+          <option value="20:9">20:9</option>
+          <option value="16:9">16:9</option>
+          <option value="4:3">4:3</option>
+          <option value="1:1">1:1</option>
+          <option value="3:4">3:4</option>
+        </select>
+      </label>
+
+      <label>
+        Mobile Breakpoint (px)
+        <input v-model.number="mobileBreakpointWidth" type="number" min="320" max="1600" step="10" />
       </label>
 
       <button type="button" class="mode-toggle" @click="isMobileMode = !isMobileMode">
@@ -195,6 +259,7 @@ label {
 
 select,
 textarea,
+input,
 button {
   border-radius: 10px;
   border: 1px solid var(--token-border);
