@@ -23,6 +23,7 @@ const MOBILE_TAP_MOVE_THRESHOLD_PX = 18;
 const MOBILE_TAP_TIME_THRESHOLD_MS = 450;
 const MOBILE_SURFACE_CLICK_DEDUPE_MS = 420;
 const MOBILE_POINTER_TO_CLICK_GUARD_MS = 1100;
+const MOBILE_STALE_POINTER_RESET_MS = 1600;
 const MOBILE_TAP_DEBUG_WINDOW_FLAG = "__SCROLLIX_MOBILE_TAP_DEBUG__";
 
 const props = withDefaults(defineProps<Props>(), {
@@ -280,7 +281,7 @@ const tryActivateNearestItemFromSurfaceTap = (clientX: number, clientY: number):
   return true;
 };
 
-const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void => {
+const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): boolean => {
   const activatedNearestItem = tryActivateNearestItemFromSurfaceTap(clientX, clientY);
   if (!canShowMobileOverlay.value) {
     debugTap("surface-toggle:blocked", {
@@ -289,7 +290,7 @@ const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void 
       activeArtworkIndex: activeArtworkIndex.value,
       lastKnownArtworkIndex: lastKnownArtworkIndex.value,
     });
-    return;
+    return false;
   }
 
   if (activatedNearestItem) {
@@ -300,7 +301,7 @@ const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void 
       clientY,
       overlayVisible: mobileOverlayVisible.value,
     });
-    return;
+    return false;
   }
 
   lastSurfaceToggleTimestamp = performance.now();
@@ -312,6 +313,7 @@ const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void 
     activeArtworkIndex: activeArtworkIndex.value,
     lastKnownArtworkIndex: lastKnownArtworkIndex.value,
   });
+  return true;
 };
 
 const handlePointerDown = (event: PointerEvent): void => {
@@ -330,7 +332,7 @@ const handlePointerDown = (event: PointerEvent): void => {
     });
     return;
   }
-  if (!event.isPrimary) {
+  if (event.isPrimary === false) {
     debugTap("pointerdown:ignored", {
       reason: "non-primary-pointer",
       pointerId: event.pointerId,
@@ -340,12 +342,24 @@ const handlePointerDown = (event: PointerEvent): void => {
     return;
   }
   if (tapPointerId.value !== null) {
-    debugTap("pointerdown:ignored", {
-      reason: "pointer-already-tracked",
-      trackedPointerId: tapPointerId.value,
-      incomingPointerId: event.pointerId,
-    });
-    return;
+    const trackedDurationMs = Math.max(0, event.timeStamp - tapStartTime.value);
+    if (trackedDurationMs > MOBILE_STALE_POINTER_RESET_MS) {
+      debugTap("pointerdown:reset-stale-tracked-pointer", {
+        trackedPointerId: tapPointerId.value,
+        incomingPointerId: event.pointerId,
+        trackedDurationMs,
+        staleThresholdMs: MOBILE_STALE_POINTER_RESET_MS,
+      });
+      resetTapState();
+    } else {
+      debugTap("pointerdown:ignored", {
+        reason: "pointer-already-tracked",
+        trackedPointerId: tapPointerId.value,
+        incomingPointerId: event.pointerId,
+        trackedDurationMs,
+      });
+      return;
+    }
   }
   tapPointerId.value = event.pointerId;
   tapStartX.value = event.clientX;
@@ -359,7 +373,11 @@ const handlePointerDown = (event: PointerEvent): void => {
     ts: event.timeStamp,
     target: describeEventTarget(event.target),
   });
-  if (event.currentTarget instanceof Element && typeof event.currentTarget.setPointerCapture === "function") {
+  if (
+    event.pointerType === "mouse" &&
+    event.currentTarget instanceof Element &&
+    typeof event.currentTarget.setPointerCapture === "function"
+  ) {
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -393,7 +411,13 @@ const resetTapState = (): void => {
     typeof containerRef.value.releasePointerCapture === "function"
   ) {
     try {
-      containerRef.value.releasePointerCapture(pointerId);
+      const hasPointerCapture =
+        typeof containerRef.value.hasPointerCapture === "function"
+          ? containerRef.value.hasPointerCapture(pointerId)
+          : true;
+      if (hasPointerCapture) {
+        containerRef.value.releasePointerCapture(pointerId);
+      }
     } catch {
       // noop
     }
@@ -433,8 +457,10 @@ const handlePointerUp = (event: PointerEvent): void => {
   });
   resetTapState();
   if (!shouldToggle) return;
-  lastPointerTapToggleTimestamp = performance.now();
-  toggleMobileOverlayFromSurface(event.clientX, event.clientY);
+  const didToggle = toggleMobileOverlayFromSurface(event.clientX, event.clientY);
+  if (didToggle) {
+    lastPointerTapToggleTimestamp = performance.now();
+  }
 };
 
 const handlePointerCancel = (): void => {
