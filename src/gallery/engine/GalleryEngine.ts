@@ -167,7 +167,7 @@ export class GalleryEngine {
       return null;
     }
 
-    const maxDistancePx = clamp(viewport.width * 0.22, 72, 240);
+    const maxDistancePx = clamp(viewport.width * 0.3, 90, 300);
     let closestIndex: number | null = null;
     let closestDistanceSq = maxDistancePx * maxDistancePx;
 

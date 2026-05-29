@@ -295,10 +295,15 @@ const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void 
     return;
   }
 
-  if (activatedNearestItem && !mobileOverlayVisible.value) {
+  if (activatedNearestItem) {
     mobileOverlayVisible.value = true;
   } else {
-    mobileOverlayVisible.value = !mobileOverlayVisible.value;
+    debugTap("surface-tap:no-nearest-noop", {
+      clientX,
+      clientY,
+      overlayVisible: mobileOverlayVisible.value,
+    });
+    return;
   }
 
   lastSurfaceToggleTimestamp = performance.now();
@@ -328,6 +333,23 @@ const handlePointerDown = (event: PointerEvent): void => {
     });
     return;
   }
+  if (!event.isPrimary) {
+    debugTap("pointerdown:ignored", {
+      reason: "non-primary-pointer",
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      isPrimary: event.isPrimary,
+    });
+    return;
+  }
+  if (tapPointerId.value !== null) {
+    debugTap("pointerdown:ignored", {
+      reason: "pointer-already-tracked",
+      trackedPointerId: tapPointerId.value,
+      incomingPointerId: event.pointerId,
+    });
+    return;
+  }
   tapPointerId.value = event.pointerId;
   tapStartX.value = event.clientX;
   tapStartY.value = event.clientY;
@@ -340,6 +362,13 @@ const handlePointerDown = (event: PointerEvent): void => {
     ts: event.timeStamp,
     target: describeEventTarget(event.target),
   });
+  if (event.currentTarget instanceof Element && typeof event.currentTarget.setPointerCapture === "function") {
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // noop: some browsers reject pointer capture for touch gestures.
+    }
+  }
 };
 
 const handlePointerMove = (event: PointerEvent): void => {
@@ -360,6 +389,18 @@ const handlePointerMove = (event: PointerEvent): void => {
 };
 
 const resetTapState = (): void => {
+  const pointerId = tapPointerId.value;
+  if (
+    pointerId !== null &&
+    containerRef.value &&
+    typeof containerRef.value.releasePointerCapture === "function"
+  ) {
+    try {
+      containerRef.value.releasePointerCapture(pointerId);
+    } catch {
+      // noop
+    }
+  }
   tapPointerId.value = null;
   tapMoved.value = false;
   tapStartTime.value = 0;
@@ -400,6 +441,9 @@ const handlePointerUp = (event: PointerEvent): void => {
 };
 
 const handlePointerCancel = (): void => {
+  debugTap("pointercancel", {
+    trackedPointerId: tapPointerId.value,
+  });
   resetTapState();
 };
 
