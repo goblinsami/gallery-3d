@@ -97,6 +97,10 @@ const runtimeSceneConfig = computed<ArtGallerySceneConfig>(() => {
     return config;
   }
 
+  if (!config.mobileDetailsOverlayEnabled) {
+    return config;
+  }
+
   return {
     ...config,
     artworks: config.artworks.map((artwork) => ({
@@ -129,6 +133,7 @@ const overlayDescription = computed(() => {
 });
 const canShowMobileOverlay = computed(
   () =>
+    resolvedConfig.value.mobileDetailsOverlayEnabled &&
     isMobileLayout.value &&
     Boolean(overlayTitle.value || overlayDescription.value),
 );
@@ -155,6 +160,7 @@ const toggleMobileOverlay = (): void => {
 
 const handlePointerDown = (event: PointerEvent): void => {
   if (!isMobileLayout.value) return;
+  if (!canShowMobileOverlay.value) return;
   if (isTapIgnoredTarget(event.target)) return;
   tapPointerId.value = event.pointerId;
   tapStartX.value = event.clientX;

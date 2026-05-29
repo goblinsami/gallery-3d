@@ -241,6 +241,10 @@ export const validateGalleryConfig = (
       4,
     ),
     scrollStrength: normalizeScrollStrength(source.scrollStrength ?? defaultConfig.scrollStrength),
+    mobileDetailsOverlayEnabled:
+      typeof source.mobileDetailsOverlayEnabled === "boolean"
+        ? source.mobileDetailsOverlayEnabled
+        : defaultConfig.mobileDetailsOverlayEnabled,
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,
       0.02,

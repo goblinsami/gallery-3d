@@ -17,6 +17,7 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   artworkBacklightColor: GALLERY_TOKENS.scene.defaultArtworkBacklightColor,
   artworkBacklightIntensity: 1.1,
   scrollStrength: 1,
+  mobileDetailsOverlayEnabled: true,
   loopWhiteAfterEndWindow: 0.14,
   loopWhiteStartsBeforeEndWindow: 0.05,
   loopWhiteFadeOutRevealWindow: 0.12,

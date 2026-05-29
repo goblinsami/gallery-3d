@@ -10,6 +10,7 @@ describe("validateGalleryConfig", () => {
     expect(result.config.sceneBackgroundColor).toBe(DEFAULT_GALLERY_CONFIG.sceneBackgroundColor);
     expect(result.config.sceneFogColor).toBe(DEFAULT_GALLERY_CONFIG.sceneFogColor);
     expect(result.config.scrollStrength).toBe(DEFAULT_GALLERY_CONFIG.scrollStrength);
+    expect(result.config.mobileDetailsOverlayEnabled).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsOverlayEnabled);
     expect(result.config.ceilingSpotsEnabled).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsEnabled);
     expect(result.config.ceilingSpotsColor).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsColor);
     expect(result.config.ceilingSpotsIntensity).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsIntensity);
@@ -70,6 +71,7 @@ describe("validateGalleryConfig", () => {
       artworkBacklightColor: "#ff9a55",
       artworkBacklightIntensity: 2.2,
       scrollStrength: 3,
+      mobileDetailsOverlayEnabled: false,
       loopWhiteAfterEndWindow: 0.24,
       loopWhiteStartsBeforeEndWindow: 0.18,
       loopWhiteFadeOutRevealWindow: 0.2,
@@ -104,6 +106,7 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworkBacklightColor).toBe("#ff9a55");
     expect(result.config.artworkBacklightIntensity).toBeCloseTo(2.2);
     expect(result.config.scrollStrength).toBeCloseTo(3);
+    expect(result.config.mobileDetailsOverlayEnabled).toBe(false);
     expect(result.config.loopWhiteAfterEndWindow).toBeCloseTo(0.24);
     expect(result.config.loopWhiteStartsBeforeEndWindow).toBeCloseTo(0.18);
     expect(result.config.loopWhiteFadeOutRevealWindow).toBeCloseTo(0.2);

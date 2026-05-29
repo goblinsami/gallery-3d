@@ -129,6 +129,7 @@ interface ArtGallerySceneConfig {
     artworkBacklightColor: string
     artworkBacklightIntensity: number
     scrollStrength: number
+    mobileDetailsOverlayEnabled: boolean
     loopWhiteAfterEndWindow: number
     loopWhiteStartsBeforeEndWindow: number
     loopWhiteFadeOutRevealWindow: number
@@ -167,6 +168,7 @@ const DAYLIGHT_GALLERY_SAMPLE: ArtGallerySceneConfig = {
     artworkBacklightColor: "#ffb36b",
     artworkBacklightIntensity: 1.1,
     scrollStrength: 1,
+    mobileDetailsOverlayEnabled: true,
     loopWhiteAfterEndWindow: 0.14,
     loopWhiteStartsBeforeEndWindow: 0.05,
     loopWhiteFadeOutRevealWindow: 0.12,
@@ -969,6 +971,7 @@ interface ScrollixArtGalleryProps {
     lightingMode: LightingMode
     infiniteCorridor: boolean
     scrollStrength: number
+    mobileDetailsOverlayEnabled: boolean
     sceneBackgroundColor: string
     sceneFogColor: string
     ceilingSpotsEnabled: boolean
@@ -2448,6 +2451,10 @@ const buildGalleryConfig = (
         isDayPreset || props.mobileCameraAspectPreset !== "auto"
     const shouldOverrideMobileBreakpointWidth =
         isDayPreset || props.mobileBreakpointWidth !== 820
+    const shouldOverrideMobileDetailsOverlay =
+        isDayPreset ||
+        props.mobileDetailsOverlayEnabled !==
+            controlsBaseline.mobileDetailsOverlayEnabled
     const shouldOverrideScrollStrength =
         isDayPreset ||
         props.scrollStrength !== controlsBaseline.scrollStrength
@@ -2455,6 +2462,9 @@ const buildGalleryConfig = (
         config: ArtGallerySceneConfig
     ): ArtGallerySceneConfig => ({
         ...config,
+        mobileDetailsOverlayEnabled: shouldOverrideMobileDetailsOverlay
+            ? props.mobileDetailsOverlayEnabled
+            : config.mobileDetailsOverlayEnabled,
         scrollStrength: shouldOverrideScrollStrength
             ? props.scrollStrength
             : config.scrollStrength,
@@ -2527,6 +2537,7 @@ const buildGalleryConfig = (
         artworkBacklightEnabled: props.artworkBacklightEnabled,
         artworkBacklightColor: resolvedArtworkBacklightColor,
         artworkBacklightIntensity: props.artworkBacklightIntensity,
+        mobileDetailsOverlayEnabled: props.mobileDetailsOverlayEnabled,
         scrollStrength: props.scrollStrength,
         loopWhiteAfterEndWindow: props.loopWhiteAfterEndWindow,
         loopWhiteStartsBeforeEndWindow: props.loopWhiteStartsBeforeEndWindow,
@@ -2901,6 +2912,7 @@ ScrollixArtGallery.defaultProps = {
     lightingMode: DAYLIGHT_GALLERY_SAMPLE.lightingMode,
     infiniteCorridor: DAYLIGHT_GALLERY_SAMPLE.infiniteCorridor,
     scrollStrength: DAYLIGHT_GALLERY_SAMPLE.scrollStrength,
+    mobileDetailsOverlayEnabled: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsOverlayEnabled,
     sceneBackgroundColor: DAYLIGHT_GALLERY_SAMPLE.sceneBackgroundColor,
     sceneFogColor: DAYLIGHT_GALLERY_SAMPLE.sceneFogColor,
     ceilingSpotsEnabled: DAYLIGHT_GALLERY_SAMPLE.ceilingSpotsEnabled,
@@ -3104,6 +3116,11 @@ addPropertyControls(ScrollixArtGallery, {
         max: 8,
         step: 0.05,
         defaultValue: DAYLIGHT_GALLERY_SAMPLE.scrollStrength,
+    },
+    mobileDetailsOverlayEnabled: {
+        type: ControlType.Boolean,
+        title: "Mobile Details",
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsOverlayEnabled,
     },
     cameraAspectPreset: {
         type: ControlType.Enum,
