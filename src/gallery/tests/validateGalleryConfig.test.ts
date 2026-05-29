@@ -6,6 +6,7 @@ describe("validateGalleryConfig", () => {
   it("returns defaults for empty payload", () => {
     const result = validateGalleryConfig();
     expect(result.config.id).toBe(DEFAULT_GALLERY_CONFIG.id);
+    expect(result.config.items?.length).toBeGreaterThan(0);
     expect(result.config.artworks.length).toBeGreaterThan(0);
     expect(result.config.sceneBackgroundColor).toBe(DEFAULT_GALLERY_CONFIG.sceneBackgroundColor);
     expect(result.config.sceneFogColor).toBe(DEFAULT_GALLERY_CONFIG.sceneFogColor);
@@ -44,6 +45,30 @@ describe("validateGalleryConfig", () => {
       DEFAULT_GALLERY_CONFIG.sceneTitleConfig.daylightContrastStrength,
     );
     expect(result.config.corridor.carpetEnabled).toBe(DEFAULT_GALLERY_CONFIG.corridor.carpetEnabled);
+  });
+
+  it("supports stational cards in items and keeps artwork list derived", () => {
+    const result = validateGalleryConfig({
+      items: [
+        {
+          id: "about-station",
+          type: "stational-card",
+          variant: "about",
+          title: "About Me",
+          subtitle: "Creative Director",
+          description: "Story-driven design in immersive spaces.",
+          layout: "image-right",
+          image: "/images/profile.jpg",
+          socialLinks: [{ label: "LinkedIn", url: "https://linkedin.com/in/demo" }],
+          contact: { email: "hello@example.com" },
+          cta: { label: "Work Together", url: "https://example.com/contact" },
+        },
+      ],
+    });
+
+    expect(result.config.items).toHaveLength(1);
+    expect(result.config.items?.[0].type).toBe("stational-card");
+    expect(result.config.artworks).toHaveLength(0);
   });
 
   it("detects invalid artworks and preserves valid ones", () => {

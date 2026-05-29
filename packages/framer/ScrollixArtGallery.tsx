@@ -48,6 +48,7 @@ interface ArtworkSideTextConfig {
 }
 
 interface ArtworkConfig {
+    type?: "artwork"
     id: string
     title: string
     description?: string
@@ -64,6 +65,58 @@ interface ArtworkConfig {
     sideText?: ArtworkSideTextConfig
     metadata?: ArtworkMetadata
 }
+
+type StationalCardVariant =
+    | "about"
+    | "contact"
+    | "manifesto"
+    | "services"
+    | "awards"
+    | "testimonial"
+    | "cta"
+    | "custom"
+
+type StationalCardLayout = "text" | "image-left" | "image-right"
+
+interface StationalCardSocialLink {
+    label: string
+    url: string
+    icon?: string
+}
+
+interface StationalCardContact {
+    email?: string
+    phone?: string
+    location?: string
+}
+
+interface StationalCardCta {
+    label: string
+    url: string
+}
+
+interface StationalCardConfig {
+    id: string
+    type: "stational-card"
+    variant?: StationalCardVariant
+    title: string
+    subtitle?: string
+    description?: string
+    image?: string
+    layout?: StationalCardLayout
+    socialLinks?: StationalCardSocialLink[]
+    contact?: StationalCardContact
+    cta?: StationalCardCta
+    width?: number
+    height?: number
+    depth?: number
+    backgroundColor?: string
+    borderColor?: string
+    glowColor?: string
+    spotlightIntensity?: number
+}
+
+type GalleryItem = ArtworkConfig | StationalCardConfig
 
 interface SceneTitleConfig {
     fontUrl: string
@@ -142,6 +195,7 @@ interface ArtGallerySceneConfig {
     camera: GalleryCameraConfig
     corridor: GalleryCorridorConfig
     sceneTitleConfig: SceneTitleConfig
+    items?: GalleryItem[]
     artworks: ArtworkConfig[]
     timings: GalleryTimingsConfig
 }
@@ -906,6 +960,35 @@ interface FramerArtworkInput {
     sideTextBorderWidth: number
 }
 
+interface FramerStationalCardInput {
+    id: string
+    variant: StationalCardVariant
+    title: string
+    subtitle: string
+    description: string
+    image?: FramerImageValue
+    imageUrl?: string
+    layout: StationalCardLayout
+    width: number
+    height: number
+    depth: number
+    backgroundColor: string
+    borderColor: string
+    glowColor: string
+    spotlightIntensity: number
+    contactEmail: string
+    contactPhone: string
+    contactLocation: string
+    socialLabel1: string
+    socialUrl1: string
+    socialLabel2: string
+    socialUrl2: string
+    socialLabel3: string
+    socialUrl3: string
+    ctaLabel: string
+    ctaUrl: string
+}
+
 interface GeometryColorsControls {
     backgroundColor: string
     fogColor: string
@@ -960,6 +1043,7 @@ interface ScrollixArtGalleryProps {
     samplePreset: SamplePreset
     artworkSource: ArtworkSource
     artworkImageOverrides: ArtworkImageOverrideValue[]
+    stationalCards: FramerStationalCardInput[]
     geometryColors: GeometryColorsControls
     carpet: CarpetControls
     title: TitleControls
@@ -1784,6 +1868,44 @@ const createArtworkInputFromConfig = (
 
 const DEFAULT_MANUAL_ARTWORKS: FramerArtworkInput[] =
     DAYLIGHT_GALLERY_SAMPLE.artworks.map(createArtworkInputFromConfig)
+const createStationalCardInputFromConfig = (
+    card: StationalCardConfig,
+    index: number
+): FramerStationalCardInput => ({
+    id: card.id || `station-${index + 1}`,
+    variant: card.variant ?? "custom",
+    title: card.title || `Station ${index + 1}`,
+    subtitle: card.subtitle ?? "",
+    description: card.description ?? "",
+    image: card.image,
+    imageUrl: card.image ?? "",
+    layout: card.layout ?? "text",
+    width: card.width ?? 4,
+    height: card.height ?? 2.5,
+    depth: card.depth ?? 0.05,
+    backgroundColor: card.backgroundColor ?? "#0d1018",
+    borderColor: card.borderColor ?? "rgba(255,255,255,0.08)",
+    glowColor: card.glowColor ?? "rgba(255,255,255,0.03)",
+    spotlightIntensity: card.spotlightIntensity ?? 1.35,
+    contactEmail: card.contact?.email ?? "",
+    contactPhone: card.contact?.phone ?? "",
+    contactLocation: card.contact?.location ?? "",
+    socialLabel1: card.socialLinks?.[0]?.label ?? "",
+    socialUrl1: card.socialLinks?.[0]?.url ?? "",
+    socialLabel2: card.socialLinks?.[1]?.label ?? "",
+    socialUrl2: card.socialLinks?.[1]?.url ?? "",
+    socialLabel3: card.socialLinks?.[2]?.label ?? "",
+    socialUrl3: card.socialLinks?.[2]?.url ?? "",
+    ctaLabel: card.cta?.label ?? "",
+    ctaUrl: card.cta?.url ?? "",
+})
+const DEFAULT_MANUAL_STATIONAL_CARDS: FramerStationalCardInput[] =
+    (DAYLIGHT_GALLERY_SAMPLE.items ?? [])
+        .filter(
+            (item): item is StationalCardConfig =>
+                item.type === "stational-card"
+        )
+        .map(createStationalCardInputFromConfig)
 const DEFAULT_ARTWORK_IMAGE_OVERRIDES: ArtworkImageOverrideInput[] =
     DAYLIGHT_GALLERY_SAMPLE.artworks.map((artwork) => ({
         image: artwork.imageUrl,
@@ -1839,6 +1961,39 @@ const getArtworksSignature = (artworks: FramerArtworkInput[]): string =>
 
 const DEFAULT_MANUAL_ARTWORKS_SIGNATURE = getArtworksSignature(
     DEFAULT_MANUAL_ARTWORKS
+)
+const getStationalCardSignature = (card: FramerStationalCardInput) => ({
+    id: card.id.trim(),
+    variant: card.variant,
+    title: card.title.trim(),
+    subtitle: card.subtitle.trim(),
+    description: card.description.trim(),
+    image: normalizeFramerImageValue(card.image) ?? "",
+    imageUrl: card.imageUrl?.trim() ?? "",
+    layout: card.layout,
+    width: card.width,
+    height: card.height,
+    depth: card.depth,
+    backgroundColor: card.backgroundColor,
+    borderColor: card.borderColor,
+    glowColor: card.glowColor,
+    spotlightIntensity: card.spotlightIntensity,
+    contactEmail: card.contactEmail.trim(),
+    contactPhone: card.contactPhone.trim(),
+    contactLocation: card.contactLocation.trim(),
+    socialLabel1: card.socialLabel1.trim(),
+    socialUrl1: card.socialUrl1.trim(),
+    socialLabel2: card.socialLabel2.trim(),
+    socialUrl2: card.socialUrl2.trim(),
+    socialLabel3: card.socialLabel3.trim(),
+    socialUrl3: card.socialUrl3.trim(),
+    ctaLabel: card.ctaLabel.trim(),
+    ctaUrl: card.ctaUrl.trim(),
+})
+const getStationalCardsSignature = (cards: FramerStationalCardInput[]): string =>
+    JSON.stringify(cards.map(getStationalCardSignature))
+const DEFAULT_MANUAL_STATIONAL_CARDS_SIGNATURE = getStationalCardsSignature(
+    DEFAULT_MANUAL_STATIONAL_CARDS
 )
 
 const resolveArtworkImageUrl = (
@@ -1966,6 +2121,97 @@ const toArtworkConfig = (
             : undefined,
     }
 }
+
+const cleanOptional = (value: string | undefined): string | undefined => {
+    if (typeof value !== "string") return undefined
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+}
+
+const toStationalCardConfig = (
+    card: FramerStationalCardInput,
+    index: number
+): StationalCardConfig | null => {
+    const title = card.title.trim()
+    if (!title) {
+        return null
+    }
+
+    const image =
+        normalizeFramerImageValue(card.image) ??
+        normalizeExternalUrl(card.imageUrl) ??
+        normalizeRuntimePath(card.imageUrl)
+
+    const socialLinks = [
+        {
+            label: cleanOptional(card.socialLabel1),
+            url: cleanOptional(card.socialUrl1),
+        },
+        {
+            label: cleanOptional(card.socialLabel2),
+            url: cleanOptional(card.socialUrl2),
+        },
+        {
+            label: cleanOptional(card.socialLabel3),
+            url: cleanOptional(card.socialUrl3),
+        },
+    ]
+        .filter((link) => link.label && link.url)
+        .map((link) => ({
+            label: link.label as string,
+            url: link.url as string,
+        }))
+
+    const contactEmail = cleanOptional(card.contactEmail)
+    const contactPhone = cleanOptional(card.contactPhone)
+    const contactLocation = cleanOptional(card.contactLocation)
+    const contact =
+        contactEmail || contactPhone || contactLocation
+            ? {
+                  email: contactEmail,
+                  phone: contactPhone,
+                  location: contactLocation,
+              }
+            : undefined
+
+    const ctaLabel = cleanOptional(card.ctaLabel)
+    const ctaUrl = cleanOptional(card.ctaUrl)
+    const cta =
+        ctaLabel && ctaUrl
+            ? {
+                  label: ctaLabel,
+                  url: ctaUrl,
+              }
+            : undefined
+
+    return {
+        id: card.id.trim() || `station-${index + 1}`,
+        type: "stational-card",
+        variant: card.variant,
+        title,
+        subtitle: cleanOptional(card.subtitle),
+        description: cleanOptional(card.description),
+        image,
+        layout: card.layout,
+        width: card.width,
+        height: card.height,
+        depth: card.depth,
+        backgroundColor: card.backgroundColor,
+        borderColor: card.borderColor,
+        glowColor: card.glowColor,
+        spotlightIntensity: card.spotlightIntensity,
+        socialLinks: socialLinks.length > 0 ? socialLinks : undefined,
+        contact,
+        cta,
+    }
+}
+
+const resolveStationalCards = (
+    stationalCards: FramerStationalCardInput[]
+): StationalCardConfig[] =>
+    stationalCards
+        .map((card, index) => toStationalCardConfig(card, index))
+        .filter((card): card is StationalCardConfig => Boolean(card))
 
 const resolveArtworks = (
     artworkSource: ArtworkSource,
@@ -2621,14 +2867,37 @@ const buildGalleryConfig = (
         }
     ) as unknown as ArtGallerySceneConfig
 
+    const resolvedArtworks = resolveArtworks(
+        props.artworkSource,
+        props.artworks,
+        withFontSelection
+    )
+    const stationalCardsInput = Array.isArray(props.stationalCards)
+        ? props.stationalCards
+        : DEFAULT_MANUAL_STATIONAL_CARDS
+    const hasStationalCardOverrides =
+        getStationalCardsSignature(stationalCardsInput) !==
+        DEFAULT_MANUAL_STATIONAL_CARDS_SIGNATURE
+    const fallbackStations = Array.isArray(withFontSelection.items)
+        ? withFontSelection.items.filter(
+              (item): item is StationalCardConfig =>
+                  item.type === "stational-card"
+          )
+        : []
+    const resolvedStations = hasStationalCardOverrides
+        ? resolveStationalCards(stationalCardsInput)
+        : fallbackStations
     const withArtworkControls = deepMerge(
         withFontSelection as unknown as Record<string, unknown>,
         {
-            artworks: resolveArtworks(
-                props.artworkSource,
-                props.artworks,
-                withFontSelection
-            ),
+            artworks: resolvedArtworks,
+            items: [
+                ...resolvedArtworks.map((artwork) => ({
+                    ...artwork,
+                    type: "artwork" as const,
+                })),
+                ...resolvedStations,
+            ],
         }
     ) as unknown as ArtGallerySceneConfig
 
@@ -2865,6 +3134,7 @@ ScrollixArtGallery.defaultProps = {
     samplePreset: "daylight",
     artworkSource: "sample",
     artworkImageOverrides: DEFAULT_ARTWORK_IMAGE_OVERRIDES,
+    stationalCards: DEFAULT_MANUAL_STATIONAL_CARDS,
     geometryColors: {
         backgroundColor: DAYLIGHT_GALLERY_SAMPLE.sceneBackgroundColor,
         fogColor: DAYLIGHT_GALLERY_SAMPLE.sceneFogColor,
@@ -3100,6 +3370,182 @@ addPropertyControls(ScrollixArtGallery, {
                     title: "Text Desc",
                     displayTextArea: true,
                     hidden: (item: ArtworkImageOverrideInput) => !item.sideTextEnabled,
+                },
+            },
+        },
+    },
+    stationalCards: {
+        type: ControlType.Array,
+        title: "Stations",
+        maxCount: 24,
+        description:
+            "Estaciones narrativas en el centro del corredor (about/contact/services/etc).",
+        control: {
+            type: ControlType.Object,
+            controls: {
+                id: {
+                    type: ControlType.String,
+                    title: "ID",
+                    defaultValue: "station-1",
+                },
+                variant: {
+                    type: ControlType.Enum,
+                    title: "Variant",
+                    options: [
+                        "about",
+                        "contact",
+                        "manifesto",
+                        "services",
+                        "awards",
+                        "testimonial",
+                        "cta",
+                        "custom",
+                    ],
+                    optionTitles: [
+                        "About",
+                        "Contact",
+                        "Manifesto",
+                        "Services",
+                        "Awards",
+                        "Testimonial",
+                        "CTA",
+                        "Custom",
+                    ],
+                    defaultValue: "custom",
+                },
+                title: {
+                    type: ControlType.String,
+                    title: "Title",
+                    defaultValue: "Station",
+                },
+                subtitle: {
+                    type: ControlType.String,
+                    title: "Subtitle",
+                    defaultValue: "",
+                },
+                description: {
+                    type: ControlType.String,
+                    title: "Description",
+                    displayTextArea: true,
+                    defaultValue: "",
+                },
+                image: {
+                    type: ControlType.Image,
+                    title: "Image",
+                },
+                imageUrl: {
+                    type: ControlType.String,
+                    title: "Image URL",
+                    defaultValue: "",
+                },
+                layout: {
+                    type: ControlType.Enum,
+                    title: "Layout",
+                    options: ["text", "image-left", "image-right"],
+                    optionTitles: ["Text", "Image Left", "Image Right"],
+                    defaultValue: "text",
+                },
+                width: {
+                    type: ControlType.Number,
+                    title: "Width",
+                    min: 1.6,
+                    max: 8,
+                    step: 0.05,
+                    defaultValue: 4,
+                },
+                height: {
+                    type: ControlType.Number,
+                    title: "Height",
+                    min: 1.2,
+                    max: 5,
+                    step: 0.05,
+                    defaultValue: 2.5,
+                },
+                depth: {
+                    type: ControlType.Number,
+                    title: "Depth",
+                    min: 0.02,
+                    max: 0.4,
+                    step: 0.005,
+                    defaultValue: 0.05,
+                },
+                backgroundColor: {
+                    type: ControlType.Color,
+                    title: "BG",
+                    defaultValue: "#0d1018",
+                },
+                borderColor: {
+                    type: ControlType.Color,
+                    title: "Border",
+                    defaultValue: "rgba(255,255,255,0.08)",
+                },
+                glowColor: {
+                    type: ControlType.Color,
+                    title: "Glow",
+                    defaultValue: "rgba(255,255,255,0.03)",
+                },
+                spotlightIntensity: {
+                    type: ControlType.Number,
+                    title: "Spot",
+                    min: 0,
+                    max: 4,
+                    step: 0.05,
+                    defaultValue: 1.35,
+                },
+                contactEmail: {
+                    type: ControlType.String,
+                    title: "Email",
+                    defaultValue: "",
+                },
+                contactPhone: {
+                    type: ControlType.String,
+                    title: "Phone",
+                    defaultValue: "",
+                },
+                contactLocation: {
+                    type: ControlType.String,
+                    title: "Location",
+                    defaultValue: "",
+                },
+                socialLabel1: {
+                    type: ControlType.String,
+                    title: "Social 1",
+                    defaultValue: "",
+                },
+                socialUrl1: {
+                    type: ControlType.String,
+                    title: "Social 1 URL",
+                    defaultValue: "",
+                },
+                socialLabel2: {
+                    type: ControlType.String,
+                    title: "Social 2",
+                    defaultValue: "",
+                },
+                socialUrl2: {
+                    type: ControlType.String,
+                    title: "Social 2 URL",
+                    defaultValue: "",
+                },
+                socialLabel3: {
+                    type: ControlType.String,
+                    title: "Social 3",
+                    defaultValue: "",
+                },
+                socialUrl3: {
+                    type: ControlType.String,
+                    title: "Social 3 URL",
+                    defaultValue: "",
+                },
+                ctaLabel: {
+                    type: ControlType.String,
+                    title: "CTA Label",
+                    defaultValue: "",
+                },
+                ctaUrl: {
+                    type: ControlType.String,
+                    title: "CTA URL",
+                    defaultValue: "",
                 },
             },
         },

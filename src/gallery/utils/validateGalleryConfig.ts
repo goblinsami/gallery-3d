@@ -4,8 +4,12 @@ import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 import type {
   ArtGallerySceneConfig,
+  GalleryItem,
   ArtworkConfig,
   ArtworkSideTextConfig,
+  StationalCardConfig,
+  StationalCardLayout,
+  StationalCardVariant,
   DeepPartial,
   LightingMode,
   Vec3,
@@ -20,6 +24,17 @@ export interface GalleryConfigValidationResult {
 }
 
 const VALID_LIGHTING_MODES: LightingMode[] = ["contrast", "day"];
+const VALID_STATIONAL_VARIANTS: StationalCardVariant[] = [
+  "about",
+  "contact",
+  "manifesto",
+  "services",
+  "awards",
+  "testimonial",
+  "cta",
+  "custom",
+];
+const VALID_STATIONAL_LAYOUTS: StationalCardLayout[] = ["text", "image-left", "image-right"];
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -105,6 +120,7 @@ const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | n
   };
 
   return {
+    type: "artwork",
     id: artwork.id,
     title: artwork.title,
     description: artwork.description,
@@ -131,6 +147,73 @@ const sanitizeArtwork = (artwork: DeepPartial<ArtworkConfig>): ArtworkConfig | n
   };
 };
 
+const sanitizeStationalCard = (
+  station: DeepPartial<StationalCardConfig>,
+): StationalCardConfig | null => {
+  if (!isNonEmptyString(station.id) || !isNonEmptyString(station.title)) {
+    return null;
+  }
+
+  const socialLinks = Array.isArray(station.socialLinks)
+    ? station.socialLinks
+        .map((link) => {
+          const label = isNonEmptyString(link?.label) ? link.label.trim() : "";
+          const url = isNonEmptyString(link?.url) ? link.url.trim() : "";
+          if (!label || !url) {
+            return null;
+          }
+          const icon = isNonEmptyString(link?.icon) ? link.icon.trim() : undefined;
+          return icon ? { label, url, icon } : { label, url };
+        })
+        .filter(
+          (
+            entry,
+          ): entry is NonNullable<StationalCardConfig["socialLinks"]>[number] => entry !== null,
+        )
+    : undefined;
+
+  const ctaLabel = isNonEmptyString(station.cta?.label) ? station.cta.label.trim() : undefined;
+  const ctaUrl = isNonEmptyString(station.cta?.url) ? station.cta.url.trim() : undefined;
+  const cta = ctaLabel && ctaUrl ? { label: ctaLabel, url: ctaUrl } : undefined;
+
+  return {
+    id: station.id.trim(),
+    type: "stational-card",
+    variant: VALID_STATIONAL_VARIANTS.includes(station.variant as StationalCardVariant)
+      ? (station.variant as StationalCardVariant)
+      : undefined,
+    title: station.title.trim(),
+    subtitle: isNonEmptyString(station.subtitle) ? station.subtitle.trim() : undefined,
+    description: isNonEmptyString(station.description) ? station.description.trim() : undefined,
+    image: isNonEmptyString(station.image) ? station.image.trim() : undefined,
+    layout: VALID_STATIONAL_LAYOUTS.includes(station.layout as StationalCardLayout)
+      ? (station.layout as StationalCardLayout)
+      : "text",
+    socialLinks: socialLinks && socialLinks.length > 0 ? socialLinks : undefined,
+    contact: {
+      email: isNonEmptyString(station.contact?.email) ? station.contact.email.trim() : undefined,
+      phone: isNonEmptyString(station.contact?.phone) ? station.contact.phone.trim() : undefined,
+      location: isNonEmptyString(station.contact?.location) ? station.contact.location.trim() : undefined,
+    },
+    cta,
+    width: clamp(station.width ?? GALLERY_DEFAULTS.stationalCard.width, 1.6, 8),
+    height: clamp(station.height ?? GALLERY_DEFAULTS.stationalCard.height, 1.2, 5),
+    depth: clamp(station.depth ?? GALLERY_DEFAULTS.stationalCard.depth, 0.02, 0.4),
+    backgroundColor: station.backgroundColor ?? GALLERY_DEFAULTS.stationalCard.backgroundColor,
+    borderColor: station.borderColor ?? GALLERY_DEFAULTS.stationalCard.borderColor,
+    glowColor: station.glowColor ?? GALLERY_DEFAULTS.stationalCard.glowColor,
+    spotlightIntensity: clamp(
+      station.spotlightIntensity ?? GALLERY_DEFAULTS.stationalCard.spotlightIntensity,
+      0,
+      4,
+    ),
+    mobileColumnLayout:
+      typeof station.mobileColumnLayout === "boolean"
+        ? station.mobileColumnLayout
+        : undefined,
+  };
+};
+
 export const validateGalleryConfig = (
   partialConfig?: DeepPartial<ArtGallerySceneConfig>,
 ): GalleryConfigValidationResult => {
@@ -140,6 +223,12 @@ export const validateGalleryConfig = (
   const source = partialConfig ?? {};
   const legacySource = source as Record<string, unknown>;
   const defaultConfig = DEFAULT_GALLERY_CONFIG;
+  const defaultItems: GalleryItem[] = Array.isArray(defaultConfig.items) && defaultConfig.items.length > 0
+    ? defaultConfig.items
+    : defaultConfig.artworks.map((artwork) => ({
+        ...artwork,
+        type: "artwork" as const,
+      }));
   const legacyInfiniteGallery = legacySource.infiniteGallery;
   const resolvedInfiniteCorridor =
     typeof source.infiniteCorridor === "boolean"
@@ -152,21 +241,47 @@ export const validateGalleryConfig = (
     warnings.push("Using legacy key `infiniteGallery`; please migrate to `infiniteCorridor`.");
   }
 
-  const artworks = Array.isArray(source.artworks)
-    ? source.artworks
-        .map((artwork, index) => {
-          const sanitized = sanitizeArtwork(artwork);
-          if (!sanitized) {
+  const hasStationalItems =
+    Array.isArray(source.items) &&
+    source.items.some((entry) => entry?.type === "stational-card");
+  const rawItems = hasStationalItems
+    ? source.items
+    : Array.isArray(source.artworks)
+      ? source.artworks
+      : Array.isArray(source.items)
+        ? source.items
+        : null;
+
+  const items = rawItems
+    ? rawItems
+        .map((entry, index) => {
+          if (entry?.type === "stational-card") {
+            const sanitizedStation = sanitizeStationalCard(entry as DeepPartial<StationalCardConfig>);
+            if (!sanitizedStation) {
+              errors.push(`Invalid stational card at index ${index}`);
+            }
+            return sanitizedStation;
+          }
+
+          const sanitizedArtwork = sanitizeArtwork(entry as DeepPartial<ArtworkConfig>);
+          if (!sanitizedArtwork) {
             errors.push(`Invalid artwork at index ${index}`);
           }
-          return sanitized;
+          return sanitizedArtwork;
         })
-        .filter((entry): entry is ArtworkConfig => Boolean(entry))
-    : defaultConfig.artworks;
+        .filter((entry): entry is GalleryItem => Boolean(entry))
+    : defaultItems;
 
-  if (artworks.length === 0) {
-    warnings.push("No valid artworks found. Falling back to default artwork set.");
+  if (items.length === 0) {
+    warnings.push("No valid gallery items found. Falling back to default item set.");
   }
+
+  const artworkItems = items
+    .filter((entry): entry is ArtworkConfig => entry.type !== "stational-card")
+    .map((artwork) => ({
+      ...artwork,
+      type: "artwork" as const,
+    }));
 
   const mode = source.lightingMode;
   if (mode && !VALID_LIGHTING_MODES.includes(mode)) {
@@ -375,7 +490,8 @@ export const validateGalleryConfig = (
       focusDuration: Math.max(0.001, source.timings?.focusDuration ?? defaultConfig.timings.focusDuration),
       returnDuration: Math.max(0.001, source.timings?.returnDuration ?? defaultConfig.timings.returnDuration),
     },
-    artworks: artworks.length > 0 ? artworks : defaultConfig.artworks,
+    items: items.length > 0 ? items : defaultItems,
+    artworks: artworkItems,
   };
 
   if (config.sceneTitleConfig.fadeStartProgress > config.sceneTitleConfig.fadeEndProgress) {

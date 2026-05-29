@@ -38,6 +38,15 @@ export const GALLERY_DEFAULTS = {
     sideTextBorderIntensity: 1.2,
     sideTextBorderWidth: 0.035,
   },
+  stationalCard: {
+    width: 4,
+    height: 2.5,
+    depth: 0.05,
+    backgroundColor: "#0d1018",
+    borderColor: "rgba(255,255,255,0.08)",
+    glowColor: "rgba(255,255,255,0.03)",
+    spotlightIntensity: 1.35,
+  },
   timings: {
     introDuration: 1.1,
     travelDuration: 1,

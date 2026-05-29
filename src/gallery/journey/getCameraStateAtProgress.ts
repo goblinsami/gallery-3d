@@ -4,16 +4,21 @@ import { inverseLerp, lerp, lerpVec3, smoothstep } from "../utils/math";
 
 const INTRO_BLEND_LINEARITY = 0.65;
 
-const resolveActiveArtwork = (
+const getFrameActiveIndex = (frame: CameraKeyframe): number | null =>
+  frame.activeItemIndex ?? frame.activeArtworkIndex;
+
+const resolveActiveItem = (
   lower: CameraKeyframe,
   upper: CameraKeyframe,
   t: number,
 ): number | null => {
-  if (lower.activeArtworkIndex === upper.activeArtworkIndex) {
-    return lower.activeArtworkIndex;
+  const lowerIndex = getFrameActiveIndex(lower);
+  const upperIndex = getFrameActiveIndex(upper);
+  if (lowerIndex === upperIndex) {
+    return lowerIndex;
   }
 
-  return t < 0.5 ? lower.activeArtworkIndex : upper.activeArtworkIndex;
+  return t < 0.5 ? lowerIndex : upperIndex;
 };
 
 const isIntroToFirstArtworkBlend = (lower: CameraKeyframe, upper: CameraKeyframe): boolean =>
@@ -46,6 +51,7 @@ export const getCameraStateAtProgress = (
       lookAt: frame.lookAt,
       titleOpacity: frame.titleOpacity,
       activeArtworkIndex: frame.activeArtworkIndex,
+      activeItemIndex: getFrameActiveIndex(frame),
     };
   }
 
@@ -56,6 +62,7 @@ export const getCameraStateAtProgress = (
       lookAt: last.lookAt,
       titleOpacity: last.titleOpacity,
       activeArtworkIndex: last.activeArtworkIndex,
+      activeItemIndex: getFrameActiveIndex(last),
     };
   }
 
@@ -85,7 +92,8 @@ export const getCameraStateAtProgress = (
     position: lerpVec3(lower.position, upper.position, easedT),
     lookAt: lerpVec3(lower.lookAt, upper.lookAt, easedT),
     titleOpacity: lerp(lower.titleOpacity, upper.titleOpacity, easedT),
-    activeArtworkIndex: resolveActiveArtwork(lower, upper, linearT),
+    activeArtworkIndex: resolveActiveItem(lower, upper, linearT),
+    activeItemIndex: resolveActiveItem(lower, upper, linearT),
   };
 };
 

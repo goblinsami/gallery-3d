@@ -12,6 +12,7 @@ import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 import { LIGHTING_PRESETS } from "../constants/lightingPresets";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { getCeilingSpotLayout } from "./ceilingSpotLayout";
+import { getGalleryItemCount } from "../utils/galleryItems";
 
 export const createEnvironment = (
   config: ArtGallerySceneConfig,
@@ -40,7 +41,7 @@ export const createEnvironment = (
   });
 
   const stripGeometry = new BoxGeometry(config.corridor.width * 0.4, 0.03, 0.7);
-  const stripCount = config.infiniteCorridor ? 28 : Math.max(10, config.artworks.length * 4);
+  const stripCount = config.infiniteCorridor ? 28 : Math.max(10, getGalleryItemCount(config) * 4);
 
   if (config.ceilingSpotsEnabled && config.ceilingSpotsIntensity > 0) {
     const anchors = getCeilingSpotLayout(config);

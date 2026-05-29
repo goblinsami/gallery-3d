@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { calculateArtworkLayout } from "../journey/cameraKeyframes";
+import type { PositionedArtwork } from "../types/galleryRuntime";
+
+const getArtworkLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedArtwork[] =>
+  calculateArtworkLayout(...args).filter(
+    (item): item is PositionedArtwork => item.type !== "stational-card",
+  );
 
 describe("calculateArtworkLayout", () => {
   it("alternates sides by default", () => {
@@ -9,7 +15,7 @@ describe("calculateArtworkLayout", () => {
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 4).map((artwork) => ({ ...artwork, side: undefined })),
     };
 
-    const layout = calculateArtworkLayout(config);
+    const layout = getArtworkLayout(config);
     expect(layout.map((entry) => entry.side)).toEqual(["left", "right", "left", "right"]);
   });
 
@@ -23,7 +29,7 @@ describe("calculateArtworkLayout", () => {
       ],
     };
 
-    const layout = calculateArtworkLayout(config);
+    const layout = getArtworkLayout(config);
     expect(layout[0].side).toBe("right");
     expect(layout[1].side).toBe("right");
     expect(layout[2].side).toBe("left");
@@ -40,13 +46,13 @@ describe("calculateArtworkLayout", () => {
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 3),
     };
 
-    const layout = calculateArtworkLayout(config);
+    const layout = getArtworkLayout(config);
     expect(layout[1].position[2] - layout[0].position[2]).toBeCloseTo(-spacing);
     expect(layout[2].position[2] - layout[1].position[2]).toBeCloseTo(-spacing);
   });
 
   it("keeps consistent z ordering", () => {
-    const layout = calculateArtworkLayout({
+    const layout = getArtworkLayout({
       ...DEFAULT_GALLERY_CONFIG,
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 5),
     });
@@ -57,7 +63,7 @@ describe("calculateArtworkLayout", () => {
   });
 
   it("orients artworks inward to corridor center", () => {
-    const layout = calculateArtworkLayout({
+    const layout = getArtworkLayout({
       ...DEFAULT_GALLERY_CONFIG,
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 2).map((artwork, index) => ({
         ...artwork,
@@ -101,8 +107,8 @@ describe("calculateArtworkLayout", () => {
       ],
     };
 
-    const noTextLayout = calculateArtworkLayout(noTextConfig)[0];
-    const withTextLayout = calculateArtworkLayout(withTextConfig)[0];
+    const noTextLayout = getArtworkLayout(noTextConfig)[0];
+    const withTextLayout = getArtworkLayout(withTextConfig)[0];
     const noTextDistance = Math.abs(noTextLayout.focusPosition[0] - noTextLayout.focusTarget[0]);
     const withTextDistance = Math.abs(withTextLayout.focusPosition[0] - withTextLayout.focusTarget[0]);
 

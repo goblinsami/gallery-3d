@@ -21,17 +21,29 @@ import { createLighting } from "../scene/createLighting";
 import { createEnvironment } from "../scene/createEnvironment";
 import { createSceneTitle } from "../scene/createSceneTitle";
 import { createArtwork } from "../scene/createArtwork";
+import { createStationalCard } from "../scene/createStationalCard";
 import { buildCameraKeyframes, calculateArtworkLayout } from "../journey/cameraKeyframes";
 import { getCameraStateAtProgress } from "../journey/getCameraStateAtProgress";
 import { textureCache } from "../utils/textureCache";
 import { lerpVec3 } from "../utils/math";
 import { LIGHTING_PRESETS } from "../constants/lightingPresets";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
+import { isStationalCard } from "../utils/galleryItems";
 
-interface ArtworkSpotlightEntry {
-  artworkIndex: number;
+interface FocusSpotlightEntry {
+  itemIndex: number;
   spotlight: SpotLight;
   baseIntensity: number;
+  focusBoost: number;
+  idleBoost: number;
+}
+
+interface FocusSurfaceEntry {
+  itemIndex: number;
+  root: Group;
+  baseScale: number;
+  focusScale: number;
+  damping: number;
 }
 
 interface RenderViewport {
@@ -63,7 +75,8 @@ export class GalleryEngine {
   private buildArtifacts: EngineBuildArtifacts | null = null;
   private sceneGraph: GallerySceneGraph | null = null;
   private keyframes: CameraKeyframe[] = [];
-  private artworkSpotlights: ArtworkSpotlightEntry[] = [];
+  private itemSpotlights: FocusSpotlightEntry[] = [];
+  private focusSurfaces: FocusSurfaceEntry[] = [];
   private titleMaterial: Material | null = null;
 
   private progress = 0;
@@ -80,7 +93,7 @@ export class GalleryEngine {
   private lastContainerWidth = 0;
   private lastContainerHeight = 0;
   private renderViewport: RenderViewport | null = null;
-  private activeArtworkIndex: number | null = null;
+  private activeItemIndex: number | null = null;
   private journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
@@ -126,7 +139,11 @@ export class GalleryEngine {
   }
 
   getActiveArtworkIndex(): number | null {
-    return this.activeArtworkIndex;
+    return this.activeItemIndex;
+  }
+
+  getActiveItemIndex(): number | null {
+    return this.activeItemIndex;
   }
 
   async updateConfig(config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>): Promise<void> {
@@ -209,7 +226,7 @@ export class GalleryEngine {
 
     textureCache.clear();
     this.loopWhiteMix = 0;
-    this.activeArtworkIndex = null;
+    this.activeItemIndex = null;
     this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
     this.scene = null;
@@ -356,7 +373,8 @@ export class GalleryEngine {
     const desiredLookAt = state.lookAt;
     const titleOpacity = state.titleOpacity;
     const whiteMix = this.config.infiniteCorridor ? this.loopWhiteMix : 0;
-    this.activeArtworkIndex = state.activeArtworkIndex;
+    const activeItemIndex = state.activeItemIndex ?? state.activeArtworkIndex;
+    this.activeItemIndex = activeItemIndex;
 
     this.applyAtmosphere(whiteMix);
 
@@ -372,9 +390,19 @@ export class GalleryEngine {
       (this.titleMaterial as Material & { opacity: number }).opacity = titleOpacity;
     }
 
-    this.artworkSpotlights.forEach((entry) => {
-      const isActive = state.activeArtworkIndex === entry.artworkIndex;
-      entry.spotlight.intensity = isActive ? entry.baseIntensity * 1.18 : entry.baseIntensity * 0.42;
+    this.itemSpotlights.forEach((entry) => {
+      const isActive = activeItemIndex === entry.itemIndex;
+      entry.spotlight.intensity = isActive
+        ? entry.baseIntensity * entry.focusBoost
+        : entry.baseIntensity * entry.idleBoost;
+    });
+
+    this.focusSurfaces.forEach((entry) => {
+      const isActive = activeItemIndex === entry.itemIndex;
+      const targetScale = isActive ? entry.focusScale : entry.baseScale;
+      const currentScale = entry.root.scale.x;
+      const nextScale = currentScale + (targetScale - currentScale) * entry.damping;
+      entry.root.scale.set(nextScale, nextScale, nextScale);
     });
   }
 
@@ -393,22 +421,47 @@ export class GalleryEngine {
 
     const corridorRoot = createCorridor(this.config);
     const artworkRoot = new Group();
-    artworkRoot.name = "artworks-root";
+    artworkRoot.name = "gallery-items-root";
 
     const lightingRoot = createLighting(this.config);
     const environmentRoot = createEnvironment(this.config, this.scene.fog as FogExp2 | null);
 
-    this.artworkSpotlights = [];
+    this.itemSpotlights = [];
+    this.focusSurfaces = [];
 
-    for (const artwork of layout) {
-      const created = await createArtwork(this.config, artwork);
+    for (const item of layout) {
+      if (isStationalCard(item)) {
+        const created = await createStationalCard(item, this.config.lightingMode);
+        artworkRoot.add(created.meshGroup);
+        lightingRoot.add(created.spotlight);
+        lightingRoot.add(created.spotlightTarget);
+        this.itemSpotlights.push({
+          itemIndex: item.index,
+          spotlight: created.spotlight,
+          baseIntensity: created.baseSpotlightIntensity,
+          focusBoost: 1.24,
+          idleBoost: 0.54,
+        });
+        this.focusSurfaces.push({
+          itemIndex: item.index,
+          root: created.meshGroup,
+          baseScale: 1,
+          focusScale: 1.035,
+          damping: 0.16,
+        });
+        continue;
+      }
+
+      const created = await createArtwork(this.config, item);
       artworkRoot.add(created.meshGroup);
       lightingRoot.add(created.spotlight);
       lightingRoot.add(created.spotlightTarget);
-      this.artworkSpotlights.push({
-        artworkIndex: artwork.index,
+      this.itemSpotlights.push({
+        itemIndex: item.index,
         spotlight: created.spotlight,
         baseIntensity: created.baseSpotlightIntensity,
+        focusBoost: 1.18,
+        idleBoost: 0.42,
       });
     }
 
@@ -426,7 +479,7 @@ export class GalleryEngine {
         lightingRoot,
         titleRoot,
       },
-      spotlights: this.artworkSpotlights.map((entry) => entry.spotlight),
+      spotlights: this.itemSpotlights.map((entry) => entry.spotlight),
       titleMaterial: title.material,
     };
 
@@ -487,7 +540,8 @@ export class GalleryEngine {
     });
 
     this.sceneGraph = null;
-    this.artworkSpotlights = [];
+    this.itemSpotlights = [];
+    this.focusSurfaces = [];
     this.titleMaterial = null;
   }
 }

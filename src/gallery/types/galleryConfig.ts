@@ -1,6 +1,7 @@
 export type LightingMode = "contrast" | "day";
 export type ArtworkSide = "left" | "right";
 export type Vec3 = [number, number, number];
+export type GalleryItemType = "artwork" | "stational-card";
 
 export interface ArtworkMetadata {
   artist?: string;
@@ -30,6 +31,7 @@ export interface ArtworkSideTextConfig {
 }
 
 export interface ArtworkConfig {
+  type?: "artwork";
   id: string;
   title: string;
   description?: string;
@@ -46,6 +48,59 @@ export interface ArtworkConfig {
   sideText?: ArtworkSideTextConfig;
   metadata?: ArtworkMetadata;
 }
+
+export type StationalCardVariant =
+  | "about"
+  | "contact"
+  | "manifesto"
+  | "services"
+  | "awards"
+  | "testimonial"
+  | "cta"
+  | "custom";
+
+export type StationalCardLayout = "text" | "image-left" | "image-right";
+
+export interface StationalCardSocialLink {
+  label: string;
+  url: string;
+  icon?: string;
+}
+
+export interface StationalCardContact {
+  email?: string;
+  phone?: string;
+  location?: string;
+}
+
+export interface StationalCardCta {
+  label: string;
+  url: string;
+}
+
+export interface StationalCardConfig {
+  id: string;
+  type: "stational-card";
+  variant?: StationalCardVariant;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  image?: string;
+  layout?: StationalCardLayout;
+  socialLinks?: StationalCardSocialLink[];
+  contact?: StationalCardContact;
+  cta?: StationalCardCta;
+  width?: number;
+  height?: number;
+  depth?: number;
+  backgroundColor?: string;
+  borderColor?: string;
+  glowColor?: string;
+  spotlightIntensity?: number;
+  mobileColumnLayout?: boolean;
+}
+
+export type GalleryItem = ArtworkConfig | StationalCardConfig;
 
 export interface SceneTitleConfig {
   fontUrl: string;
@@ -125,6 +180,7 @@ export interface ArtGallerySceneConfig {
   camera: GalleryCameraConfig;
   corridor: GalleryCorridorConfig;
   sceneTitleConfig: SceneTitleConfig;
+  items?: GalleryItem[];
   artworks: ArtworkConfig[];
   timings: GalleryTimingsConfig;
 }

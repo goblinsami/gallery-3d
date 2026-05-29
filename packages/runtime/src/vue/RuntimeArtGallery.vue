@@ -125,6 +125,28 @@ const resolvedRuntimeConfig = computed<ArtGallerySceneConfig | DeepPartial<ArtGa
     cloned &&
     typeof cloned === "object" &&
     !Array.isArray(cloned) &&
+    Array.isArray(cloned.items)
+  ) {
+    cloned.items = cloned.items.map((item) => {
+      if (item?.type === "stational-card") {
+        return {
+          ...item,
+          image: resolveAssetUrl(item.image) ?? item.image,
+        };
+      }
+
+      const nextArtwork = { ...item };
+      nextArtwork.imageUrl = resolveAssetUrl(nextArtwork.imageUrl) ?? nextArtwork.imageUrl;
+      nextArtwork.fallbackImageUrl =
+        resolveAssetUrl(nextArtwork.fallbackImageUrl) ?? nextArtwork.fallbackImageUrl;
+      return nextArtwork;
+    });
+  }
+
+  if (
+    cloned &&
+    typeof cloned === "object" &&
+    !Array.isArray(cloned) &&
     Array.isArray(cloned.artworks)
   ) {
     cloned.artworks = cloned.artworks.map((artwork) => {

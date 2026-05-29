@@ -1,4 +1,5 @@
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
+import { getGalleryItemCount } from "../utils/galleryItems";
 
 export interface CeilingSpotAnchor {
   x: number;
@@ -6,7 +7,7 @@ export interface CeilingSpotAnchor {
 }
 
 export const getCeilingSpotLayout = (config: ArtGallerySceneConfig): CeilingSpotAnchor[] => {
-  const artworkDepth = Math.max(1, config.artworks.length) * config.corridor.artworkSpacing;
+  const artworkDepth = getGalleryItemCount(config) * config.corridor.artworkSpacing;
   const totalDepth = artworkDepth + config.corridor.segmentLength * 2;
   const extendedDepth = config.infiniteCorridor
     ? totalDepth + config.corridor.segmentLength * 6
@@ -20,4 +21,3 @@ export const getCeilingSpotLayout = (config: ArtGallerySceneConfig): CeilingSpot
     return { x, z };
   });
 };
-

@@ -37,8 +37,34 @@ interface ArtGallerySceneConfig {
   camera: GalleryCameraConfig
   corridor: GalleryCorridorConfig
   sceneTitleConfig: SceneTitleConfig
+  items?: GalleryItem[]
   artworks: ArtworkConfig[]
   timings: GalleryTimingsConfig
+}
+```
+
+```ts
+type GalleryItem = ArtworkConfig | StationalCardConfig
+
+interface StationalCardConfig {
+  id: string
+  type: "stational-card"
+  variant?: "about" | "contact" | "manifesto" | "services" | "awards" | "testimonial" | "cta" | "custom"
+  title: string
+  subtitle?: string
+  description?: string
+  image?: string
+  layout?: "text" | "image-left" | "image-right"
+  socialLinks?: { label: string; url: string; icon?: string }[]
+  contact?: { email?: string; phone?: string; location?: string }
+  cta?: { label: string; url: string }
+  width?: number
+  height?: number
+  depth?: number
+  backgroundColor?: string
+  borderColor?: string
+  glowColor?: string
+  spotlightIntensity?: number
 }
 ```
 
@@ -97,6 +123,9 @@ interface GalleryTimingsConfig {
   - `lightingMode`, `ceilingSpotsEnabled`, `ceilingSpotsColor`, `ceilingSpotsIntensity`
   - `artworkBacklightEnabled`, `artworkBacklightColor`, `artworkBacklightIntensity`
   - `enhanceNightReadibility` (boosts main spotlight + soft backlight in dark scenes)
+- Content:
+  - Legacy: `artworks[]`
+  - Preferred mixed flow: `items[]` (supports `artwork` + `stational-card`)
 - Environment:
   - `sceneBackgroundColor`, `sceneFogColor`
   - `corridor.*` colors and geometry proportions
@@ -181,6 +210,10 @@ interface ArtworkConfig {
   "corridor": { "width": 8, "height": 4.2, "segmentLength": 12, "wallColor": "#d8d9dd", "floorColor": "#656b74", "ceilingColor": "#eceff4", "carpetEnabled": true, "carpetWidth": 0.72, "carpetColor": "#8f1319", "artworkSpacing": 14, "wallThickness": 0.24, "artworkInset": 0.02 },
   "sceneTitleConfig": { "fontUrl": "/fonts/helvetiker_regular.typeface.json", "size": 0.1, "depth": 0.3, "maxWidth": 7.2, "lineHeight": 1.18, "color": "#ffffff", "daylightContrastEnabled": true, "daylightContrastColor": "#c6c6c6", "daylightContrastStrength": 0.3, "position": [0, 1.75, 3.25], "maxOpacity": 1, "fadeStartProgress": 0.1, "fadeEndProgress": 0.22 },
   "timings": { "introDuration": 1.1, "travelDuration": 1, "focusDuration": 0.9, "returnDuration": 0.75 },
+  "items": [
+    { "id": "w-01", "type": "artwork", "title": "Work 1", "imageUrl": "/images/work1.jpg" },
+    { "id": "about", "type": "stational-card", "variant": "about", "title": "About Me", "layout": "text", "description": "Creative direction and immersive storytelling." }
+  ],
   "sceneBackgroundColor": "#e6ebf3",
   "sceneFogColor": "#e7ecf3",
   "ceilingSpotsEnabled": false,

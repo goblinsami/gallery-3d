@@ -1,7 +1,53 @@
 import { CAMERA_DEFAULTS } from "../constants/cameraDefaults";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
-import type { ArtGallerySceneConfig } from "../types/galleryConfig";
+import type { ArtGallerySceneConfig, ArtworkConfig } from "../types/galleryConfig";
 import { GALLERY_TOKENS } from "./galleryTokens";
+
+const DEFAULT_ARTWORKS: ArtworkConfig[] = [
+  {
+    id: "w-01",
+    type: "artwork",
+    title: "Echoes of Atrium",
+    description: "A suspended fragment of stillness.",
+    imageUrl: "/images/work1.jpg",
+    sideText: {
+      eyebrow: "Gallery Note",
+      title: "Echoes of Atrium",
+      description: "A suspended fragment of stillness in atmospheric low-contrast tones.",
+    },
+    metadata: { artist: "A. Mercer", year: "2026", medium: "Archival Pigment" },
+  },
+  {
+    id: "w-02",
+    type: "artwork",
+    title: "Soft Geometry",
+    description: "Planes, silence, and reflected light.",
+    imageUrl: "/images/work2.jpg",
+    sideText: {
+      eyebrow: "Collection",
+      title: "Soft Geometry",
+      description: "Planes, silence and reflected light arranged in a restrained composition.",
+      align: "before",
+    },
+    metadata: { artist: "I. Rowan", year: "2025", medium: "Digital C-Print" },
+  },
+  {
+    id: "w-03",
+    type: "artwork",
+    title: "Threshold #4",
+    description: "A corridor inside another corridor.",
+    imageUrl: "/images/work3.jpg",
+    metadata: { artist: "Noa Lane", year: "2026", medium: "Mixed Media" },
+  },
+  {
+    id: "w-04",
+    type: "artwork",
+    title: "Monochrome Drift",
+    description: "A cloud-like structure in muted tones.",
+    imageUrl: "/images/work4.jpg",
+    metadata: { artist: "R. Chen", year: "2024", medium: "Photography" },
+  },
+];
 
 export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   id: "daylight-galery",
@@ -74,45 +120,6 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
     focusDuration: GALLERY_DEFAULTS.timings.focusDuration,
     returnDuration: GALLERY_DEFAULTS.timings.returnDuration,
   },
-  artworks: [
-    {
-      id: "w-01",
-      title: "Echoes of Atrium",
-      description: "A suspended fragment of stillness.",
-      imageUrl: "/images/work1.jpg",
-      sideText: {
-        eyebrow: "Gallery Note",
-        title: "Echoes of Atrium",
-        description: "A suspended fragment of stillness in atmospheric low-contrast tones.",
-      },
-      metadata: { artist: "A. Mercer", year: "2026", medium: "Archival Pigment" },
-    },
-    {
-      id: "w-02",
-      title: "Soft Geometry",
-      description: "Planes, silence, and reflected light.",
-      imageUrl: "/images/work2.jpg",
-      sideText: {
-        eyebrow: "Collection",
-        title: "Soft Geometry",
-        description: "Planes, silence and reflected light arranged in a restrained composition.",
-        align: "before",
-      },
-      metadata: { artist: "I. Rowan", year: "2025", medium: "Digital C-Print" },
-    },
-    {
-      id: "w-03",
-      title: "Threshold #4",
-      description: "A corridor inside another corridor.",
-      imageUrl: "/images/work3.jpg",
-      metadata: { artist: "Noa Lane", year: "2026", medium: "Mixed Media" },
-    },
-    {
-      id: "w-04",
-      title: "Monochrome Drift",
-      description: "A cloud-like structure in muted tones.",
-      imageUrl: "/images/work4.jpg",
-      metadata: { artist: "R. Chen", year: "2024", medium: "Photography" },
-    },
-  ],
+  items: DEFAULT_ARTWORKS.map((artwork) => ({ ...artwork })),
+  artworks: DEFAULT_ARTWORKS,
 };

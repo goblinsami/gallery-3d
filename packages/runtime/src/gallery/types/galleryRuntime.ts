@@ -1,11 +1,14 @@
 import type {
   ArtGallerySceneConfig,
+  GalleryItem,
   ArtworkConfig,
   ArtworkSide,
+  StationalCardConfig,
   Vec3,
 } from "./galleryConfig";
 
 export interface PositionedArtwork extends ArtworkConfig {
+  type: "artwork";
   index: number;
   side: ArtworkSide;
   position: Vec3;
@@ -16,12 +19,26 @@ export interface PositionedArtwork extends ArtworkConfig {
   centerPosition: Vec3;
 }
 
+export interface PositionedStationalCard extends StationalCardConfig {
+  type: "stational-card";
+  index: number;
+  position: Vec3;
+  rotation: Vec3;
+  lookAt: Vec3;
+  focusTarget: Vec3;
+  focusPosition: Vec3;
+  centerPosition: Vec3;
+}
+
+export type PositionedGalleryItem = PositionedArtwork | PositionedStationalCard;
+
 export interface CameraKeyframe {
   progress: number;
   position: Vec3;
   lookAt: Vec3;
   titleOpacity: number;
   activeArtworkIndex: number | null;
+  activeItemIndex?: number | null;
   label: string;
 }
 
@@ -30,6 +47,7 @@ export interface CameraState {
   lookAt: Vec3;
   titleOpacity: number;
   activeArtworkIndex: number | null;
+  activeItemIndex?: number | null;
 }
 
 export interface JourneySegment {
@@ -57,7 +75,7 @@ export interface GallerySceneGraph {
 
 export interface EngineBuildArtifacts {
   config: ArtGallerySceneConfig;
-  layout: PositionedArtwork[];
+  layout: PositionedGalleryItem[];
   keyframes: CameraKeyframe[];
 }
 

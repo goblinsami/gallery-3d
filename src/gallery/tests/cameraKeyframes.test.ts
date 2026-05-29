@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { buildCameraKeyframes, calculateArtworkLayout } from "../journey/cameraKeyframes";
+import type { PositionedArtwork } from "../types/galleryRuntime";
+
+const getArtworkLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedArtwork[] =>
+  calculateArtworkLayout(...args).filter(
+    (item): item is PositionedArtwork => item.type !== "stational-card",
+  );
 
 describe("buildCameraKeyframes", () => {
   it("includes intro/focus/return labels", () => {
@@ -9,7 +15,7 @@ describe("buildCameraKeyframes", () => {
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 2),
     };
 
-    const layout = calculateArtworkLayout(config);
+    const layout = getArtworkLayout(config);
     const keyframes = buildCameraKeyframes(config, layout);
     const labels = keyframes.map((entry) => entry.label);
 
@@ -31,19 +37,19 @@ describe("buildCameraKeyframes", () => {
 
     const keyframesA = buildCameraKeyframes(
       oneArtworkConfig,
-      calculateArtworkLayout(oneArtworkConfig),
+      getArtworkLayout(oneArtworkConfig),
     );
 
     const keyframesB = buildCameraKeyframes(
       manyArtworkConfig,
-      calculateArtworkLayout(manyArtworkConfig),
+      getArtworkLayout(manyArtworkConfig),
     );
 
     expect(keyframesB.length).toBeGreaterThan(keyframesA.length);
   });
 
   it("starts at progress 0 and ends at progress 1", () => {
-    const layout = calculateArtworkLayout(DEFAULT_GALLERY_CONFIG);
+    const layout = getArtworkLayout(DEFAULT_GALLERY_CONFIG);
     const keyframes = buildCameraKeyframes(DEFAULT_GALLERY_CONFIG, layout);
 
     expect(keyframes[0].progress).toBe(0);
@@ -63,8 +69,8 @@ describe("buildCameraKeyframes", () => {
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
     };
 
-    const closeLayout = calculateArtworkLayout(closeConfig);
-    const farLayout = calculateArtworkLayout(farConfig);
+    const closeLayout = getArtworkLayout(closeConfig);
+    const farLayout = getArtworkLayout(farConfig);
 
     const closeDistance = Math.abs(closeLayout[0].focusPosition[0] - closeLayout[0].focusTarget[0]);
     const farDistance = Math.abs(farLayout[0].focusPosition[0] - farLayout[0].focusTarget[0]);
@@ -85,8 +91,8 @@ describe("buildCameraKeyframes", () => {
       ],
     };
 
-    const wideLayout = calculateArtworkLayout(config, { viewportAspect: 16 / 9 });
-    const narrowLayout = calculateArtworkLayout(config, { viewportAspect: 3 / 4 });
+    const wideLayout = getArtworkLayout(config, { viewportAspect: 16 / 9 });
+    const narrowLayout = getArtworkLayout(config, { viewportAspect: 3 / 4 });
 
     const wideDistance = Math.abs(wideLayout[0].focusPosition[0] - wideLayout[0].focusTarget[0]);
     const narrowDistance = Math.abs(narrowLayout[0].focusPosition[0] - narrowLayout[0].focusTarget[0]);
@@ -107,8 +113,8 @@ describe("buildCameraKeyframes", () => {
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
     };
 
-    const lowKeyframes = buildCameraKeyframes(lowTurnConfig, calculateArtworkLayout(lowTurnConfig));
-    const highKeyframes = buildCameraKeyframes(highTurnConfig, calculateArtworkLayout(highTurnConfig));
+    const lowKeyframes = buildCameraKeyframes(lowTurnConfig, getArtworkLayout(lowTurnConfig));
+    const highKeyframes = buildCameraKeyframes(highTurnConfig, getArtworkLayout(highTurnConfig));
 
     const lowTurnFrames = lowKeyframes.filter((entry) => entry.label.includes("focus-turn-"));
     const highTurnFrames = highKeyframes.filter((entry) => entry.label.includes("focus-turn-"));
@@ -129,8 +135,8 @@ describe("buildCameraKeyframes", () => {
       artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
     };
 
-    const noLeadKeyframes = buildCameraKeyframes(noLeadConfig, calculateArtworkLayout(noLeadConfig));
-    const withLeadKeyframes = buildCameraKeyframes(withLeadConfig, calculateArtworkLayout(withLeadConfig));
+    const noLeadKeyframes = buildCameraKeyframes(noLeadConfig, getArtworkLayout(noLeadConfig));
+    const withLeadKeyframes = buildCameraKeyframes(withLeadConfig, getArtworkLayout(withLeadConfig));
 
     expect(noLeadKeyframes.some((entry) => entry.label.includes("turn-lead-start"))).toBe(false);
     expect(withLeadKeyframes.some((entry) => entry.label.includes("turn-lead-start"))).toBe(true);

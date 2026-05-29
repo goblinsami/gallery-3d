@@ -1,4 +1,4 @@
-import type { ArtGallerySceneConfig } from "../types/galleryConfig";
+import type { ArtGallerySceneConfig, ArtworkConfig } from "../types/galleryConfig";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 
@@ -174,5 +174,74 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
           }
         : artwork.sideText,
     })),
+  },
+  {
+    ...DEFAULT_GALLERY_CONFIG,
+    id: "portfolio-stations",
+    sceneTitle: "Portfolio Stations",
+    lightingMode: "contrast",
+    infiniteCorridor: true,
+    sceneBackgroundColor: "#090d15",
+    sceneFogColor: "#111a2a",
+    ceilingSpotsEnabled: true,
+    ceilingSpotsColor: "#c6d6ff",
+    ceilingSpotsIntensity: 2.2,
+    artworkBacklightEnabled: true,
+    artworkBacklightColor: "#8bb4ff",
+    artworkBacklightIntensity: 1.9,
+    enhanceNightReadibility: true,
+    artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 3).map((artwork, index) => ({
+      ...artwork,
+      id: `p-${index + 1}`,
+      side: index % 2 === 0 ? "left" : "right",
+      frameEnabled: true,
+      frameColor: "#1c2a3f",
+    })),
+    items: [
+      ...DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1).map<ArtworkConfig>((artwork, index) => ({
+        ...artwork,
+        type: "artwork" as const,
+        id: `p-${index + 1}`,
+        side: index % 2 === 0 ? "left" : "right",
+        frameEnabled: true,
+        frameColor: "#1c2a3f",
+      })),
+      {
+        id: "about-station",
+        type: "stational-card" as const,
+        variant: "about" as const,
+        title: "About Me",
+        subtitle: "Creative Director - Barcelona",
+        description: "I craft cinematic digital experiences with strong visual rhythm.",
+        layout: "image-right" as const,
+        image: "/images/work4.jpg",
+      },
+      {
+        id: "contact-station",
+        type: "stational-card" as const,
+        variant: "contact" as const,
+        title: "Let's Work Together",
+        description: "Available for selected commissions and long-term collaborations.",
+        layout: "text" as const,
+        contact: {
+          email: "hello@scrollix.gallery",
+          location: "Barcelona",
+        },
+        socialLinks: [
+          {
+            label: "Behance",
+            url: "https://behance.net",
+          },
+          {
+            label: "LinkedIn",
+            url: "https://linkedin.com",
+          },
+        ],
+        cta: {
+          label: "Start a Project",
+          url: "https://example.com/contact",
+        },
+      },
+    ],
   },
 ];

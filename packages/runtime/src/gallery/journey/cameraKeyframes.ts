@@ -1,8 +1,14 @@
 import type { ArtGallerySceneConfig, ArtworkSide, Vec3 } from "../types/galleryConfig";
-import type { CameraKeyframe, JourneySegment, PositionedArtwork } from "../types/galleryRuntime";
+import type {
+  CameraKeyframe,
+  JourneySegment,
+  PositionedArtwork,
+  PositionedGalleryItem,
+} from "../types/galleryRuntime";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 import { buildJourneyTimeline } from "./buildJourneyTimeline";
 import { lerp, lerpVec3 } from "../utils/math";
+import { getGalleryItems, isArtworkItem, isStationalCard } from "../utils/galleryItems";
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 const ASSUMED_VIEWPORT_ASPECT = 16 / 9;
@@ -62,11 +68,11 @@ const getArtworkSide = (
 
 const getFocusDistance = (
   config: ArtGallerySceneConfig,
-  artwork: { width?: number; height?: number },
+  item: { width?: number; height?: number },
   options?: ArtworkLayoutOptions,
 ): number => {
-  const artworkWidth = artwork.width ?? GALLERY_DEFAULTS.artwork.width;
-  const artworkHeight = artwork.height ?? GALLERY_DEFAULTS.artwork.height;
+  const itemWidth = item.width ?? GALLERY_DEFAULTS.artwork.width;
+  const itemHeight = item.height ?? GALLERY_DEFAULTS.artwork.height;
   const focusFill = Math.min(0.98, Math.max(0.3, config.artworkFocusFill));
   const viewportAspect = resolveViewportAspect(options);
 
@@ -74,9 +80,9 @@ const getFocusDistance = (
   const halfHorizontalFov = Math.atan(Math.tan(halfVerticalFov) * viewportAspect);
 
   const distanceByHeight =
-    (artworkHeight * 0.5) / Math.max(0.0001, Math.tan(halfVerticalFov) * focusFill);
+    (itemHeight * 0.5) / Math.max(0.0001, Math.tan(halfVerticalFov) * focusFill);
   const distanceByWidth =
-    (artworkWidth * 0.5) / Math.max(0.0001, Math.tan(halfHorizontalFov) * focusFill);
+    (itemWidth * 0.5) / Math.max(0.0001, Math.tan(halfHorizontalFov) * focusFill);
 
   return Math.max(0.9, Math.max(distanceByHeight, distanceByWidth));
 };
@@ -84,16 +90,44 @@ const getFocusDistance = (
 export const calculateArtworkLayout = (
   config: ArtGallerySceneConfig,
   options?: ArtworkLayoutOptions,
-): PositionedArtwork[] => {
-  const sideStart: ArtworkSide = config.artworks[0]?.side === "right" ? "right" : "left";
+): PositionedGalleryItem[] => {
+  const items = getGalleryItems(config);
+  const firstArtwork = items.find(isArtworkItem);
+  const sideStart: ArtworkSide = firstArtwork?.side === "right" ? "right" : "left";
   const wallHalfWidth = config.corridor.width / 2;
   const baseZ = -config.corridor.segmentLength;
   const cameraHeight = config.camera.height;
 
-  return config.artworks.map((artwork, index) => {
+  return items.map((item, index) => {
+    const z = baseZ - index * config.corridor.artworkSpacing;
+
+    if (isStationalCard(item)) {
+      const width = clamp(item.width ?? GALLERY_DEFAULTS.stationalCard.width, 1.6, 8);
+      const height = clamp(item.height ?? GALLERY_DEFAULTS.stationalCard.height, 1.2, 5);
+      const depth = clamp(item.depth ?? GALLERY_DEFAULTS.stationalCard.depth, 0.02, 0.4);
+      const focusDistance = getFocusDistance(config, { width, height }, options);
+      const focusTarget: Vec3 = [0, cameraHeight, z + depth * 0.5];
+      const focusPosition: Vec3 = [0, cameraHeight, z + focusDistance];
+      const centerPosition: Vec3 = [0, cameraHeight, z + Math.max(2.1, width * 0.45)];
+
+      return {
+        ...item,
+        width,
+        height,
+        depth,
+        index,
+        position: [0, cameraHeight, z],
+        rotation: [0, 0, 0],
+        lookAt: [0, cameraHeight, z],
+        focusTarget,
+        focusPosition,
+        centerPosition,
+      };
+    }
+
+    const artwork = item;
     const side = getArtworkSide(index, artwork.side, sideStart);
     const normalX = side === "left" ? 1 : -1;
-    const z = baseZ - index * config.corridor.artworkSpacing;
     const x =
       side === "left"
         ? -wallHalfWidth + config.corridor.wallThickness + config.corridor.artworkInset
@@ -136,6 +170,7 @@ export const calculateArtworkLayout = (
 
     return {
       ...artwork,
+      type: "artwork",
       index,
       side,
       position,
@@ -144,7 +179,7 @@ export const calculateArtworkLayout = (
       focusTarget,
       focusPosition,
       centerPosition,
-    };
+    } satisfies PositionedArtwork;
   });
 };
 
@@ -159,9 +194,15 @@ const findSegment = (segments: JourneySegment[], label: string): JourneySegment 
 
 export const buildCameraKeyframes = (
   config: ArtGallerySceneConfig,
-  layout: PositionedArtwork[],
+  layout: PositionedGalleryItem[],
 ): CameraKeyframe[] => {
-  const timeline = buildJourneyTimeline(config.timings, layout.length);
+  const timeline = buildJourneyTimeline(
+    config.timings,
+    layout.map((item) => ({
+      index: item.index,
+      type: item.type === "stational-card" ? "stational-card" : "artwork",
+    })),
+  );
   const keyframes: CameraKeyframe[] = [];
 
   const push = (
@@ -169,7 +210,7 @@ export const buildCameraKeyframes = (
     position: Vec3,
     lookAt: Vec3,
     label: string,
-    activeArtworkIndex: number | null,
+    activeItemIndex: number | null,
   ): void => {
     const clampedProgress = clamp01(progress);
     keyframes.push({
@@ -178,7 +219,8 @@ export const buildCameraKeyframes = (
       lookAt,
       titleOpacity: titleOpacityAt(config, clampedProgress),
       label,
-      activeArtworkIndex,
+      activeArtworkIndex: activeItemIndex,
+      activeItemIndex,
     });
   };
 
@@ -194,34 +236,33 @@ export const buildCameraKeyframes = (
   const introEndPosition: Vec3 = [0, config.camera.height, 0.5];
   push(intro.end, introEndPosition, [0, config.camera.height, -10], "intro-end", null);
 
-  layout.forEach((artwork) => {
-    const travel = findSegment(timeline.segments, `artwork-${artwork.index}-travel`);
-    const focusIn = findSegment(timeline.segments, `artwork-${artwork.index}-focus-in`);
-    const focusHold = findSegment(timeline.segments, `artwork-${artwork.index}-focus-hold`);
-    const returnSegment = findSegment(timeline.segments, `artwork-${artwork.index}-return`);
+  layout.forEach((item) => {
+    const travel = findSegment(timeline.segments, `artwork-${item.index}-travel`);
+    const focusIn = findSegment(timeline.segments, `artwork-${item.index}-focus-in`);
+    const focusHold = findSegment(timeline.segments, `artwork-${item.index}-focus-hold`);
+    const returnSegment = findSegment(timeline.segments, `artwork-${item.index}-return`);
     const turnKeyframes = Math.max(1, Math.round(config.artworkTurnKeyframes));
     const turnLeadIn = clamp(config.artworkTurnLeadIn, 0, 0.85);
     const previousKeyframe = keyframes[keyframes.length - 1];
-    const travelStartPosition = previousKeyframe?.position ?? artwork.centerPosition;
-    const travelStartLookAt = previousKeyframe?.lookAt ?? artwork.lookAt;
+    const travelStartPosition = previousKeyframe?.position ?? item.centerPosition;
+    const travelStartLookAt = previousKeyframe?.lookAt ?? item.lookAt;
     const leadInStartT = clamp01(1 - turnLeadIn);
     const leadInStart = lerp(travel.start, travel.end, leadInStartT);
     const leadInStartPosition = lerpVec3(
       travelStartPosition,
-      artwork.centerPosition,
+      item.centerPosition,
       smootherstep(leadInStartT),
     );
-    const leadInStartLookAt = lerpVec3(
+    const turnStartLookAt = lerpVec3(
       travelStartLookAt,
-      artwork.lookAt,
+      item.lookAt,
       smootherstep(leadInStartT),
     );
     const turnStartProgress = turnLeadIn > 0 ? leadInStart : focusIn.start;
-    const turnStartLookAt = turnLeadIn > 0 ? leadInStartLookAt : artwork.lookAt;
     const resolveTurnLookAt = (progress: number): Vec3 => {
       const duration = Math.max(0.0001, focusIn.end - turnStartProgress);
       const t = clamp01((progress - turnStartProgress) / duration);
-      return lerpVec3(turnStartLookAt, artwork.focusTarget, smootherstep(t));
+      return lerpVec3(turnStartLookAt, item.focusTarget, smootherstep(t));
     };
 
     if (turnLeadIn > 0) {
@@ -229,16 +270,16 @@ export const buildCameraKeyframes = (
         leadInStart,
         leadInStartPosition,
         turnStartLookAt,
-        `artwork-${artwork.index}-turn-lead-start`,
+        `artwork-${item.index}-turn-lead-start`,
         null,
       );
     }
 
     push(
       travel.end,
-      artwork.centerPosition,
+      item.centerPosition,
       resolveTurnLookAt(travel.end),
-      `artwork-${artwork.index}-travel-end`,
+      `artwork-${item.index}-travel-end`,
       null,
     );
 
@@ -246,36 +287,36 @@ export const buildCameraKeyframes = (
       const t = step / turnKeyframes;
       const positionT = smootherstep(t);
       const progress = lerp(focusIn.start, focusIn.end, t);
-      const position = lerpVec3(artwork.centerPosition, artwork.focusPosition, positionT);
+      const position = lerpVec3(item.centerPosition, item.focusPosition, positionT);
       const lookAt = resolveTurnLookAt(progress);
       const label =
         step === turnKeyframes
-          ? `artwork-${artwork.index}-focus-in-end`
-          : `artwork-${artwork.index}-focus-turn-${step}`;
+          ? `artwork-${item.index}-focus-in-end`
+          : `artwork-${item.index}-focus-turn-${step}`;
 
-      push(progress, position, lookAt, label, artwork.index);
+      push(progress, position, lookAt, label, item.index);
     }
 
     push(
       focusHold.end,
-      artwork.focusPosition,
-      artwork.focusTarget,
-      `artwork-${artwork.index}-focus-hold-end`,
-      artwork.index,
+      item.focusPosition,
+      item.focusTarget,
+      `artwork-${item.index}-focus-hold-end`,
+      item.index,
     );
     push(
       returnSegment.end,
-      artwork.centerPosition,
-      [0, config.camera.height, artwork.position[2] - 2.2],
-      `artwork-${artwork.index}-return-end`,
+      item.centerPosition,
+      [0, config.camera.height, item.position[2] - 2.2],
+      `artwork-${item.index}-return-end`,
       null,
     );
   });
 
   const outro = findSegment(timeline.segments, "outro");
-  const lastArtwork = layout[layout.length - 1];
-  const finalPosition: Vec3 = lastArtwork
-    ? [0, config.camera.height, lastArtwork.position[2] - config.corridor.artworkSpacing]
+  const lastItem = layout[layout.length - 1];
+  const finalPosition: Vec3 = lastItem
+    ? [0, config.camera.height, lastItem.position[2] - config.corridor.artworkSpacing]
     : [0, config.camera.height, -8];
   const finalLookAt: Vec3 = [0, config.camera.height, finalPosition[2] - 10];
   push(outro.end, finalPosition, finalLookAt, "outro-end", null);
@@ -289,9 +330,10 @@ export const buildCameraKeyframes = (
       progress: 1,
       titleOpacity: 0,
       label: "end",
+      activeArtworkIndex: null,
+      activeItemIndex: null,
     });
   }
 
   return keyframes;
 };
-

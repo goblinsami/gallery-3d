@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { GalleryEngine } from "../engine/GalleryEngine";
-import type { ArtGallerySceneConfig, ArtworkConfig, DeepPartial } from "../types/galleryConfig";
+import type { ArtGallerySceneConfig, DeepPartial, GalleryItem } from "../types/galleryConfig";
 import { validateGalleryConfig } from "../utils/validateGalleryConfig";
 import {
   ScrollProgressController,
@@ -9,6 +9,8 @@ import {
 } from "../journey/scrollProgressController";
 import { toWheelSensitivity } from "../utils/scrollStrength";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
+import { getGalleryItems, isArtworkItem } from "../utils/galleryItems";
+import { renderGalleryItemContent } from "../utils/renderStationalCardContent";
 
 interface Props {
   config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>;
@@ -88,12 +90,32 @@ const runtimeSceneConfig = computed<ArtGallerySceneConfig>(() => {
     return config;
   }
 
+  const mobileItems = getGalleryItems(config).map((item) =>
+    isArtworkItem(item)
+      ? (
+          config.mobileDetailsOverlayEnabled
+            ? {
+                ...item,
+                sideText: undefined,
+              }
+            : item
+        )
+      : {
+          ...item,
+          mobileColumnLayout: true,
+        },
+  );
+
   if (!config.mobileDetailsOverlayEnabled) {
-    return config;
+    return {
+      ...config,
+      items: mobileItems,
+    };
   }
 
   return {
     ...config,
+    items: mobileItems,
     artworks: config.artworks.map((artwork) => ({
       ...artwork,
       sideText: undefined,
@@ -104,29 +126,33 @@ const whiteOverlayStyle = computed(() => ({
   opacity: whiteOverlayOpacity.value,
   background: GALLERY_TOKENS.scene.white,
 }));
-const activeArtwork = computed<ArtworkConfig | null>(() => {
+const galleryItems = computed<GalleryItem[]>(() => getGalleryItems(resolvedConfig.value));
+const activeGalleryItem = computed<GalleryItem | null>(() => {
   const index = activeArtworkIndex.value;
-  if (index === null || index < 0 || index >= resolvedConfig.value.artworks.length) {
+  if (index === null || index < 0 || index >= galleryItems.value.length) {
     return null;
   }
-  return resolvedConfig.value.artworks[index];
+  return galleryItems.value[index];
 });
-const overlayEyebrow = computed(() => activeArtwork.value?.sideText?.eyebrow?.trim() || "Gallery Note");
-const overlayTitle = computed(() => {
-  const sideTextTitle = activeArtwork.value?.sideText?.title?.trim();
-  if (sideTextTitle) return sideTextTitle;
-  return activeArtwork.value?.title?.trim() ?? "";
-});
-const overlayDescription = computed(() => {
-  const sideTextDescription = activeArtwork.value?.sideText?.description?.trim();
-  if (sideTextDescription) return sideTextDescription;
-  return activeArtwork.value?.description?.trim() ?? "";
-});
+const overlayContent = computed(() => renderGalleryItemContent(activeGalleryItem.value));
+const overlayEyebrow = computed(() => overlayContent.value?.eyebrow ?? "Gallery Note");
+const overlayTitle = computed(() => overlayContent.value?.title ?? "");
+const overlaySubtitle = computed(() => overlayContent.value?.subtitle ?? "");
+const overlayDescription = computed(() => overlayContent.value?.description ?? "");
+const overlayContactLines = computed(() => overlayContent.value?.contactLines ?? []);
+const overlaySocialLinks = computed(() => overlayContent.value?.socialLinks ?? []);
+const overlayCta = computed(() => overlayContent.value?.cta);
 const canShowMobileOverlay = computed(
   () =>
     resolvedConfig.value.mobileDetailsOverlayEnabled &&
     isMobileLayout.value &&
-    Boolean(overlayTitle.value || overlayDescription.value),
+    Boolean(
+      overlayTitle.value ||
+        overlaySubtitle.value ||
+        overlayDescription.value ||
+        overlayContactLines.value.length ||
+        overlaySocialLinks.value.length,
+    ),
 );
 const mobileOverlayHasBackdrop = computed(() => resolvedConfig.value.mobileDetailsBackdropEnabled);
 const mobileOverlayBackdropStyle = computed(() => {
@@ -368,8 +394,22 @@ onBeforeUnmount(() => {
           </button>
         </header>
         <h3 class="mobile-artwork-overlay-title">{{ overlayTitle }}</h3>
+        <p v-if="overlaySubtitle" class="mobile-artwork-overlay-subtitle">
+          {{ overlaySubtitle }}
+        </p>
         <p v-if="overlayDescription" class="mobile-artwork-overlay-description">
           {{ overlayDescription }}
+        </p>
+        <ul v-if="overlayContactLines.length > 0" class="mobile-artwork-overlay-list">
+          <li v-for="line in overlayContactLines" :key="line">{{ line }}</li>
+        </ul>
+        <ul v-if="overlaySocialLinks.length > 0" class="mobile-artwork-overlay-list">
+          <li v-for="link in overlaySocialLinks" :key="`${link.label}:${link.url}`">
+            <a :href="link.url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
+          </li>
+        </ul>
+        <p v-if="overlayCta" class="mobile-artwork-overlay-cta">
+          <a :href="overlayCta.url" target="_blank" rel="noopener noreferrer">{{ overlayCta.label }}</a>
         </p>
       </article>
     </div>
@@ -489,6 +529,46 @@ onBeforeUnmount(() => {
   font-size: 0.86rem;
   line-height: 1.38;
   color: rgba(232, 238, 250, 0.9);
+}
+
+.mobile-artwork-overlay-subtitle {
+  margin: 0 0 8px 0;
+  font-size: 0.84rem;
+  letter-spacing: 0.03em;
+  color: rgba(185, 204, 233, 0.9);
+}
+
+.mobile-artwork-overlay-list {
+  margin: 10px 0 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: rgba(216, 229, 247, 0.92);
+}
+
+.mobile-artwork-overlay-list a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-artwork-overlay-list a:hover {
+  text-decoration: underline;
+}
+
+.mobile-artwork-overlay-cta {
+  margin: 10px 0 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.mobile-artwork-overlay-cta a {
+  color: #d6ecff;
+  text-decoration: none;
+}
+
+.mobile-artwork-overlay-cta a:hover {
+  text-decoration: underline;
 }
 </style>
 
