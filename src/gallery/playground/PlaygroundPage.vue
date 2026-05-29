@@ -21,6 +21,8 @@ const activeLightingMode = ref(sampleGalleryConfigs[0].lightingMode);
 const activeAspectRatioPreset = ref<keyof typeof ASPECT_RATIO_PRESETS>("auto");
 const activeMobileAspectRatioPreset = ref<keyof typeof ASPECT_RATIO_PRESETS>("3:4");
 const mobileBreakpointWidth = ref(820);
+const mobileDetailsButtonPosition = ref<ArtGallerySceneConfig["mobileDetailsButtonPosition"]>("top-right");
+const mobileDetailsModalPosition = ref<ArtGallerySceneConfig["mobileDetailsModalPosition"]>("top");
 const runtimeConfig = ref<ArtGallerySceneConfig>(sampleGalleryConfigs[0]);
 const jsonDraft = ref(JSON.stringify(runtimeConfig.value, null, 2));
 const parseError = ref("");
@@ -40,6 +42,8 @@ const tokens = GALLERY_TOKENS;
 const updateConfigWithAspectRatios = (): void => {
   runtimeConfig.value = {
     ...runtimeConfig.value,
+    mobileDetailsButtonPosition: mobileDetailsButtonPosition.value,
+    mobileDetailsModalPosition: mobileDetailsModalPosition.value,
     camera: {
       ...runtimeConfig.value.camera,
       targetAspectRatio: ASPECT_RATIO_PRESETS[activeAspectRatioPreset.value],
@@ -52,9 +56,13 @@ const updateConfigWithAspectRatios = (): void => {
 
 watch([activeSampleId, activeLightingMode], ([sampleId, lightingMode]) => {
   const selected = sampleGalleryConfigs.find((sample) => sample.id === sampleId) ?? sampleGalleryConfigs[0];
+  mobileDetailsButtonPosition.value = selected.mobileDetailsButtonPosition;
+  mobileDetailsModalPosition.value = selected.mobileDetailsModalPosition;
   runtimeConfig.value = {
     ...selected,
     lightingMode,
+    mobileDetailsButtonPosition: selected.mobileDetailsButtonPosition,
+    mobileDetailsModalPosition: selected.mobileDetailsModalPosition,
     camera: {
       ...selected.camera,
       targetAspectRatio: ASPECT_RATIO_PRESETS[activeAspectRatioPreset.value],
@@ -66,9 +74,18 @@ watch([activeSampleId, activeLightingMode], ([sampleId, lightingMode]) => {
   parseError.value = "";
 });
 
-watch([activeAspectRatioPreset, activeMobileAspectRatioPreset, mobileBreakpointWidth], () => {
+watch(
+  [
+    activeAspectRatioPreset,
+    activeMobileAspectRatioPreset,
+    mobileBreakpointWidth,
+    mobileDetailsButtonPosition,
+    mobileDetailsModalPosition,
+  ],
+  () => {
   updateConfigWithAspectRatios();
-});
+  },
+);
 
 const applyJsonDraft = (): void => {
   try {
@@ -83,6 +100,8 @@ const applyJsonDraft = (): void => {
     runtimeConfig.value = validation.config;
     activeLightingMode.value = validation.config.lightingMode;
     activeSampleId.value = validation.config.id;
+    mobileDetailsButtonPosition.value = validation.config.mobileDetailsButtonPosition;
+    mobileDetailsModalPosition.value = validation.config.mobileDetailsModalPosition;
     parseError.value = validation.warnings.join(" | ");
   } catch (error) {
     parseError.value = error instanceof Error ? error.message : "Invalid JSON payload";
@@ -156,6 +175,24 @@ const onRuntimeProgress = (progress: number): void => {
       <label>
         Mobile Breakpoint (px)
         <input v-model.number="mobileBreakpointWidth" type="number" min="320" max="1600" step="10" />
+      </label>
+
+      <label>
+        Mobile Details Button
+        <select v-model="mobileDetailsButtonPosition">
+          <option value="top-right">top-right</option>
+          <option value="top-left">top-left</option>
+          <option value="bottom-right">bottom-right</option>
+          <option value="bottom-left">bottom-left</option>
+        </select>
+      </label>
+
+      <label>
+        Mobile Details Modal
+        <select v-model="mobileDetailsModalPosition">
+          <option value="top">top</option>
+          <option value="bottom">bottom</option>
+        </select>
       </label>
 
       <button type="button" class="mode-toggle" @click="isMobileMode = !isMobileMode">

@@ -2,6 +2,12 @@ export type LightingMode = "contrast" | "day";
 export type ArtworkSide = "left" | "right";
 export type Vec3 = [number, number, number];
 export type GalleryItemType = "artwork" | "stational-card";
+export type MobileDetailsButtonPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+export type MobileDetailsModalPosition = "top" | "bottom";
 
 export interface ArtworkMetadata {
   artist?: string;
@@ -171,6 +177,8 @@ export interface ArtGallerySceneConfig {
   mobileDetailsBackdropEnabled: boolean;
   mobileDetailsBackdropIntensity: number;
   mobileDetailsBackdropHeight: number;
+  mobileDetailsButtonPosition: MobileDetailsButtonPosition;
+  mobileDetailsModalPosition: MobileDetailsModalPosition;
   loopWhiteAfterEndWindow: number;
   loopWhiteStartsBeforeEndWindow: number;
   loopWhiteFadeOutRevealWindow: number;

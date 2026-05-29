@@ -18,8 +18,9 @@ interface Props {
 }
 
 const DEFAULT_MOBILE_BREAKPOINT = 820;
-const MOBILE_TAP_MOVE_THRESHOLD_PX = 14;
-const MOBILE_TAP_TIME_THRESHOLD_MS = 320;
+const MOBILE_TAP_MOVE_THRESHOLD_PX = 18;
+const MOBILE_TAP_TIME_THRESHOLD_MS = 450;
+const MOBILE_SURFACE_CLICK_DEDUPE_MS = 420;
 
 const props = withDefaults(defineProps<Props>(), {
   initialProgress: 0,
@@ -34,6 +35,7 @@ const whiteOverlayOpacity = ref(0);
 const containerWidth = ref(0);
 const containerHeight = ref(0);
 const activeArtworkIndex = ref<number | null>(null);
+const lastKnownArtworkIndex = ref<number | null>(null);
 const mobileOverlayVisible = ref(false);
 const tapPointerId = ref<number | null>(null);
 const tapStartX = ref(0);
@@ -45,6 +47,7 @@ let scrollController: ScrollProgressController | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeTimeout: number | null = null;
 let viewportResizeTimeout: number | null = null;
+let lastSurfaceToggleTimestamp = Number.NEGATIVE_INFINITY;
 
 const updateContainerMetrics = (): void => {
   if (!containerRef.value) return;
@@ -135,7 +138,7 @@ const whiteOverlayStyle = computed(() => ({
 }));
 const galleryItems = computed<GalleryItem[]>(() => getGalleryItems(resolvedConfig.value));
 const activeGalleryItem = computed<GalleryItem | null>(() => {
-  const index = activeArtworkIndex.value;
+  const index = activeArtworkIndex.value ?? lastKnownArtworkIndex.value;
   if (index === null || index < 0 || index >= galleryItems.value.length) {
     return null;
   }
@@ -162,6 +165,15 @@ const canShowMobileOverlay = computed(
     ),
 );
 const mobileOverlayHasBackdrop = computed(() => resolvedConfig.value.mobileDetailsBackdropEnabled);
+const mobileOverlayButtonPositionClass = computed(
+  () => `mobile-overlay-toggle--${resolvedConfig.value.mobileDetailsButtonPosition}`,
+);
+const mobileOverlayModalPositionClass = computed(
+  () => `mobile-artwork-overlay--${resolvedConfig.value.mobileDetailsModalPosition}`,
+);
+const mobileOverlayUsesTopAnchor = computed(
+  () => resolvedConfig.value.mobileDetailsModalPosition === "top",
+);
 const mobileOverlayBackdropStyle = computed(() => {
   if (!mobileOverlayHasBackdrop.value) {
     return { background: "transparent" };
@@ -171,14 +183,22 @@ const mobileOverlayBackdropStyle = computed(() => {
   const height = Math.max(0, Math.min(1, resolvedConfig.value.mobileDetailsBackdropHeight));
   const midStop = Math.round(height * 42);
   const endStop = Math.round(height * 100);
+  const direction = mobileOverlayUsesTopAnchor.value ? "to bottom" : "to top";
 
   return {
-    background: `linear-gradient(to top, rgba(2, 7, 20, ${(0.78 * intensity).toFixed(3)}) 0%, rgba(2, 7, 20, ${(0.35 * intensity).toFixed(3)}) ${midStop}%, rgba(2, 7, 20, ${(0.08 * intensity).toFixed(3)}) ${endStop}%, transparent 100%)`,
+    background: `linear-gradient(${direction}, rgba(2, 7, 20, ${(0.78 * intensity).toFixed(3)}) 0%, rgba(2, 7, 20, ${(0.35 * intensity).toFixed(3)}) ${midStop}%, rgba(2, 7, 20, ${(0.08 * intensity).toFixed(3)}) ${endStop}%, transparent 100%)`,
   };
 });
 
 const closeMobileOverlay = (): void => {
   mobileOverlayVisible.value = false;
+};
+
+const setActiveItemIndex = (index: number | null): void => {
+  activeArtworkIndex.value = index;
+  if (index !== null) {
+    lastKnownArtworkIndex.value = index;
+  }
 };
 
 const isTapIgnoredTarget = (target: EventTarget | null): boolean => {
@@ -188,6 +208,7 @@ const isTapIgnoredTarget = (target: EventTarget | null): boolean => {
 
   return Boolean(
     target.closest(".mobile-overlay-toggle") ||
+      target.closest(".mobile-artwork-overlay") ||
       target.closest(".mobile-artwork-overlay-card"),
   );
 };
@@ -195,6 +216,11 @@ const isTapIgnoredTarget = (target: EventTarget | null): boolean => {
 const toggleMobileOverlay = (): void => {
   if (!canShowMobileOverlay.value) return;
   mobileOverlayVisible.value = !mobileOverlayVisible.value;
+};
+
+const toggleMobileOverlayFromSurface = (): void => {
+  toggleMobileOverlay();
+  lastSurfaceToggleTimestamp = performance.now();
 };
 
 const handlePointerDown = (event: PointerEvent): void => {
@@ -234,18 +260,31 @@ const handlePointerUp = (event: PointerEvent): void => {
   const shouldToggle = !tapMoved.value && elapsed <= MOBILE_TAP_TIME_THRESHOLD_MS;
   resetTapState();
   if (!shouldToggle) return;
-  toggleMobileOverlay();
+  toggleMobileOverlayFromSurface();
 };
 
 const handlePointerCancel = (): void => {
   resetTapState();
 };
 
+const handleContainerClick = (event: MouseEvent): void => {
+  if (!isMobileLayout.value) return;
+  if (!canShowMobileOverlay.value) return;
+  if (isTapIgnoredTarget(event.target)) return;
+
+  const now = performance.now();
+  if (now - lastSurfaceToggleTimestamp <= MOBILE_SURFACE_CLICK_DEDUPE_MS) {
+    return;
+  }
+
+  toggleMobileOverlayFromSurface();
+};
+
 const handleProgress = (state: ScrollProgressState): void => {
   whiteOverlayOpacity.value = state.whiteMix;
   engine?.setLoopWhiteMix(state.whiteMix);
   engine?.setProgress(state.progress);
-  activeArtworkIndex.value = engine?.getActiveArtworkIndex() ?? null;
+  setActiveItemIndex(engine?.getActiveArtworkIndex() ?? null);
   if (!canShowMobileOverlay.value) {
     closeMobileOverlay();
   }
@@ -262,7 +301,7 @@ onMounted(async () => {
   engine = new GalleryEngine(containerRef.value, runtimeSceneConfig.value);
   await engine.init();
   engine.setProgress(props.initialProgress);
-  activeArtworkIndex.value = engine.getActiveArtworkIndex();
+  setActiveItemIndex(engine.getActiveArtworkIndex());
 
   scrollController = new ScrollProgressController({
     element: containerRef.value,
@@ -317,7 +356,7 @@ watch(
       nextConfig.loopProgressAdvanceDuringWhiteFadeOut,
     );
     scrollController?.setLoop(nextConfig.infiniteCorridor);
-    activeArtworkIndex.value = engine.getActiveArtworkIndex();
+    setActiveItemIndex(engine.getActiveArtworkIndex());
     if (!canShowMobileOverlay.value) {
       closeMobileOverlay();
     }
@@ -368,6 +407,7 @@ onBeforeUnmount(() => {
     ref="containerRef"
     class="art-gallery-runtime"
     aria-label="3D Art Gallery Runtime"
+    @click="handleContainerClick"
     @pointerdown="handlePointerDown"
     @pointermove="handlePointerMove"
     @pointerup="handlePointerUp"
@@ -378,6 +418,7 @@ onBeforeUnmount(() => {
       v-if="canShowMobileOverlay"
       type="button"
       class="mobile-overlay-toggle"
+      :class="mobileOverlayButtonPositionClass"
       @click.stop="toggleMobileOverlay"
       aria-label="Toggle artwork details"
     >
@@ -386,7 +427,7 @@ onBeforeUnmount(() => {
     <div
       v-if="mobileOverlayVisible && canShowMobileOverlay"
       class="mobile-artwork-overlay"
-      :class="{ 'no-backdrop': !mobileOverlayHasBackdrop }"
+      :class="[mobileOverlayModalPositionClass, { 'no-backdrop': !mobileOverlayHasBackdrop }]"
       :style="mobileOverlayBackdropStyle"
       role="dialog"
       aria-modal="false"

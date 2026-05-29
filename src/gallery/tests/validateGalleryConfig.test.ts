@@ -15,6 +15,8 @@ describe("validateGalleryConfig", () => {
     expect(result.config.mobileDetailsBackdropEnabled).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsBackdropEnabled);
     expect(result.config.mobileDetailsBackdropIntensity).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsBackdropIntensity);
     expect(result.config.mobileDetailsBackdropHeight).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsBackdropHeight);
+    expect(result.config.mobileDetailsButtonPosition).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsButtonPosition);
+    expect(result.config.mobileDetailsModalPosition).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsModalPosition);
     expect(result.config.ceilingSpotsEnabled).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsEnabled);
     expect(result.config.ceilingSpotsColor).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsColor);
     expect(result.config.ceilingSpotsIntensity).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsIntensity);
@@ -105,6 +107,8 @@ describe("validateGalleryConfig", () => {
       mobileDetailsBackdropEnabled: false,
       mobileDetailsBackdropIntensity: 0.65,
       mobileDetailsBackdropHeight: 0.72,
+      mobileDetailsButtonPosition: "bottom-left",
+      mobileDetailsModalPosition: "bottom",
       loopWhiteAfterEndWindow: 0.24,
       loopWhiteStartsBeforeEndWindow: 0.18,
       loopWhiteFadeOutRevealWindow: 0.2,
@@ -144,6 +148,8 @@ describe("validateGalleryConfig", () => {
     expect(result.config.mobileDetailsBackdropEnabled).toBe(false);
     expect(result.config.mobileDetailsBackdropIntensity).toBeCloseTo(0.65);
     expect(result.config.mobileDetailsBackdropHeight).toBeCloseTo(0.72);
+    expect(result.config.mobileDetailsButtonPosition).toBe("bottom-left");
+    expect(result.config.mobileDetailsModalPosition).toBe("bottom");
     expect(result.config.loopWhiteAfterEndWindow).toBeCloseTo(0.24);
     expect(result.config.loopWhiteStartsBeforeEndWindow).toBeCloseTo(0.18);
     expect(result.config.loopWhiteFadeOutRevealWindow).toBeCloseTo(0.2);
@@ -187,6 +193,20 @@ describe("validateGalleryConfig", () => {
     expect(low.config.mobileDetailsBackdropHeight).toBe(0);
     expect(high.config.mobileDetailsBackdropIntensity).toBe(1);
     expect(high.config.mobileDetailsBackdropHeight).toBe(1);
+  });
+
+  it("sanitizes mobile details position values", () => {
+    const invalid = validateGalleryConfig({
+      mobileDetailsButtonPosition: "center" as never,
+      mobileDetailsModalPosition: "middle" as never,
+    });
+
+    expect(invalid.config.mobileDetailsButtonPosition).toBe(
+      DEFAULT_GALLERY_CONFIG.mobileDetailsButtonPosition,
+    );
+    expect(invalid.config.mobileDetailsModalPosition).toBe(
+      DEFAULT_GALLERY_CONFIG.mobileDetailsModalPosition,
+    );
   });
 
   it("clamps ceiling/artwork light intensities", () => {

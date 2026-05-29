@@ -10,6 +10,8 @@ import type {
   StationalCardConfig,
   StationalCardLayout,
   StationalCardVariant,
+  MobileDetailsButtonPosition,
+  MobileDetailsModalPosition,
   DeepPartial,
   LightingMode,
   Vec3,
@@ -35,6 +37,13 @@ const VALID_STATIONAL_VARIANTS: StationalCardVariant[] = [
   "custom",
 ];
 const VALID_STATIONAL_LAYOUTS: StationalCardLayout[] = ["text", "image-left", "image-right"];
+const VALID_MOBILE_DETAILS_BUTTON_POSITIONS: MobileDetailsButtonPosition[] = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+];
+const VALID_MOBILE_DETAILS_MODAL_POSITIONS: MobileDetailsModalPosition[] = ["top", "bottom"];
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -378,6 +387,16 @@ export const validateGalleryConfig = (
       0,
       1,
     ),
+    mobileDetailsButtonPosition: VALID_MOBILE_DETAILS_BUTTON_POSITIONS.includes(
+      source.mobileDetailsButtonPosition as MobileDetailsButtonPosition,
+    )
+      ? (source.mobileDetailsButtonPosition as MobileDetailsButtonPosition)
+      : defaultConfig.mobileDetailsButtonPosition,
+    mobileDetailsModalPosition: VALID_MOBILE_DETAILS_MODAL_POSITIONS.includes(
+      source.mobileDetailsModalPosition as MobileDetailsModalPosition,
+    )
+      ? (source.mobileDetailsModalPosition as MobileDetailsModalPosition)
+      : defaultConfig.mobileDetailsModalPosition,
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,
       0.02,

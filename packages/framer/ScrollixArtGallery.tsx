@@ -13,6 +13,12 @@ type TitleFontPreset =
 type ArtworkImageSourceMode = "upload" | "url" | "runtimePath" | "sample"
 type RuntimeChannel = "stable" | "beta"
 type RuntimeSourceMode = "manifest" | "legacyUrl"
+type MobileDetailsButtonPosition =
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right"
+type MobileDetailsModalPosition = "top" | "bottom"
 type CameraAspectPreset =
     | "auto"
     | "ratio_9_20"
@@ -185,6 +191,8 @@ interface ArtGallerySceneConfig {
     artworkBacklightIntensity: number
     scrollStrength: number
     mobileDetailsOverlayEnabled: boolean
+    mobileDetailsButtonPosition: MobileDetailsButtonPosition
+    mobileDetailsModalPosition: MobileDetailsModalPosition
     loopWhiteAfterEndWindow: number
     loopWhiteStartsBeforeEndWindow: number
     loopWhiteFadeOutRevealWindow: number
@@ -225,6 +233,8 @@ const DAYLIGHT_GALLERY_SAMPLE: ArtGallerySceneConfig = {
     artworkBacklightIntensity: 1.1,
     scrollStrength: 1,
     mobileDetailsOverlayEnabled: true,
+    mobileDetailsButtonPosition: "top-right",
+    mobileDetailsModalPosition: "top",
     loopWhiteAfterEndWindow: 0.14,
     loopWhiteStartsBeforeEndWindow: 0.05,
     loopWhiteFadeOutRevealWindow: 0.12,
@@ -1062,6 +1072,8 @@ interface ScrollixArtGalleryProps {
     infiniteCorridor: boolean
     scrollStrength: number
     mobileDetailsOverlayEnabled: boolean
+    mobileDetailsButtonPosition: MobileDetailsButtonPosition
+    mobileDetailsModalPosition: MobileDetailsModalPosition
     sceneBackgroundColor: string
     sceneFogColor: string
     ceilingSpotsEnabled: boolean
@@ -2707,6 +2719,14 @@ const buildGalleryConfig = (
         isDayPreset ||
         props.mobileDetailsOverlayEnabled !==
             controlsBaseline.mobileDetailsOverlayEnabled
+    const shouldOverrideMobileDetailsButtonPosition =
+        isDayPreset ||
+        props.mobileDetailsButtonPosition !==
+            controlsBaseline.mobileDetailsButtonPosition
+    const shouldOverrideMobileDetailsModalPosition =
+        isDayPreset ||
+        props.mobileDetailsModalPosition !==
+            controlsBaseline.mobileDetailsModalPosition
     const shouldOverrideScrollStrength =
         isDayPreset ||
         props.scrollStrength !== controlsBaseline.scrollStrength
@@ -2717,6 +2737,12 @@ const buildGalleryConfig = (
         mobileDetailsOverlayEnabled: shouldOverrideMobileDetailsOverlay
             ? props.mobileDetailsOverlayEnabled
             : config.mobileDetailsOverlayEnabled,
+        mobileDetailsButtonPosition: shouldOverrideMobileDetailsButtonPosition
+            ? props.mobileDetailsButtonPosition
+            : config.mobileDetailsButtonPosition,
+        mobileDetailsModalPosition: shouldOverrideMobileDetailsModalPosition
+            ? props.mobileDetailsModalPosition
+            : config.mobileDetailsModalPosition,
         scrollStrength: shouldOverrideScrollStrength
             ? props.scrollStrength
             : config.scrollStrength,
@@ -2790,6 +2816,8 @@ const buildGalleryConfig = (
         artworkBacklightColor: resolvedArtworkBacklightColor,
         artworkBacklightIntensity: props.artworkBacklightIntensity,
         mobileDetailsOverlayEnabled: props.mobileDetailsOverlayEnabled,
+        mobileDetailsButtonPosition: props.mobileDetailsButtonPosition,
+        mobileDetailsModalPosition: props.mobileDetailsModalPosition,
         scrollStrength: props.scrollStrength,
         loopWhiteAfterEndWindow: props.loopWhiteAfterEndWindow,
         loopWhiteStartsBeforeEndWindow: props.loopWhiteStartsBeforeEndWindow,
@@ -3189,6 +3217,9 @@ ScrollixArtGallery.defaultProps = {
     infiniteCorridor: DAYLIGHT_GALLERY_SAMPLE.infiniteCorridor,
     scrollStrength: DAYLIGHT_GALLERY_SAMPLE.scrollStrength,
     mobileDetailsOverlayEnabled: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsOverlayEnabled,
+    mobileDetailsButtonPosition:
+        DAYLIGHT_GALLERY_SAMPLE.mobileDetailsButtonPosition,
+    mobileDetailsModalPosition: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsModalPosition,
     sceneBackgroundColor: DAYLIGHT_GALLERY_SAMPLE.sceneBackgroundColor,
     sceneFogColor: DAYLIGHT_GALLERY_SAMPLE.sceneFogColor,
     ceilingSpotsEnabled: DAYLIGHT_GALLERY_SAMPLE.ceilingSpotsEnabled,
@@ -3573,6 +3604,20 @@ addPropertyControls(ScrollixArtGallery, {
         type: ControlType.Boolean,
         title: "Mobile Details",
         defaultValue: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsOverlayEnabled,
+    },
+    mobileDetailsButtonPosition: {
+        type: ControlType.Enum,
+        title: "Details Btn",
+        options: ["top-right", "top-left", "bottom-right", "bottom-left"],
+        optionTitles: ["Top Right", "Top Left", "Bottom Right", "Bottom Left"],
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsButtonPosition,
+    },
+    mobileDetailsModalPosition: {
+        type: ControlType.Enum,
+        title: "Details Modal",
+        options: ["top", "bottom"],
+        optionTitles: ["Top", "Bottom"],
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsModalPosition,
     },
     cameraAspectPreset: {
         type: ControlType.Enum,

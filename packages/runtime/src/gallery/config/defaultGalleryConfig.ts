@@ -68,6 +68,8 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   mobileDetailsBackdropEnabled: true,
   mobileDetailsBackdropIntensity: 1,
   mobileDetailsBackdropHeight: 1,
+  mobileDetailsButtonPosition: "top-right",
+  mobileDetailsModalPosition: "top",
   loopWhiteAfterEndWindow: 0.14,
   loopWhiteStartsBeforeEndWindow: 0.05,
   loopWhiteFadeOutRevealWindow: 0.12,
