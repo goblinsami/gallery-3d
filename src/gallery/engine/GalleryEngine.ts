@@ -6,6 +6,7 @@ import {
   PerspectiveCamera,
   Scene,
   SpotLight,
+  Vector3,
   WebGLRenderer,
 } from "three";
 import { clamp } from "../utils/clamp";
@@ -90,6 +91,7 @@ export class GalleryEngine {
   private readonly baseFogColor = new Color();
   private readonly mixedBackgroundColor = new Color();
   private readonly mixedFogColor = new Color();
+  private readonly projectedItemPoint = new Vector3();
   private lastContainerWidth = 0;
   private lastContainerHeight = 0;
   private renderViewport: RenderViewport | null = null;
@@ -136,6 +138,68 @@ export class GalleryEngine {
 
   getActiveItemIndex(): number | null {
     return this.activeItemIndex;
+  }
+
+  getClosestItemIndexFromClientPoint(clientX: number, clientY: number): number | null {
+    if (!this.camera || !this.buildArtifacts || this.buildArtifacts.layout.length === 0) {
+      return null;
+    }
+
+    const rect = this.container.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const fallbackWidth = Math.max(1, Math.round(rect.width));
+    const fallbackHeight = Math.max(1, Math.round(rect.height));
+    const viewport = this.renderViewport ?? {
+      x: 0,
+      y: 0,
+      width: fallbackWidth,
+      height: fallbackHeight,
+      aspect: fallbackWidth / fallbackHeight,
+    };
+
+    if (
+      localX < viewport.x ||
+      localX > viewport.x + viewport.width ||
+      localY < viewport.y ||
+      localY > viewport.y + viewport.height
+    ) {
+      return null;
+    }
+
+    const maxDistancePx = clamp(viewport.width * 0.22, 72, 240);
+    let closestIndex: number | null = null;
+    let closestDistanceSq = maxDistancePx * maxDistancePx;
+
+    for (const item of this.buildArtifacts.layout) {
+      const [x, y, z] = item.focusTarget;
+      const projected = this.projectedItemPoint
+        .set(x, y, z)
+        .project(this.camera);
+
+      if (
+        !Number.isFinite(projected.x) ||
+        !Number.isFinite(projected.y) ||
+        !Number.isFinite(projected.z) ||
+        projected.z < -1 ||
+        projected.z > 1
+      ) {
+        continue;
+      }
+
+      const screenX = viewport.x + ((projected.x + 1) * 0.5) * viewport.width;
+      const screenY = viewport.y + ((1 - projected.y) * 0.5) * viewport.height;
+      const dx = localX - screenX;
+      const dy = localY - screenY;
+      const distanceSq = dx * dx + dy * dy;
+
+      if (distanceSq <= closestDistanceSq) {
+        closestDistanceSq = distanceSq;
+        closestIndex = item.index;
+      }
+    }
+
+    return closestIndex;
   }
 
   async updateConfig(config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>): Promise<void> {

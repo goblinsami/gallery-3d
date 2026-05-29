@@ -230,14 +230,34 @@ const toggleMobileOverlay = (): void => {
   mobileOverlayVisible.value = !mobileOverlayVisible.value;
 };
 
-const toggleMobileOverlayFromSurface = (): void => {
-  toggleMobileOverlay();
+const canHandleMobileOverlayGesture = (): boolean =>
+  isMobileLayout.value && resolvedConfig.value.mobileDetailsOverlayEnabled;
+
+const tryActivateNearestItemFromSurfaceTap = (clientX: number, clientY: number): boolean => {
+  const nearestItemIndex = engine?.getClosestItemIndexFromClientPoint(clientX, clientY) ?? null;
+  if (nearestItemIndex === null) {
+    return false;
+  }
+
+  setActiveItemIndex(nearestItemIndex);
+  return true;
+};
+
+const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void => {
+  const activatedNearestItem = tryActivateNearestItemFromSurfaceTap(clientX, clientY);
+  if (!canShowMobileOverlay.value) return;
+
+  if (activatedNearestItem && !mobileOverlayVisible.value) {
+    mobileOverlayVisible.value = true;
+  } else {
+    mobileOverlayVisible.value = !mobileOverlayVisible.value;
+  }
+
   lastSurfaceToggleTimestamp = performance.now();
 };
 
 const handlePointerDown = (event: PointerEvent): void => {
-  if (!isMobileLayout.value) return;
-  if (!canShowMobileOverlay.value) return;
+  if (!canHandleMobileOverlayGesture()) return;
   if (isTapIgnoredTarget(event.target)) return;
   tapPointerId.value = event.pointerId;
   tapStartX.value = event.clientX;
@@ -272,7 +292,7 @@ const handlePointerUp = (event: PointerEvent): void => {
   const shouldToggle = !tapMoved.value && elapsed <= MOBILE_TAP_TIME_THRESHOLD_MS;
   resetTapState();
   if (!shouldToggle) return;
-  toggleMobileOverlayFromSurface();
+  toggleMobileOverlayFromSurface(event.clientX, event.clientY);
 };
 
 const handlePointerCancel = (): void => {
@@ -280,8 +300,7 @@ const handlePointerCancel = (): void => {
 };
 
 const handleContainerClick = (event: MouseEvent): void => {
-  if (!isMobileLayout.value) return;
-  if (!canShowMobileOverlay.value) return;
+  if (!canHandleMobileOverlayGesture()) return;
   if (isTapIgnoredTarget(event.target)) return;
 
   const now = performance.now();
@@ -289,7 +308,7 @@ const handleContainerClick = (event: MouseEvent): void => {
     return;
   }
 
-  toggleMobileOverlayFromSurface();
+  toggleMobileOverlayFromSurface(event.clientX, event.clientY);
 };
 
 const handleProgress = (state: ScrollProgressState): void => {
