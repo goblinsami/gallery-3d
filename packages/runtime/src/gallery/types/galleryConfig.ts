@@ -110,8 +110,12 @@ export interface ArtGallerySceneConfig {
   artworkBacklightEnabled: boolean;
   artworkBacklightColor: string;
   artworkBacklightIntensity: number;
+  enhanceNightReadibility: boolean;
   scrollStrength: number;
   mobileDetailsOverlayEnabled: boolean;
+  mobileDetailsBackdropEnabled: boolean;
+  mobileDetailsBackdropIntensity: number;
+  mobileDetailsBackdropHeight: number;
   loopWhiteAfterEndWindow: number;
   loopWhiteStartsBeforeEndWindow: number;
   loopWhiteFadeOutRevealWindow: number;

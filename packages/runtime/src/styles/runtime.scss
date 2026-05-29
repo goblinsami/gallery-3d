@@ -99,6 +99,10 @@
   );
 }
 
+.mobile-artwork-overlay.no-backdrop {
+  background: transparent;
+}
+
 .mobile-artwork-overlay-card {
   width: min(100%, 30rem);
   max-height: min(62%, 24rem);

@@ -19,7 +19,12 @@ interface ArtGallerySceneConfig {
   artworkBacklightEnabled: boolean
   artworkBacklightColor: string
   artworkBacklightIntensity: number
+  enhanceNightReadibility: boolean
   scrollStrength: number
+  mobileDetailsOverlayEnabled: boolean
+  mobileDetailsBackdropEnabled: boolean
+  mobileDetailsBackdropIntensity: number
+  mobileDetailsBackdropHeight: number
   loopWhiteAfterEndWindow: number
   loopWhiteStartsBeforeEndWindow: number
   loopWhiteFadeOutRevealWindow: number
@@ -91,6 +96,7 @@ interface GalleryTimingsConfig {
 - Lighting:
   - `lightingMode`, `ceilingSpotsEnabled`, `ceilingSpotsColor`, `ceilingSpotsIntensity`
   - `artworkBacklightEnabled`, `artworkBacklightColor`, `artworkBacklightIntensity`
+  - `enhanceNightReadibility` (boosts main spotlight + soft backlight in dark scenes)
 - Environment:
   - `sceneBackgroundColor`, `sceneFogColor`
   - `corridor.*` colors and geometry proportions
@@ -183,6 +189,7 @@ interface ArtworkConfig {
   "artworkBacklightEnabled": false,
   "artworkBacklightColor": "#ffb36b",
   "artworkBacklightIntensity": 1.1,
+  "enhanceNightReadibility": false,
   "scrollStrength": 1,
   "loopWhiteAfterEndWindow": 0.14,
   "loopWhiteStartsBeforeEndWindow": 0.05,

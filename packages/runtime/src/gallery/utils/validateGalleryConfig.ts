@@ -240,11 +240,29 @@ export const validateGalleryConfig = (
       0,
       4,
     ),
+    enhanceNightReadibility:
+      typeof source.enhanceNightReadibility === "boolean"
+        ? source.enhanceNightReadibility
+        : defaultConfig.enhanceNightReadibility,
     scrollStrength: normalizeScrollStrength(source.scrollStrength ?? defaultConfig.scrollStrength),
     mobileDetailsOverlayEnabled:
       typeof source.mobileDetailsOverlayEnabled === "boolean"
         ? source.mobileDetailsOverlayEnabled
         : defaultConfig.mobileDetailsOverlayEnabled,
+    mobileDetailsBackdropEnabled:
+      typeof source.mobileDetailsBackdropEnabled === "boolean"
+        ? source.mobileDetailsBackdropEnabled
+        : defaultConfig.mobileDetailsBackdropEnabled,
+    mobileDetailsBackdropIntensity: clamp(
+      source.mobileDetailsBackdropIntensity ?? defaultConfig.mobileDetailsBackdropIntensity,
+      0,
+      1,
+    ),
+    mobileDetailsBackdropHeight: clamp(
+      source.mobileDetailsBackdropHeight ?? defaultConfig.mobileDetailsBackdropHeight,
+      0,
+      1,
+    ),
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,
       0.02,

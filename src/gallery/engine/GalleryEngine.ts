@@ -64,6 +64,7 @@ export class GalleryEngine {
   private readonly mixedBackgroundColor = new Color();
   private readonly mixedFogColor = new Color();
   private journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
+  private activeArtworkIndex: number | null = null;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -97,6 +98,10 @@ export class GalleryEngine {
   setLoopWhiteMix(whiteMix: number): void {
     this.loopWhiteMix = clamp(whiteMix, 0, 1);
     this.applyState();
+  }
+
+  getActiveArtworkIndex(): number | null {
+    return this.activeArtworkIndex;
   }
 
   async updateConfig(config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>): Promise<void> {
@@ -148,6 +153,7 @@ export class GalleryEngine {
 
     textureCache.clear();
     this.loopWhiteMix = 0;
+    this.activeArtworkIndex = null;
     this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
     this.scene = null;
@@ -206,6 +212,7 @@ export class GalleryEngine {
     const desiredLookAt = state.lookAt;
     const titleOpacity = state.titleOpacity;
     const whiteMix = this.config.infiniteCorridor ? this.loopWhiteMix : 0;
+    this.activeArtworkIndex = state.activeArtworkIndex;
 
     this.applyAtmosphere(whiteMix);
 

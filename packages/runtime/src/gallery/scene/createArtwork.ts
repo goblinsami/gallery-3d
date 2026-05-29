@@ -36,9 +36,12 @@ export const createArtwork = async (
 
   const baseIntensity = artwork.spotlightIntensity ?? GALLERY_DEFAULTS.artwork.spotlightIntensity;
   const isContrastMode = config.lightingMode === "contrast";
+  const isNightReadibilityEnhanced = isContrastMode && config.enhanceNightReadibility;
+  const spotlightNightBoost = isNightReadibilityEnhanced ? 1.16 : 1;
+  const softBacklightNightBoost = isNightReadibilityEnhanced ? 1.35 : 1;
   const spotlight = new SpotLight(
     GALLERY_TOKENS.artwork.spotlight,
-    isContrastMode ? baseIntensity * 1.18 : baseIntensity,
+    (isContrastMode ? baseIntensity * 1.18 : baseIntensity) * spotlightNightBoost,
     isContrastMode ? 28 : 22,
     isContrastMode ? Math.PI / 7 : Math.PI / 5.5,
     isContrastMode ? 0.34 : 0.45,
@@ -86,7 +89,7 @@ export const createArtwork = async (
 
     const backFill = new PointLight(
       config.artworkBacklightColor,
-      config.artworkBacklightIntensity * (isContrastMode ? 0.95 : 0.45),
+      config.artworkBacklightIntensity * (isContrastMode ? 0.95 : 0.45) * softBacklightNightBoost,
       config.corridor.width * 0.62,
       1,
     );

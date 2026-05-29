@@ -13,6 +13,7 @@ const jsonDraft = ref(JSON.stringify(runtimeConfig.value, null, 2));
 const parseError = ref("");
 const progressLabel = ref("0.000");
 const isToolbarVisible = ref(true);
+const isMobileMode = ref(false);
 
 const sampleOptions = computed(() =>
   sampleGalleryConfigs.map((sample) => ({
@@ -90,6 +91,10 @@ const onRuntimeProgress = (progress: number): void => {
         </select>
       </label>
 
+      <button type="button" class="mode-toggle" @click="isMobileMode = !isMobileMode">
+        {{ isMobileMode ? "Mobile Mode: ON" : "Mobile Mode: OFF" }}
+      </button>
+
       <p class="meta">Current progress: {{ progressLabel }}</p>
 
       <label class="json-label">
@@ -104,7 +109,13 @@ const onRuntimeProgress = (progress: number): void => {
     </aside>
 
     <section class="preview-panel">
-      <ArtGalleryRuntime :config="runtimeConfig" @progress="onRuntimeProgress" />
+      <div class="preview-viewport" :class="{ mobile: isMobileMode }">
+        <ArtGalleryRuntime
+          :config="runtimeConfig"
+          :force-mobile-mode="isMobileMode"
+          @progress="onRuntimeProgress"
+        />
+      </div>
     </section>
   </main>
 </template>
@@ -216,8 +227,30 @@ button {
 }
 
 .preview-panel {
+  display: grid;
+  align-items: center;
   min-width: 0;
   min-height: 0;
+}
+
+.preview-viewport {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.preview-viewport.mobile {
+  width: min(100%, 430px);
+  height: min(100%, 780px);
+  max-height: 82vh;
+  margin: 0 auto;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 8px;
+  box-sizing: border-box;
+  background: linear-gradient(155deg, rgba(24, 30, 43, 0.9), rgba(9, 13, 20, 0.95));
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
 }
 
 .toolbar-hidden .preview-panel {
@@ -236,6 +269,12 @@ button {
 
 .feedback.error {
   color: var(--token-feedback-error);
+}
+
+.mode-toggle {
+  background: transparent;
+  border: 1px solid var(--token-border);
+  color: var(--token-text);
 }
 
 @media (max-width: 960px) {

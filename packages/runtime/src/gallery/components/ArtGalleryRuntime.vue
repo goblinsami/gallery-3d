@@ -137,6 +137,21 @@ const canShowMobileOverlay = computed(
     isMobileLayout.value &&
     Boolean(overlayTitle.value || overlayDescription.value),
 );
+const mobileOverlayHasBackdrop = computed(() => resolvedConfig.value.mobileDetailsBackdropEnabled);
+const mobileOverlayBackdropStyle = computed(() => {
+  if (!mobileOverlayHasBackdrop.value) {
+    return { background: "transparent" };
+  }
+
+  const intensity = Math.max(0, Math.min(1, resolvedConfig.value.mobileDetailsBackdropIntensity));
+  const height = Math.max(0, Math.min(1, resolvedConfig.value.mobileDetailsBackdropHeight));
+  const midStop = Math.round(height * 42);
+  const endStop = Math.round(height * 100);
+
+  return {
+    background: `linear-gradient(to top, rgba(2, 7, 20, ${(0.78 * intensity).toFixed(3)}) 0%, rgba(2, 7, 20, ${(0.35 * intensity).toFixed(3)}) ${midStop}%, rgba(2, 7, 20, ${(0.08 * intensity).toFixed(3)}) ${endStop}%, transparent 100%)`,
+  };
+});
 
 const closeMobileOverlay = (): void => {
   mobileOverlayVisible.value = false;
@@ -347,6 +362,8 @@ onBeforeUnmount(() => {
     <div
       v-if="mobileOverlayVisible && canShowMobileOverlay"
       class="mobile-artwork-overlay"
+      :class="{ 'no-backdrop': !mobileOverlayHasBackdrop }"
+      :style="mobileOverlayBackdropStyle"
       role="dialog"
       aria-modal="false"
       @click.self="closeMobileOverlay"
