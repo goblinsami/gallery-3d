@@ -19,6 +19,7 @@ type MobileDetailsButtonPosition =
     | "bottom-left"
     | "bottom-right"
 type MobileDetailsModalPosition = "top" | "bottom"
+type ProgressBarPosition = "top" | "bottom"
 type CameraAspectPreset =
     | "auto"
     | "ratio_9_20"
@@ -193,6 +194,11 @@ interface ArtGallerySceneConfig {
     mobileDetailsOverlayEnabled: boolean
     mobileDetailsButtonPosition: MobileDetailsButtonPosition
     mobileDetailsModalPosition: MobileDetailsModalPosition
+    progressBarPosition: ProgressBarPosition
+    progressBarColor: string
+    progressBarOpacity: number
+    progressBarYOffset: number
+    progressBarHorizontalPadding: number
     loopWhiteAfterEndWindow: number
     loopWhiteStartsBeforeEndWindow: number
     loopWhiteFadeOutRevealWindow: number
@@ -235,6 +241,11 @@ const DAYLIGHT_GALLERY_SAMPLE: ArtGallerySceneConfig = {
     mobileDetailsOverlayEnabled: true,
     mobileDetailsButtonPosition: "top-right",
     mobileDetailsModalPosition: "top",
+    progressBarPosition: "bottom",
+    progressBarColor: "#dce9ff",
+    progressBarOpacity: 0.82,
+    progressBarYOffset: 0,
+    progressBarHorizontalPadding: 14,
     loopWhiteAfterEndWindow: 0.14,
     loopWhiteStartsBeforeEndWindow: 0.05,
     loopWhiteFadeOutRevealWindow: 0.12,
@@ -1074,6 +1085,11 @@ interface ScrollixArtGalleryProps {
     mobileDetailsOverlayEnabled: boolean
     mobileDetailsButtonPosition: MobileDetailsButtonPosition
     mobileDetailsModalPosition: MobileDetailsModalPosition
+    progressBarPosition: ProgressBarPosition
+    progressBarColor: string
+    progressBarOpacity: number
+    progressBarYOffset: number
+    progressBarHorizontalPadding: number
     sceneBackgroundColor: string
     sceneFogColor: string
     ceilingSpotsEnabled: boolean
@@ -2727,6 +2743,25 @@ const buildGalleryConfig = (
         isDayPreset ||
         props.mobileDetailsModalPosition !==
             controlsBaseline.mobileDetailsModalPosition
+    const shouldOverrideProgressBarPosition =
+        isDayPreset ||
+        props.progressBarPosition !== controlsBaseline.progressBarPosition
+    const shouldOverrideProgressBarColor =
+        isDayPreset ||
+        !areColorValuesEqual(
+            props.progressBarColor,
+            controlsBaseline.progressBarColor
+        )
+    const shouldOverrideProgressBarOpacity =
+        isDayPreset ||
+        props.progressBarOpacity !== controlsBaseline.progressBarOpacity
+    const shouldOverrideProgressBarYOffset =
+        isDayPreset ||
+        props.progressBarYOffset !== controlsBaseline.progressBarYOffset
+    const shouldOverrideProgressBarHorizontalPadding =
+        isDayPreset ||
+        props.progressBarHorizontalPadding !==
+            controlsBaseline.progressBarHorizontalPadding
     const shouldOverrideScrollStrength =
         isDayPreset ||
         props.scrollStrength !== controlsBaseline.scrollStrength
@@ -2743,6 +2778,21 @@ const buildGalleryConfig = (
         mobileDetailsModalPosition: shouldOverrideMobileDetailsModalPosition
             ? props.mobileDetailsModalPosition
             : config.mobileDetailsModalPosition,
+        progressBarPosition: shouldOverrideProgressBarPosition
+            ? props.progressBarPosition
+            : config.progressBarPosition,
+        progressBarColor: shouldOverrideProgressBarColor
+            ? props.progressBarColor
+            : config.progressBarColor,
+        progressBarOpacity: shouldOverrideProgressBarOpacity
+            ? props.progressBarOpacity
+            : config.progressBarOpacity,
+        progressBarYOffset: shouldOverrideProgressBarYOffset
+            ? props.progressBarYOffset
+            : config.progressBarYOffset,
+        progressBarHorizontalPadding: shouldOverrideProgressBarHorizontalPadding
+            ? props.progressBarHorizontalPadding
+            : config.progressBarHorizontalPadding,
         scrollStrength: shouldOverrideScrollStrength
             ? props.scrollStrength
             : config.scrollStrength,
@@ -2818,6 +2868,11 @@ const buildGalleryConfig = (
         mobileDetailsOverlayEnabled: props.mobileDetailsOverlayEnabled,
         mobileDetailsButtonPosition: props.mobileDetailsButtonPosition,
         mobileDetailsModalPosition: props.mobileDetailsModalPosition,
+        progressBarPosition: props.progressBarPosition,
+        progressBarColor: props.progressBarColor,
+        progressBarOpacity: props.progressBarOpacity,
+        progressBarYOffset: props.progressBarYOffset,
+        progressBarHorizontalPadding: props.progressBarHorizontalPadding,
         scrollStrength: props.scrollStrength,
         loopWhiteAfterEndWindow: props.loopWhiteAfterEndWindow,
         loopWhiteStartsBeforeEndWindow: props.loopWhiteStartsBeforeEndWindow,
@@ -3220,6 +3275,12 @@ ScrollixArtGallery.defaultProps = {
     mobileDetailsButtonPosition:
         DAYLIGHT_GALLERY_SAMPLE.mobileDetailsButtonPosition,
     mobileDetailsModalPosition: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsModalPosition,
+    progressBarPosition: DAYLIGHT_GALLERY_SAMPLE.progressBarPosition,
+    progressBarColor: DAYLIGHT_GALLERY_SAMPLE.progressBarColor,
+    progressBarOpacity: DAYLIGHT_GALLERY_SAMPLE.progressBarOpacity,
+    progressBarYOffset: DAYLIGHT_GALLERY_SAMPLE.progressBarYOffset,
+    progressBarHorizontalPadding:
+        DAYLIGHT_GALLERY_SAMPLE.progressBarHorizontalPadding,
     sceneBackgroundColor: DAYLIGHT_GALLERY_SAMPLE.sceneBackgroundColor,
     sceneFogColor: DAYLIGHT_GALLERY_SAMPLE.sceneFogColor,
     ceilingSpotsEnabled: DAYLIGHT_GALLERY_SAMPLE.ceilingSpotsEnabled,
@@ -3618,6 +3679,42 @@ addPropertyControls(ScrollixArtGallery, {
         options: ["top", "bottom"],
         optionTitles: ["Top", "Bottom"],
         defaultValue: DAYLIGHT_GALLERY_SAMPLE.mobileDetailsModalPosition,
+    },
+    progressBarPosition: {
+        type: ControlType.Enum,
+        title: "Progress Bar",
+        options: ["bottom", "top"],
+        optionTitles: ["Bottom", "Top"],
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.progressBarPosition,
+    },
+    progressBarColor: {
+        type: ControlType.Color,
+        title: "Progress Color",
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.progressBarColor,
+    },
+    progressBarOpacity: {
+        type: ControlType.Number,
+        title: "Progress Opacity",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.progressBarOpacity,
+    },
+    progressBarYOffset: {
+        type: ControlType.Number,
+        title: "Progress Y",
+        min: -160,
+        max: 160,
+        step: 1,
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.progressBarYOffset,
+    },
+    progressBarHorizontalPadding: {
+        type: ControlType.Number,
+        title: "Progress Side",
+        min: 0,
+        max: 240,
+        step: 1,
+        defaultValue: DAYLIGHT_GALLERY_SAMPLE.progressBarHorizontalPadding,
     },
     cameraAspectPreset: {
         type: ControlType.Enum,

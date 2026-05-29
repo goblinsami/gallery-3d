@@ -12,6 +12,7 @@ import type {
   StationalCardVariant,
   MobileDetailsButtonPosition,
   MobileDetailsModalPosition,
+  ProgressBarPosition,
   DeepPartial,
   LightingMode,
   Vec3,
@@ -44,6 +45,7 @@ const VALID_MOBILE_DETAILS_BUTTON_POSITIONS: MobileDetailsButtonPosition[] = [
   "bottom-right",
 ];
 const VALID_MOBILE_DETAILS_MODAL_POSITIONS: MobileDetailsModalPosition[] = ["top", "bottom"];
+const VALID_PROGRESS_BAR_POSITIONS: ProgressBarPosition[] = ["top", "bottom"];
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -397,6 +399,27 @@ export const validateGalleryConfig = (
     )
       ? (source.mobileDetailsModalPosition as MobileDetailsModalPosition)
       : defaultConfig.mobileDetailsModalPosition,
+    progressBarPosition: VALID_PROGRESS_BAR_POSITIONS.includes(
+      source.progressBarPosition as ProgressBarPosition,
+    )
+      ? (source.progressBarPosition as ProgressBarPosition)
+      : defaultConfig.progressBarPosition,
+    progressBarColor: source.progressBarColor ?? defaultConfig.progressBarColor,
+    progressBarOpacity: clamp(
+      source.progressBarOpacity ?? defaultConfig.progressBarOpacity,
+      0,
+      1,
+    ),
+    progressBarYOffset: clamp(
+      source.progressBarYOffset ?? defaultConfig.progressBarYOffset,
+      -160,
+      160,
+    ),
+    progressBarHorizontalPadding: clamp(
+      source.progressBarHorizontalPadding ?? defaultConfig.progressBarHorizontalPadding,
+      0,
+      240,
+    ),
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,
       0.02,

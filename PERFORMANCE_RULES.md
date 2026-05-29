@@ -9,6 +9,19 @@
 - Dispose all Three resources on rebuild/unmount.
 - Scene rebuild only on config changes.
 
+## Low-End Mobile Aggressive Profile
+- Goal: maintain smooth journey and readable artworks on weak GPUs.
+- Trigger: repeated stutter under normal scroll input.
+- Trigger: unstable frame pacing during camera turns.
+- Trigger: memory pressure symptoms while loading images.
+- Mandatory: reduce effective DPR target to `1.0-1.25`.
+- Mandatory: minimize dynamic light/shadow complexity.
+- Mandatory: prefer texture long edge around `<= 1024`.
+- Mandatory: tighten resize/update debouncing to reduce churn.
+- Mandatory: keep movement inertial and cinematic (no snappy/gamey fallback).
+- Exit: frame pacing stable in journey sections.
+- Exit: no visible memory thrash during repeated traversal.
+
 ## Texture Rules
 - Prefer compressed/optimized source assets.
 - Policy targets:

@@ -34,6 +34,7 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLElement | null>(null);
 const whiteOverlayOpacity = ref(0);
+const journeyProgress = ref(0);
 const containerWidth = ref(0);
 const containerHeight = ref(0);
 const activeArtworkIndex = ref<number | null>(null);
@@ -186,6 +187,20 @@ const mobileOverlayBackdropStyle = computed(() => {
     background: `linear-gradient(${direction}, rgba(0, 0, 0, ${(0.7 * intensity).toFixed(3)}) 0%, rgba(0, 0, 0, ${(0.08 * intensity).toFixed(3)}) ${midStop}%, rgba(0, 0, 0, ${(0.03 * intensity).toFixed(3)}) ${endStop}%, transparent 100%)`,
   };
 });
+const progressBarPositionClass = computed(
+  () => `progress-bar-track--${resolvedConfig.value.progressBarPosition}`,
+);
+const progressBarTrackStyle = computed<Record<string, string>>(() => ({
+  "--progress-bar-color": resolvedConfig.value.progressBarColor,
+  "--progress-bar-opacity": String(
+    Math.max(0, Math.min(1, resolvedConfig.value.progressBarOpacity)),
+  ),
+  "--progress-bar-y-offset": `${resolvedConfig.value.progressBarYOffset}px`,
+  "--progress-bar-horizontal-padding": `${resolvedConfig.value.progressBarHorizontalPadding}px`,
+}));
+const progressBarFillStyle = computed<Record<string, string>>(() => ({
+  transform: `scaleX(${Math.max(0, Math.min(1, journeyProgress.value))})`,
+}));
 
 const closeMobileOverlay = (): void => {
   mobileOverlayVisible.value = false;
@@ -279,6 +294,7 @@ const handleContainerClick = (event: MouseEvent): void => {
 
 const handleProgress = (state: ScrollProgressState): void => {
   whiteOverlayOpacity.value = state.whiteMix;
+  journeyProgress.value = state.progress;
   engine?.setLoopWhiteMix(state.whiteMix);
   engine?.setProgress(state.progress);
   setActiveItemIndex(engine?.getActiveArtworkIndex() ?? null);
@@ -294,6 +310,7 @@ onMounted(async () => {
   }
 
   updateContainerMetrics();
+  journeyProgress.value = Math.max(0, Math.min(1, props.initialProgress));
 
   engine = new GalleryEngine(containerRef.value, runtimeSceneConfig.value);
   await engine.init();
@@ -407,6 +424,14 @@ onBeforeUnmount(() => {
     @pointercancel="handlePointerCancel"
   >
     <div class="white-overlay" :style="whiteOverlayStyle" />
+    <div
+      class="progress-bar-track"
+      :class="progressBarPositionClass"
+      :style="progressBarTrackStyle"
+      aria-hidden="true"
+    >
+      <div class="progress-bar-fill" :style="progressBarFillStyle" />
+    </div>
     <button
       v-if="canShowMobileOverlay"
       type="button"
@@ -478,6 +503,36 @@ onBeforeUnmount(() => {
   pointer-events: none;
   z-index: 3;
   transition: opacity 80ms linear;
+}
+
+.progress-bar-track {
+  position: absolute;
+  left: var(--progress-bar-horizontal-padding, 14px);
+  right: var(--progress-bar-horizontal-padding, 14px);
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  opacity: var(--progress-bar-opacity, 0.82);
+  z-index: 6;
+  pointer-events: none;
+  transform: translateY(var(--progress-bar-y-offset, 0px));
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.progress-bar-track--top {
+  top: 14px;
+}
+
+.progress-bar-track--bottom {
+  bottom: 14px;
+}
+
+.progress-bar-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transition: transform 80ms linear;
+  background: var(--progress-bar-color, #dce9ff);
 }
 
 .mobile-overlay-toggle {

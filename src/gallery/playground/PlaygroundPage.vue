@@ -1,108 +1,187 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import ArtGalleryRuntime from "../components/ArtGalleryRuntime.vue";
 import { sampleGalleryConfigs } from "./sampleGalleryConfig";
-import type { ArtGallerySceneConfig } from "../types/galleryConfig";
+import type { ArtGallerySceneConfig, DeepPartial } from "../types/galleryConfig";
 import { validateGalleryConfig } from "../utils/validateGalleryConfig";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
+import PlaygroundControlInput from "./components/PlaygroundControlInput.vue";
+import {
+  ASPECT_RATIO_PRESET_VALUES,
+  DEFAULT_CAMERA_ASPECT_PRESET,
+  DEFAULT_MOBILE_CAMERA_ASPECT_PRESET,
+  PLAYGROUND_CONTROLS,
+  resolveAspectPresetFromRatio,
+  type AspectRatioPreset,
+  type PlaygroundControlDefinition,
+  type PlaygroundControlOption,
+} from "./playgroundControlMap";
+import { deepClone, getValueAtPath, setValueAtPath } from "./playgroundControlUtils";
 
-const ASPECT_RATIO_PRESETS = {
-  auto: undefined,
-  "9:20": 9 / 20,
-  "20:9": 20 / 9,
-  "16:9": 16 / 9,
-  "4:3": 4 / 3,
-  "1:1": 1,
-  "3:4": 3 / 4,
-} as const;
+interface ControlSection {
+  title: string;
+  controls: PlaygroundControlDefinition[];
+}
 
-const activeSampleId = ref(sampleGalleryConfigs[0].id);
-const activeLightingMode = ref(sampleGalleryConfigs[0].lightingMode);
-const activeAspectRatioPreset = ref<keyof typeof ASPECT_RATIO_PRESETS>("auto");
-const activeMobileAspectRatioPreset = ref<keyof typeof ASPECT_RATIO_PRESETS>("3:4");
-const mobileBreakpointWidth = ref(820);
-const mobileDetailsButtonPosition = ref<ArtGallerySceneConfig["mobileDetailsButtonPosition"]>("top-right");
-const mobileDetailsModalPosition = ref<ArtGallerySceneConfig["mobileDetailsModalPosition"]>("top");
-const runtimeConfig = ref<ArtGallerySceneConfig>(sampleGalleryConfigs[0]);
-const jsonDraft = ref(JSON.stringify(runtimeConfig.value, null, 2));
+const initialSample = sampleGalleryConfigs[0];
+const activeSampleId = ref(initialSample.id);
+const cameraAspectPreset = ref<AspectRatioPreset>(
+  resolveAspectPresetFromRatio(initialSample.camera.targetAspectRatio, DEFAULT_CAMERA_ASPECT_PRESET),
+);
+const mobileCameraAspectPreset = ref<AspectRatioPreset>(
+  resolveAspectPresetFromRatio(
+    initialSample.camera.mobileTargetAspectRatio,
+    DEFAULT_MOBILE_CAMERA_ASPECT_PRESET,
+  ),
+);
+const isMobileMode = ref(false);
+const rawConfig = ref<DeepPartial<ArtGallerySceneConfig>>(deepClone(initialSample));
+const jsonDraft = ref(JSON.stringify(rawConfig.value, null, 2));
 const parseError = ref("");
 const progressLabel = ref("0.000");
 const isToolbarVisible = ref(true);
-const isMobileMode = ref(false);
-
-const sampleOptions = computed(() =>
-  sampleGalleryConfigs.map((sample) => ({
-    id: sample.id,
-    label: sample.sceneTitle,
-  })),
-);
 
 const tokens = GALLERY_TOKENS;
 
-const updateConfigWithAspectRatios = (): void => {
-  runtimeConfig.value = {
-    ...runtimeConfig.value,
-    mobileDetailsButtonPosition: mobileDetailsButtonPosition.value,
-    mobileDetailsModalPosition: mobileDetailsModalPosition.value,
-    camera: {
-      ...runtimeConfig.value.camera,
-      targetAspectRatio: ASPECT_RATIO_PRESETS[activeAspectRatioPreset.value],
-      mobileTargetAspectRatio: ASPECT_RATIO_PRESETS[activeMobileAspectRatioPreset.value],
-      mobileBreakpointWidth: mobileBreakpointWidth.value,
-    },
-  };
-  jsonDraft.value = JSON.stringify(runtimeConfig.value, null, 2);
-};
+const validationResult = computed(() => validateGalleryConfig(rawConfig.value));
 
-watch([activeSampleId, activeLightingMode], ([sampleId, lightingMode]) => {
-  const selected = sampleGalleryConfigs.find((sample) => sample.id === sampleId) ?? sampleGalleryConfigs[0];
-  mobileDetailsButtonPosition.value = selected.mobileDetailsButtonPosition;
-  mobileDetailsModalPosition.value = selected.mobileDetailsModalPosition;
-  runtimeConfig.value = {
-    ...selected,
-    lightingMode,
-    mobileDetailsButtonPosition: selected.mobileDetailsButtonPosition,
-    mobileDetailsModalPosition: selected.mobileDetailsModalPosition,
-    camera: {
-      ...selected.camera,
-      targetAspectRatio: ASPECT_RATIO_PRESETS[activeAspectRatioPreset.value],
-      mobileTargetAspectRatio: ASPECT_RATIO_PRESETS[activeMobileAspectRatioPreset.value],
-      mobileBreakpointWidth: mobileBreakpointWidth.value,
-    },
-  };
-  jsonDraft.value = JSON.stringify(runtimeConfig.value, null, 2);
-  parseError.value = "";
+const feedbackMessage = computed(() => {
+  if (parseError.value) {
+    return parseError.value;
+  }
+
+  if (validationResult.value.errors.length > 0) {
+    return validationResult.value.errors.join(" | ");
+  }
+
+  if (validationResult.value.warnings.length > 0) {
+    return validationResult.value.warnings.join(" | ");
+  }
+
+  return "Config ready.";
 });
 
-watch(
-  [
-    activeAspectRatioPreset,
-    activeMobileAspectRatioPreset,
-    mobileBreakpointWidth,
-    mobileDetailsButtonPosition,
-    mobileDetailsModalPosition,
-  ],
-  () => {
-  updateConfigWithAspectRatios();
-  },
+const hasFeedbackError = computed(
+  () => Boolean(parseError.value) || validationResult.value.errors.length > 0,
 );
+
+const controlOptionsByKey = computed<Record<string, PlaygroundControlOption[]>>(() => ({
+  samplePreset: sampleGalleryConfigs.map((sample) => ({
+    label: sample.sceneTitle,
+    value: sample.id,
+  })),
+}));
+
+const controlsBySection = computed<ControlSection[]>(() => {
+  const grouped = new Map<string, PlaygroundControlDefinition[]>();
+
+  for (const control of PLAYGROUND_CONTROLS) {
+    const current = grouped.get(control.section);
+    if (current) {
+      current.push(control);
+      continue;
+    }
+    grouped.set(control.section, [control]);
+  }
+
+  return Array.from(grouped.entries()).map(([title, controls]) => ({ title, controls }));
+});
+
+const syncJsonDraft = (): void => {
+  jsonDraft.value = JSON.stringify(rawConfig.value, null, 2);
+};
+
+const applyAspectRatioPresetsToConfig = (): void => {
+  setValueAtPath(
+    rawConfig.value as unknown as Record<string, unknown>,
+    "camera.targetAspectRatio",
+    ASPECT_RATIO_PRESET_VALUES[cameraAspectPreset.value],
+  );
+  setValueAtPath(
+    rawConfig.value as unknown as Record<string, unknown>,
+    "camera.mobileTargetAspectRatio",
+    ASPECT_RATIO_PRESET_VALUES[mobileCameraAspectPreset.value],
+  );
+};
+
+const resetFromSample = (sampleId: string): void => {
+  const sample = sampleGalleryConfigs.find((entry) => entry.id === sampleId) ?? sampleGalleryConfigs[0];
+  activeSampleId.value = sample.id;
+  rawConfig.value = deepClone(sample);
+  cameraAspectPreset.value = resolveAspectPresetFromRatio(
+    sample.camera.targetAspectRatio,
+    DEFAULT_CAMERA_ASPECT_PRESET,
+  );
+  mobileCameraAspectPreset.value = resolveAspectPresetFromRatio(
+    sample.camera.mobileTargetAspectRatio,
+    DEFAULT_MOBILE_CAMERA_ASPECT_PRESET,
+  );
+  applyAspectRatioPresetsToConfig();
+  parseError.value = "";
+  syncJsonDraft();
+};
+
+const resolveControlOptions = (control: PlaygroundControlDefinition): PlaygroundControlOption[] => {
+  return controlOptionsByKey.value[control.key] ?? control.options ?? [];
+};
+
+const getControlValue = (control: PlaygroundControlDefinition): unknown => {
+  switch (control.key) {
+    case "samplePreset":
+      return activeSampleId.value;
+    case "mobileMode":
+      return isMobileMode.value;
+    case "cameraAspectPreset":
+      return cameraAspectPreset.value;
+    case "mobileCameraAspectPreset":
+      return mobileCameraAspectPreset.value;
+    default: {
+      const fromPath = getValueAtPath(rawConfig.value, control.path);
+      return fromPath ?? control.defaultValue;
+    }
+  }
+};
+
+const setControlValue = (control: PlaygroundControlDefinition, value: unknown): void => {
+  parseError.value = "";
+
+  switch (control.key) {
+    case "samplePreset":
+      resetFromSample(String(value));
+      return;
+    case "mobileMode":
+      isMobileMode.value = Boolean(value);
+      return;
+    case "cameraAspectPreset":
+      cameraAspectPreset.value = String(value) as AspectRatioPreset;
+      applyAspectRatioPresetsToConfig();
+      syncJsonDraft();
+      return;
+    case "mobileCameraAspectPreset":
+      mobileCameraAspectPreset.value = String(value) as AspectRatioPreset;
+      applyAspectRatioPresetsToConfig();
+      syncJsonDraft();
+      return;
+    default:
+      setValueAtPath(rawConfig.value as unknown as Record<string, unknown>, control.path, value);
+      syncJsonDraft();
+  }
+};
 
 const applyJsonDraft = (): void => {
   try {
-    const parsed = JSON.parse(jsonDraft.value) as Partial<ArtGallerySceneConfig>;
-    const validation = validateGalleryConfig(parsed);
-
-    if (validation.errors.length > 0) {
-      parseError.value = validation.errors.join(" | ");
-      return;
-    }
-
-    runtimeConfig.value = validation.config;
-    activeLightingMode.value = validation.config.lightingMode;
-    activeSampleId.value = validation.config.id;
-    mobileDetailsButtonPosition.value = validation.config.mobileDetailsButtonPosition;
-    mobileDetailsModalPosition.value = validation.config.mobileDetailsModalPosition;
-    parseError.value = validation.warnings.join(" | ");
+    const parsed = JSON.parse(jsonDraft.value) as DeepPartial<ArtGallerySceneConfig>;
+    rawConfig.value = parsed;
+    cameraAspectPreset.value = resolveAspectPresetFromRatio(
+      parsed.camera?.targetAspectRatio,
+      DEFAULT_CAMERA_ASPECT_PRESET,
+    );
+    mobileCameraAspectPreset.value = resolveAspectPresetFromRatio(
+      parsed.camera?.mobileTargetAspectRatio,
+      DEFAULT_MOBILE_CAMERA_ASPECT_PRESET,
+    );
+    parseError.value = "";
+    syncJsonDraft();
   } catch (error) {
     parseError.value = error instanceof Error ? error.message : "Invalid JSON payload";
   }
@@ -114,108 +193,64 @@ const onRuntimeProgress = (progress: number): void => {
 </script>
 
 <template>
-  <main class="playground" :class="{ 'toolbar-hidden': !isToolbarVisible }" :style="{ '--token-bg': tokens.ui.htmlBackground, '--token-panel': tokens.ui.panelBackground, '--token-border': tokens.ui.panelBorder, '--token-text': tokens.ui.panelText, '--token-muted': tokens.ui.panelMutedText, '--token-accent': tokens.ui.accent, '--token-gradient-start': tokens.ui.bodyGradientStart, '--token-gradient-end': tokens.ui.bodyGradientEnd, '--token-toolbar-bg': tokens.ui.toolbarBackground, '--token-field-bg': tokens.ui.fieldBackground, '--token-button-end': tokens.ui.buttonAccentEnd, '--token-button-text': tokens.ui.buttonText, '--token-meta': tokens.ui.metaText, '--token-feedback-ok': tokens.ui.feedbackSuccess, '--token-feedback-error': tokens.ui.feedbackError }">
+  <main
+    class="playground"
+    :class="{ 'toolbar-hidden': !isToolbarVisible }"
+    :style="{
+      '--token-bg': tokens.ui.htmlBackground,
+      '--token-panel': tokens.ui.panelBackground,
+      '--token-border': tokens.ui.panelBorder,
+      '--token-text': tokens.ui.panelText,
+      '--token-muted': tokens.ui.panelMutedText,
+      '--token-accent': tokens.ui.accent,
+      '--token-gradient-start': tokens.ui.bodyGradientStart,
+      '--token-gradient-end': tokens.ui.bodyGradientEnd,
+      '--token-toolbar-bg': tokens.ui.toolbarBackground,
+      '--token-field-bg': tokens.ui.fieldBackground,
+      '--token-button-end': tokens.ui.buttonAccentEnd,
+      '--token-button-text': tokens.ui.buttonText,
+      '--token-meta': tokens.ui.metaText,
+      '--token-feedback-ok': tokens.ui.feedbackSuccess,
+      '--token-feedback-error': tokens.ui.feedbackError,
+    }"
+  >
     <button type="button" class="toolbar-toggle" @click="isToolbarVisible = !isToolbarVisible">
       {{ isToolbarVisible ? "Hide Toolbar" : "Show Toolbar" }}
     </button>
 
     <aside v-show="isToolbarVisible" class="control-panel">
-      <h1>JSON-Driven 3D Gallery</h1>
-      <p>
-        Scroll sobre el viewport para avanzar o retroceder el recorrido cinematográfico.
-      </p>
+      <h1>Runtime-Exact Playground</h1>
+      <p>Todos los controles salen de un mapa único y aplican sobre el runtime real.</p>
 
-      <label>
-        Sample Scene
-        <select v-model="activeSampleId">
-          <option
-            v-for="option in sampleOptions"
-            :key="option.id"
-            :value="option.id"
-          >
-            {{ option.label }}
-          </option>
-        </select>
-      </label>
-
-      <label>
-        Lighting Mode
-        <select v-model="activeLightingMode">
-          <option value="contrast">contrast</option>
-          <option value="day">day</option>
-        </select>
-      </label>
-
-      <label>
-        Aspect Ratio
-        <select v-model="activeAspectRatioPreset">
-          <option value="auto">auto</option>
-          <option value="9:20">9:20</option>
-          <option value="20:9">20:9</option>
-          <option value="16:9">16:9</option>
-          <option value="4:3">4:3</option>
-          <option value="1:1">1:1</option>
-          <option value="3:4">3:4</option>
-        </select>
-      </label>
-
-      <label>
-        Mobile Aspect Ratio
-        <select v-model="activeMobileAspectRatioPreset">
-          <option value="auto">auto</option>
-          <option value="9:20">9:20</option>
-          <option value="20:9">20:9</option>
-          <option value="16:9">16:9</option>
-          <option value="4:3">4:3</option>
-          <option value="1:1">1:1</option>
-          <option value="3:4">3:4</option>
-        </select>
-      </label>
-
-      <label>
-        Mobile Breakpoint (px)
-        <input v-model.number="mobileBreakpointWidth" type="number" min="320" max="1600" step="10" />
-      </label>
-
-      <label>
-        Mobile Details Button
-        <select v-model="mobileDetailsButtonPosition">
-          <option value="top-right">top-right</option>
-          <option value="top-left">top-left</option>
-          <option value="bottom-right">bottom-right</option>
-          <option value="bottom-left">bottom-left</option>
-        </select>
-      </label>
-
-      <label>
-        Mobile Details Modal
-        <select v-model="mobileDetailsModalPosition">
-          <option value="top">top</option>
-          <option value="bottom">bottom</option>
-        </select>
-      </label>
-
-      <button type="button" class="mode-toggle" @click="isMobileMode = !isMobileMode">
-        {{ isMobileMode ? "Mobile Mode: ON" : "Mobile Mode: OFF" }}
-      </button>
+      <section v-for="section in controlsBySection" :key="section.title" class="control-section">
+        <h2>{{ section.title }}</h2>
+        <PlaygroundControlInput
+          v-for="control in section.controls"
+          :key="control.key"
+          :control="control"
+          :options="resolveControlOptions(control)"
+          :model-value="getControlValue(control)"
+          @update:model-value="setControlValue(control, $event)"
+        />
+      </section>
 
       <p class="meta">Current progress: {{ progressLabel }}</p>
 
       <label class="json-label">
-        Runtime JSON
+        Runtime JSON Draft
         <textarea v-model="jsonDraft" spellcheck="false" />
       </label>
 
       <button type="button" @click="applyJsonDraft">Apply JSON</button>
-      <p class="feedback" :class="{ error: Boolean(parseError) }">
-        {{ parseError || "Config ready." }}
+      <p class="feedback" :class="{ error: hasFeedbackError }">
+        {{ feedbackMessage }}
       </p>
     </aside>
 
     <section class="preview-panel">
       <div class="preview-viewport" :class="{ mobile: isMobileMode }">
         <ArtGalleryRuntime
-          :config="runtimeConfig"
+          :config="rawConfig"
           :force-mobile-mode="isMobileMode"
           @progress="onRuntimeProgress"
         />
@@ -235,14 +270,19 @@ const onRuntimeProgress = (progress: number): void => {
 
 :global(body) {
   font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 20% 10%, var(--token-gradient-start) 0%, var(--token-bg) 45%, var(--token-gradient-end) 100%);
+  background: radial-gradient(
+    circle at 20% 10%,
+    var(--token-gradient-start) 0%,
+    var(--token-bg) 45%,
+    var(--token-gradient-end) 100%
+  );
   color: var(--token-text);
 }
 
 .playground {
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(300px, 380px) 1fr;
+  grid-template-columns: minmax(300px, 420px) 1fr;
   gap: 18px;
   padding: 18px;
   box-sizing: border-box;
@@ -271,17 +311,18 @@ const onRuntimeProgress = (progress: number): void => {
 .control-panel {
   display: grid;
   grid-auto-rows: min-content;
-  gap: 12px;
+  gap: 14px;
   padding: 18px;
   border: 1px solid var(--token-border);
   border-radius: 14px;
   background: var(--token-panel);
   backdrop-filter: blur(10px);
+  overflow: auto;
 }
 
 .control-panel h1 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   letter-spacing: 0.01em;
 }
 
@@ -291,15 +332,23 @@ const onRuntimeProgress = (progress: number): void => {
   line-height: 1.35;
 }
 
-label {
+.control-section {
   display: grid;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
 }
 
-select,
+.control-section h2 {
+  margin: 0;
+  font-size: 0.88rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--token-meta);
+}
+
 textarea,
-input,
 button {
   border-radius: 10px;
   border: 1px solid var(--token-border);
@@ -307,10 +356,11 @@ button {
   color: var(--token-text);
   padding: 9px 10px;
   font: inherit;
+  box-sizing: border-box;
 }
 
 textarea {
-  min-height: 230px;
+  min-height: 220px;
   resize: vertical;
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.78rem;
@@ -374,12 +424,6 @@ button {
 
 .feedback.error {
   color: var(--token-feedback-error);
-}
-
-.mode-toggle {
-  background: transparent;
-  border: 1px solid var(--token-border);
-  color: var(--token-text);
 }
 
 @media (max-width: 960px) {

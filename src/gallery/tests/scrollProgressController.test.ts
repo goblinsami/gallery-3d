@@ -84,4 +84,24 @@ describe("ScrollProgressController loop phases", () => {
     expect(states[1].progress).toBe(0);
     expect(states[1].whiteMix).toBe(0);
   });
+
+  it("keeps loop restart continuity after first full cycle", () => {
+    const states: ScrollProgressState[] = [];
+    const controller = new ScrollProgressController({
+      element: createElementStub(),
+      loop: true,
+      loopWhiteAfterEndWindow: 0.1,
+      loopWhiteFadeOutWindow: 0.2,
+      loopProgressAdvanceDuringWhiteFadeOut: 0.18,
+      onProgress: (state) => states.push(state),
+    });
+
+    const cycleLength = 1 + 0.1 + 0.2;
+    controller.setProgress(cycleLength - 0.001);
+    controller.setProgress(cycleLength);
+
+    expect(states[0].progress).toBeGreaterThan(0.17);
+    expect(states[1].progress).toBeGreaterThanOrEqual(0.17);
+    expect(states[1].progress).toBeLessThanOrEqual(0.181);
+  });
 });

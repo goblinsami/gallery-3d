@@ -8,6 +8,7 @@ export type MobileDetailsButtonPosition =
   | "bottom-left"
   | "bottom-right";
 export type MobileDetailsModalPosition = "top" | "bottom";
+export type ProgressBarPosition = "top" | "bottom";
 
 export interface ArtworkMetadata {
   artist?: string;
@@ -179,6 +180,11 @@ export interface ArtGallerySceneConfig {
   mobileDetailsBackdropHeight: number;
   mobileDetailsButtonPosition: MobileDetailsButtonPosition;
   mobileDetailsModalPosition: MobileDetailsModalPosition;
+  progressBarPosition: ProgressBarPosition;
+  progressBarColor: string;
+  progressBarOpacity: number;
+  progressBarYOffset: number;
+  progressBarHorizontalPadding: number;
   loopWhiteAfterEndWindow: number;
   loopWhiteStartsBeforeEndWindow: number;
   loopWhiteFadeOutRevealWindow: number;

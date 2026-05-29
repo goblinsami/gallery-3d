@@ -62,6 +62,7 @@
 ## PerformanceAgent
 ### Responsibilities
 - Frame stability, memory lifecycle, mobile safety, asset budgets.
+- Apply `mobile-low-end-aggressive` profile when stability is at risk.
 ### Allowed Scope
 - render loop cost controls, loading/disposal, quality gates.
 ### Forbidden Scope

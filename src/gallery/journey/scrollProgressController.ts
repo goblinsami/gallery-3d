@@ -47,6 +47,15 @@ export class ScrollProgressController {
   };
   private readonly wrap = (value: number, modulus: number): number =>
     ((value % modulus) + modulus) % modulus;
+  private mapLoopCycleToJourneyProgress = (cycleProgress: number): number => {
+    const clampedCycleProgress = clamp(cycleProgress, 0, 1);
+    if (!this.hasCompletedInitialLoop) {
+      return clampedCycleProgress;
+    }
+
+    const loopOffset = clamp(this.loopProgressAdvanceDuringWhiteFadeOut, 0, 0.45);
+    return clamp(loopOffset + clampedCycleProgress * (1 - loopOffset), 0, 1);
+  };
 
   private readonly toPixelDelta = (event: WheelEvent): number => {
     if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
@@ -321,16 +330,20 @@ export class ScrollProgressController {
     const whiteInTotalWindow = Math.max(0.0001, whiteLeadWindow + whiteInWindow);
 
     if (cycleProgress <= whiteInEnd) {
+      const mappedCycleProgress = cycleProgress <= 1
+        ? this.mapLoopCycleToJourneyProgress(cycleProgress)
+        : 1;
+
       if (whiteLeadWindow > 0 && cycleProgress >= leadStart) {
         const phase = clamp((cycleProgress - leadStart) / whiteInTotalWindow, 0, 1);
         return {
-          progress: cycleProgress <= 1 ? cycleProgress : 1,
+          progress: mappedCycleProgress,
           whiteMix: this.smoothstep(phase),
         };
       }
 
       return {
-        progress: cycleProgress <= 1 ? cycleProgress : 1,
+        progress: mappedCycleProgress,
         whiteMix: cycleProgress <= 1 ? 0 : this.smoothstep(clamp((cycleProgress - 1) / whiteInWindow, 0, 1)),
       };
     }

@@ -17,6 +17,13 @@ describe("validateGalleryConfig", () => {
     expect(result.config.mobileDetailsBackdropHeight).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsBackdropHeight);
     expect(result.config.mobileDetailsButtonPosition).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsButtonPosition);
     expect(result.config.mobileDetailsModalPosition).toBe(DEFAULT_GALLERY_CONFIG.mobileDetailsModalPosition);
+    expect(result.config.progressBarPosition).toBe(DEFAULT_GALLERY_CONFIG.progressBarPosition);
+    expect(result.config.progressBarColor).toBe(DEFAULT_GALLERY_CONFIG.progressBarColor);
+    expect(result.config.progressBarOpacity).toBe(DEFAULT_GALLERY_CONFIG.progressBarOpacity);
+    expect(result.config.progressBarYOffset).toBe(DEFAULT_GALLERY_CONFIG.progressBarYOffset);
+    expect(result.config.progressBarHorizontalPadding).toBe(
+      DEFAULT_GALLERY_CONFIG.progressBarHorizontalPadding,
+    );
     expect(result.config.ceilingSpotsEnabled).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsEnabled);
     expect(result.config.ceilingSpotsColor).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsColor);
     expect(result.config.ceilingSpotsIntensity).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsIntensity);
@@ -109,6 +116,11 @@ describe("validateGalleryConfig", () => {
       mobileDetailsBackdropHeight: 0.72,
       mobileDetailsButtonPosition: "bottom-left",
       mobileDetailsModalPosition: "bottom",
+      progressBarPosition: "top",
+      progressBarColor: "#5cc8ff",
+      progressBarOpacity: 0.67,
+      progressBarYOffset: -12,
+      progressBarHorizontalPadding: 36,
       loopWhiteAfterEndWindow: 0.24,
       loopWhiteStartsBeforeEndWindow: 0.18,
       loopWhiteFadeOutRevealWindow: 0.2,
@@ -150,6 +162,11 @@ describe("validateGalleryConfig", () => {
     expect(result.config.mobileDetailsBackdropHeight).toBeCloseTo(0.72);
     expect(result.config.mobileDetailsButtonPosition).toBe("bottom-left");
     expect(result.config.mobileDetailsModalPosition).toBe("bottom");
+    expect(result.config.progressBarPosition).toBe("top");
+    expect(result.config.progressBarColor).toBe("#5cc8ff");
+    expect(result.config.progressBarOpacity).toBeCloseTo(0.67);
+    expect(result.config.progressBarYOffset).toBeCloseTo(-12);
+    expect(result.config.progressBarHorizontalPadding).toBeCloseTo(36);
     expect(result.config.loopWhiteAfterEndWindow).toBeCloseTo(0.24);
     expect(result.config.loopWhiteStartsBeforeEndWindow).toBeCloseTo(0.18);
     expect(result.config.loopWhiteFadeOutRevealWindow).toBeCloseTo(0.2);
@@ -206,6 +223,32 @@ describe("validateGalleryConfig", () => {
     );
     expect(invalid.config.mobileDetailsModalPosition).toBe(
       DEFAULT_GALLERY_CONFIG.mobileDetailsModalPosition,
+    );
+  });
+
+  it("clamps progress bar tuning values", () => {
+    const low = validateGalleryConfig({
+      progressBarOpacity: -1,
+      progressBarYOffset: -999,
+      progressBarHorizontalPadding: -50,
+    });
+    const high = validateGalleryConfig({
+      progressBarOpacity: 2,
+      progressBarYOffset: 999,
+      progressBarHorizontalPadding: 999,
+    });
+    const invalidPosition = validateGalleryConfig({
+      progressBarPosition: "center" as never,
+    });
+
+    expect(low.config.progressBarOpacity).toBe(0);
+    expect(low.config.progressBarYOffset).toBe(-160);
+    expect(low.config.progressBarHorizontalPadding).toBe(0);
+    expect(high.config.progressBarOpacity).toBe(1);
+    expect(high.config.progressBarYOffset).toBe(160);
+    expect(high.config.progressBarHorizontalPadding).toBe(240);
+    expect(invalidPosition.config.progressBarPosition).toBe(
+      DEFAULT_GALLERY_CONFIG.progressBarPosition,
     );
   });
 

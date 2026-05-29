@@ -55,6 +55,36 @@
   transition: opacity 80ms linear;
 }
 
+.progress-bar-track {
+  position: absolute;
+  left: var(--progress-bar-horizontal-padding, 14px);
+  right: var(--progress-bar-horizontal-padding, 14px);
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  opacity: var(--progress-bar-opacity, 0.82);
+  z-index: 6;
+  pointer-events: none;
+  transform: translateY(var(--progress-bar-y-offset, 0px));
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.progress-bar-track--top {
+  top: 0.75rem;
+}
+
+.progress-bar-track--bottom {
+  bottom: 0.75rem;
+}
+
+.progress-bar-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transition: transform 80ms linear;
+  background: var(--progress-bar-color, #dce9ff);
+}
+
 .mobile-overlay-toggle {
   position: absolute;
   top: 0.75rem;
