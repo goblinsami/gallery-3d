@@ -22,6 +22,8 @@ const DEFAULT_MOBILE_BREAKPOINT = 820;
 const MOBILE_TAP_MOVE_THRESHOLD_PX = 18;
 const MOBILE_TAP_TIME_THRESHOLD_MS = 450;
 const MOBILE_SURFACE_CLICK_DEDUPE_MS = 420;
+const MOBILE_POINTER_TO_CLICK_GUARD_MS = 1100;
+const MOBILE_TAP_DEBUG_WINDOW_FLAG = "__SCROLLIX_MOBILE_TAP_DEBUG__";
 
 const props = withDefaults(defineProps<Props>(), {
   initialProgress: 0,
@@ -51,6 +53,34 @@ let resizeObserver: ResizeObserver | null = null;
 let resizeTimeout: number | null = null;
 let viewportResizeTimeout: number | null = null;
 let lastSurfaceToggleTimestamp = Number.NEGATIVE_INFINITY;
+let lastPointerTapToggleTimestamp = Number.NEGATIVE_INFINITY;
+
+const isTapDebugEnabled = (): boolean => {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === "undefined") return false;
+  return (
+    (window as Window & { __SCROLLIX_MOBILE_TAP_DEBUG__?: boolean })[
+      MOBILE_TAP_DEBUG_WINDOW_FLAG
+    ] === true
+  );
+};
+
+const debugTap = (stage: string, details: Record<string, unknown> = {}): void => {
+  if (!isTapDebugEnabled()) return;
+  console.info(`[Scrollix][MobileTap] ${stage}`, details);
+};
+
+const describeEventTarget = (target: EventTarget | null): string => {
+  if (!(target instanceof Element)) return "non-element";
+  const idPart = target.id ? `#${target.id}` : "";
+  const classPart =
+    target.classList.length > 0
+      ? `.${Array.from(target.classList)
+          .slice(0, 2)
+          .join(".")}`
+      : "";
+  return `${target.tagName.toLowerCase()}${idPart}${classPart}`;
+};
 
 const updateContainerMetrics = (): void => {
   if (!containerRef.value) return;
@@ -235,6 +265,13 @@ const canHandleMobileOverlayGesture = (): boolean =>
 
 const tryActivateNearestItemFromSurfaceTap = (clientX: number, clientY: number): boolean => {
   const nearestItemIndex = engine?.getClosestItemIndexFromClientPoint(clientX, clientY) ?? null;
+  debugTap("nearest-item:query", {
+    clientX,
+    clientY,
+    nearestItemIndex,
+    activeArtworkIndex: activeArtworkIndex.value,
+    lastKnownArtworkIndex: lastKnownArtworkIndex.value,
+  });
   if (nearestItemIndex === null) {
     return false;
   }
@@ -245,7 +282,15 @@ const tryActivateNearestItemFromSurfaceTap = (clientX: number, clientY: number):
 
 const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void => {
   const activatedNearestItem = tryActivateNearestItemFromSurfaceTap(clientX, clientY);
-  if (!canShowMobileOverlay.value) return;
+  if (!canShowMobileOverlay.value) {
+    debugTap("surface-toggle:blocked", {
+      reason: "canShowMobileOverlay=false",
+      activatedNearestItem,
+      activeArtworkIndex: activeArtworkIndex.value,
+      lastKnownArtworkIndex: lastKnownArtworkIndex.value,
+    });
+    return;
+  }
 
   if (activatedNearestItem && !mobileOverlayVisible.value) {
     mobileOverlayVisible.value = true;
@@ -254,16 +299,44 @@ const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): void 
   }
 
   lastSurfaceToggleTimestamp = performance.now();
+  debugTap("surface-toggle:done", {
+    clientX,
+    clientY,
+    activatedNearestItem,
+    overlayVisible: mobileOverlayVisible.value,
+    activeArtworkIndex: activeArtworkIndex.value,
+    lastKnownArtworkIndex: lastKnownArtworkIndex.value,
+  });
 };
 
 const handlePointerDown = (event: PointerEvent): void => {
-  if (!canHandleMobileOverlayGesture()) return;
-  if (isTapIgnoredTarget(event.target)) return;
+  if (!canHandleMobileOverlayGesture()) {
+    debugTap("pointerdown:ignored", {
+      reason: "gesture-disabled",
+      isMobileLayout: isMobileLayout.value,
+      mobileDetailsOverlayEnabled: resolvedConfig.value.mobileDetailsOverlayEnabled,
+    });
+    return;
+  }
+  if (isTapIgnoredTarget(event.target)) {
+    debugTap("pointerdown:ignored", {
+      reason: "target-ignored",
+      target: describeEventTarget(event.target),
+    });
+    return;
+  }
   tapPointerId.value = event.pointerId;
   tapStartX.value = event.clientX;
   tapStartY.value = event.clientY;
   tapStartTime.value = event.timeStamp;
   tapMoved.value = false;
+  debugTap("pointerdown", {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    ts: event.timeStamp,
+    target: describeEventTarget(event.target),
+  });
 };
 
 const handlePointerMove = (event: PointerEvent): void => {
@@ -273,6 +346,13 @@ const handlePointerMove = (event: PointerEvent): void => {
   const dy = event.clientY - tapStartY.value;
   if (Math.hypot(dx, dy) > MOBILE_TAP_MOVE_THRESHOLD_PX) {
     tapMoved.value = true;
+    debugTap("pointermove:tap-cancelled-by-move", {
+      pointerId: event.pointerId,
+      dx,
+      dy,
+      distance: Math.hypot(dx, dy),
+      threshold: MOBILE_TAP_MOVE_THRESHOLD_PX,
+    });
   }
 };
 
@@ -283,15 +363,36 @@ const resetTapState = (): void => {
 };
 
 const handlePointerUp = (event: PointerEvent): void => {
-  if (tapPointerId.value !== event.pointerId) return;
+  if (tapPointerId.value !== event.pointerId) {
+    debugTap("pointerup:ignored", {
+      reason: "pointer-id-mismatch",
+      pointerId: event.pointerId,
+      trackedPointerId: tapPointerId.value,
+    });
+    return;
+  }
   if (isTapIgnoredTarget(event.target)) {
+    debugTap("pointerup:ignored", {
+      reason: "target-ignored",
+      target: describeEventTarget(event.target),
+    });
     resetTapState();
     return;
   }
   const elapsed = event.timeStamp - tapStartTime.value;
   const shouldToggle = !tapMoved.value && elapsed <= MOBILE_TAP_TIME_THRESHOLD_MS;
+  debugTap("pointerup:evaluated", {
+    pointerId: event.pointerId,
+    elapsed,
+    tapMoved: tapMoved.value,
+    shouldToggle,
+    thresholdMs: MOBILE_TAP_TIME_THRESHOLD_MS,
+    x: event.clientX,
+    y: event.clientY,
+  });
   resetTapState();
   if (!shouldToggle) return;
+  lastPointerTapToggleTimestamp = performance.now();
   toggleMobileOverlayFromSurface(event.clientX, event.clientY);
 };
 
@@ -300,14 +401,48 @@ const handlePointerCancel = (): void => {
 };
 
 const handleContainerClick = (event: MouseEvent): void => {
-  if (!canHandleMobileOverlayGesture()) return;
-  if (isTapIgnoredTarget(event.target)) return;
-
-  const now = performance.now();
-  if (now - lastSurfaceToggleTimestamp <= MOBILE_SURFACE_CLICK_DEDUPE_MS) {
+  if (!canHandleMobileOverlayGesture()) {
+    debugTap("click:ignored", {
+      reason: "gesture-disabled",
+      isMobileLayout: isMobileLayout.value,
+      mobileDetailsOverlayEnabled: resolvedConfig.value.mobileDetailsOverlayEnabled,
+    });
+    return;
+  }
+  if (isTapIgnoredTarget(event.target)) {
+    debugTap("click:ignored", {
+      reason: "target-ignored",
+      target: describeEventTarget(event.target),
+    });
     return;
   }
 
+  const now = performance.now();
+  if (now - lastPointerTapToggleTimestamp <= MOBILE_POINTER_TO_CLICK_GUARD_MS) {
+    debugTap("click:guarded-after-pointerup", {
+      now,
+      lastPointerTapToggleTimestamp,
+      guardWindowMs: MOBILE_POINTER_TO_CLICK_GUARD_MS,
+      deltaMs: now - lastPointerTapToggleTimestamp,
+    });
+    return;
+  }
+
+  if (now - lastSurfaceToggleTimestamp <= MOBILE_SURFACE_CLICK_DEDUPE_MS) {
+    debugTap("click:deduped", {
+      now,
+      lastSurfaceToggleTimestamp,
+      dedupeWindowMs: MOBILE_SURFACE_CLICK_DEDUPE_MS,
+      deltaMs: now - lastSurfaceToggleTimestamp,
+    });
+    return;
+  }
+
+  debugTap("click:accepted", {
+    x: event.clientX,
+    y: event.clientY,
+    target: describeEventTarget(event.target),
+  });
   toggleMobileOverlayFromSurface(event.clientX, event.clientY);
 };
 
