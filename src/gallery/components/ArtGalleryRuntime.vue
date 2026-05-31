@@ -139,6 +139,8 @@ const blurLayerBUrl = ref<string | null>(null);
 const blurLayerAOpacity = ref(0);
 const blurLayerBOpacity = ref(0);
 const blurLayerActive = ref<"a" | "b">("a");
+const loadedBlurImageUrls = new Set<string>();
+let blurTransitionVersion = 0;
 const artworkGapFillStyleA = computed<Record<string, string>>(() => ({
   opacity: String(blurLayerAOpacity.value),
   backgroundImage: blurLayerAUrl.value ? `url("${blurLayerAUrl.value}")` : "none",
@@ -149,6 +151,34 @@ const artworkGapFillStyleB = computed<Record<string, string>>(() => ({
 }));
 const desktopSheetSide = computed(() => resolvedConfig.value.desktopDetailsPanelSide);
 const desktopSheetWidth = computed(() => resolvedConfig.value.desktopDetailsPanelWidth);
+
+const setActiveBlurLayer = (layer: "a" | "b"): void => {
+  if (layer === "a") {
+    blurLayerAOpacity.value = 1;
+    blurLayerBOpacity.value = 0;
+    return;
+  }
+
+  blurLayerAOpacity.value = 0;
+  blurLayerBOpacity.value = 1;
+};
+
+const preloadBlurImage = (imageUrl: string): Promise<boolean> => {
+  if (loadedBlurImageUrls.has(imageUrl)) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      loadedBlurImageUrls.add(imageUrl);
+      resolve(true);
+    };
+    image.onerror = () => resolve(false);
+    image.src = imageUrl;
+  });
+};
 
 const setActiveItemIndex = (index: number | null): void => {
   activeItemIndex.value = index;
@@ -212,42 +242,43 @@ const syncBottomSheetCameraFocus = (): void => {
 };
 
 const setArtworkGapBlur = (imageUrl: string | undefined): void => {
-  if (!imageUrl) {
+  const nextUrl = imageUrl?.trim();
+  if (!nextUrl) {
+    blurTransitionVersion += 1;
     blurLayerAOpacity.value = 0;
     blurLayerBOpacity.value = 0;
     return;
   }
 
   const activeUrl = blurLayerActive.value === "a" ? blurLayerAUrl.value : blurLayerBUrl.value;
-  if (activeUrl === imageUrl) {
-    if (blurLayerActive.value === "a") {
-      blurLayerAOpacity.value = 1;
-      blurLayerBOpacity.value = 0;
-    } else {
-      blurLayerAOpacity.value = 0;
-      blurLayerBOpacity.value = 1;
-    }
+  if (activeUrl === nextUrl) {
+    setActiveBlurLayer(blurLayerActive.value);
     return;
   }
 
-  const nextLayer = blurLayerActive.value === "a" ? "b" : "a";
-  if (nextLayer === "a") {
-    blurLayerAUrl.value = imageUrl;
-    blurLayerAOpacity.value = 0;
-  } else {
-    blurLayerBUrl.value = imageUrl;
-    blurLayerBOpacity.value = 0;
-  }
-
-  requestAnimationFrame(() => {
-    if (nextLayer === "a") {
-      blurLayerAOpacity.value = 1;
-      blurLayerBOpacity.value = 0;
-    } else {
-      blurLayerAOpacity.value = 0;
-      blurLayerBOpacity.value = 1;
+  const transitionVersion = ++blurTransitionVersion;
+  void preloadBlurImage(nextUrl).then((loaded) => {
+    if (!loaded || transitionVersion !== blurTransitionVersion) {
+      return;
     }
-    blurLayerActive.value = nextLayer;
+
+    const nextLayer = blurLayerActive.value === "a" ? "b" : "a";
+    if (nextLayer === "a") {
+      blurLayerAUrl.value = nextUrl;
+      blurLayerAOpacity.value = 0;
+    } else {
+      blurLayerBUrl.value = nextUrl;
+      blurLayerBOpacity.value = 0;
+    }
+
+    requestAnimationFrame(() => {
+      if (transitionVersion !== blurTransitionVersion) {
+        return;
+      }
+
+      setActiveBlurLayer(nextLayer);
+      blurLayerActive.value = nextLayer;
+    });
   });
 };
 
@@ -426,6 +457,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border-radius: 14px;
   touch-action: pan-y;
+  background: #05070f;
 }
 
 .white-overlay {
@@ -442,6 +474,7 @@ onBeforeUnmount(() => {
   z-index: 0;
   pointer-events: none;
   opacity: 0;
+  background-color: #05070f;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

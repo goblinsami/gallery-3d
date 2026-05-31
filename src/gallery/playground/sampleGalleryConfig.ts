@@ -271,7 +271,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
     artworkBacklightIntensity: 1.9,
     artworkDirectionalKeyLightEnabled: true,
     artworkDirectionalKeyLightColor: "#f3f8ff",
-    artworkDirectionalKeyLightIntensity: 1.28,
+    artworkDirectionalKeyLightIntensity: 0.5,
     artworks: [
       {
         id: "nike-air-max-campaign",

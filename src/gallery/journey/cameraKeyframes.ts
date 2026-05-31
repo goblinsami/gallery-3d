@@ -17,6 +17,8 @@ const MAX_VIEWPORT_ASPECT = 3.2;
 const IMAGE_SURFACE_OFFSET = 0.02;
 const STATIONAL_PASS_THROUGH_MIN = 0.18;
 const STATIONAL_LOOK_AHEAD_MIN = 0.28;
+const STATIONAL_RETURN_FORWARD_MIN = 1.4;
+const STATIONAL_RETURN_FORWARD_SPACING_SHARE = 0.16;
 const smootherstep = (t: number): number => {
   const clamped = clamp01(t);
   return clamped * clamped * clamped * (clamped * (clamped * 6 - 15) + 10);
@@ -247,6 +249,11 @@ export const buildCameraKeyframes = (
     if (isStationalCard(item)) {
       const stationDepth = item.depth ?? GALLERY_DEFAULTS.stationalCard.depth;
       const passThroughDepth = Math.max(stationDepth * 0.75, STATIONAL_PASS_THROUGH_MIN);
+      const returnForwardDistance = Math.max(
+        stationDepth * 2.8,
+        STATIONAL_RETURN_FORWARD_MIN,
+        config.corridor.artworkSpacing * STATIONAL_RETURN_FORWARD_SPACING_SHARE,
+      );
       const focusInEndPosition: Vec3 = [
         item.position[0],
         config.camera.height,
@@ -260,7 +267,7 @@ export const buildCameraKeyframes = (
       const returnEndPosition: Vec3 = [
         item.position[0],
         config.camera.height,
-        item.position[2] - Math.max(stationDepth * 2.8, 0.86),
+        item.position[2] - returnForwardDistance,
       ];
       const returnEndLookAt: Vec3 = [
         item.focusTarget[0],

@@ -183,5 +183,45 @@ describe("buildCameraKeyframes", () => {
     expect(focusInEnd).toBeDefined();
     expect(focusInEnd!.position[2]).toBeLessThan(station.position[2] - stationDepth / 2);
   });
+
+  it("keeps forward cadence after stational card pass-through", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      corridor: {
+        ...DEFAULT_GALLERY_CONFIG.corridor,
+        artworkSpacing: 14,
+      },
+      items: [
+        {
+          id: "station-01",
+          type: "stational-card" as const,
+          title: "Station",
+        },
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          id: "work-after-station",
+          type: "artwork" as const,
+          side: "left" as const,
+        },
+      ],
+      artworks: [
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          id: "work-after-station",
+          side: "left" as const,
+        },
+      ],
+    };
+
+    const layout = calculateArtworkLayout(config);
+    const keyframes = buildCameraKeyframes(config, layout);
+    const focusInEnd = keyframes.find((entry) => entry.label === "artwork-0-focus-in-end");
+    const returnEnd = keyframes.find((entry) => entry.label === "artwork-0-return-end");
+
+    expect(focusInEnd).toBeDefined();
+    expect(returnEnd).toBeDefined();
+    const forwardAdvance = focusInEnd!.position[2] - returnEnd!.position[2];
+    expect(forwardAdvance).toBeGreaterThanOrEqual(config.corridor.artworkSpacing * 0.14);
+  });
 });
 
