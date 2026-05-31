@@ -278,7 +278,10 @@ onBeforeUnmount(() => {
       <div
         v-if="isExpanded"
         class="bottom-sheet__body"
-        :class="{ 'bottom-sheet__body--full': isFullExpanded }"
+        :class="{
+          'bottom-sheet__body--full': isFullExpanded,
+          'bottom-sheet__body--stational': content.node.type === 'StationalNode',
+        }"
         @wheel.stop
         @touchmove.stop
       >
@@ -355,25 +358,44 @@ onBeforeUnmount(() => {
 }
 
 .bottom-sheet__surface {
+  position: relative;
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   width: var(--sheet-max-width);
   height: var(--sheet-collapsed-height);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   pointer-events: auto;
-  border-radius: 20px;
-  border: 1px solid rgba(244, 247, 255, 0.2);
+  border-radius: 24px;
+  border: 1px solid rgba(244, 247, 255, 0.16);
+  background-color: rgba(7, 10, 16, 0.96);
   background: linear-gradient(
-    145deg,
-    rgba(10, 15, 26, 0.86) 0%,
-    rgba(8, 12, 21, 0.94) 100%
+    150deg,
+    rgba(6, 10, 18, 0.84) 0%,
+    rgba(8, 11, 19, 0.92) 45%,
+    rgba(7, 9, 15, 0.97) 100%
   );
-  backdrop-filter: blur(22px);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.46);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+  box-shadow:
+    0 28px 66px rgba(0, 0, 0, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition:
     height 320ms cubic-bezier(0.24, 0.82, 0.21, 1),
     border-radius 320ms cubic-bezier(0.24, 0.82, 0.21, 1),
     background-color 320ms ease;
+}
+
+.bottom-sheet__surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(5, 8, 13, 0.52);
 }
 
 .bottom-sheet--half .bottom-sheet__surface {
@@ -423,6 +445,7 @@ onBeforeUnmount(() => {
 
 .bottom-sheet__rail {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -480,12 +503,14 @@ onBeforeUnmount(() => {
 }
 
 .bottom-sheet__summary {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   min-height: calc(var(--sheet-collapsed-height) - 24px);
-  padding: 8px 14px 14px;
+  padding: 9px 16px 14px;
   background: transparent;
   border: 0;
   color: inherit;
@@ -504,9 +529,9 @@ onBeforeUnmount(() => {
 }
 
 .bottom-sheet__thumb {
-  width: 46px;
-  height: 46px;
-  border-radius: 10px;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -520,15 +545,15 @@ onBeforeUnmount(() => {
 
 .bottom-sheet__eyebrow {
   margin: 0;
-  font-size: 0.67rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: rgba(188, 205, 233, 0.95);
+  letter-spacing: 0.12em;
+  color: rgba(199, 213, 235, 0.92);
 }
 
 .bottom-sheet__title {
   margin: 0;
-  font-size: 0.96rem;
+  font-size: 1.03rem;
   line-height: 1.2;
   color: #f4f8ff;
   white-space: nowrap;
@@ -538,8 +563,10 @@ onBeforeUnmount(() => {
 
 .bottom-sheet__subtitle {
   margin: 0;
-  color: rgba(214, 227, 247, 0.94);
-  font-size: 0.79rem;
+  color: rgba(214, 227, 247, 0.84);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -555,11 +582,13 @@ onBeforeUnmount(() => {
 }
 
 .bottom-sheet__body {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 18px calc(18px + env(safe-area-inset-bottom, 0px));
   color: #e9f1ff;
   scrollbar-width: thin;
   scrollbar-color: rgba(170, 194, 228, 0.55) transparent;
@@ -571,14 +600,22 @@ onBeforeUnmount(() => {
 
 .bottom-sheet__description {
   margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: rgba(232, 239, 250, 0.96);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(235, 242, 252, 0.96);
   white-space: pre-wrap;
 }
 
+.bottom-sheet__body--stational .bottom-sheet__description {
+  font-size: 1.06rem;
+  line-height: 1.5;
+  color: rgba(242, 246, 254, 0.97);
+}
+
 .bottom-sheet__section {
-  margin-top: 14px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(190, 206, 228, 0.15);
 }
 
 .bottom-sheet__section-title {
@@ -593,9 +630,9 @@ onBeforeUnmount(() => {
   margin: 0;
   padding-left: 16px;
   display: grid;
-  gap: 4px;
-  font-size: 0.84rem;
-  line-height: 1.4;
+  gap: 6px;
+  font-size: 0.88rem;
+  line-height: 1.45;
   color: rgba(224, 234, 249, 0.94);
 }
 

@@ -15,6 +15,8 @@ const ASSUMED_VIEWPORT_ASPECT = 16 / 9;
 const MIN_VIEWPORT_ASPECT = 0.45;
 const MAX_VIEWPORT_ASPECT = 3.2;
 const IMAGE_SURFACE_OFFSET = 0.02;
+const STATIONAL_PASS_THROUGH_MIN = 0.18;
+const STATIONAL_LOOK_AHEAD_MIN = 0.28;
 const smootherstep = (t: number): number => {
   const clamped = clamp01(t);
   return clamped * clamped * clamped * (clamped * (clamped * 6 - 15) + 10);
@@ -241,6 +243,72 @@ export const buildCameraKeyframes = (
     const focusIn = findSegment(timeline.segments, `artwork-${item.index}-focus-in`);
     const focusHold = findSegment(timeline.segments, `artwork-${item.index}-focus-hold`);
     const returnSegment = findSegment(timeline.segments, `artwork-${item.index}-return`);
+
+    if (isStationalCard(item)) {
+      const stationDepth = item.depth ?? GALLERY_DEFAULTS.stationalCard.depth;
+      const passThroughDepth = Math.max(stationDepth * 0.75, STATIONAL_PASS_THROUGH_MIN);
+      const focusInEndPosition: Vec3 = [
+        item.position[0],
+        config.camera.height,
+        item.position[2] - passThroughDepth,
+      ];
+      const focusInEndLookAt: Vec3 = [
+        item.focusTarget[0],
+        item.focusTarget[1],
+        focusInEndPosition[2] - Math.max(stationDepth, STATIONAL_LOOK_AHEAD_MIN),
+      ];
+      const returnEndPosition: Vec3 = [
+        item.position[0],
+        config.camera.height,
+        item.position[2] - Math.max(stationDepth * 2.8, 0.86),
+      ];
+      const returnEndLookAt: Vec3 = [
+        item.focusTarget[0],
+        item.focusTarget[1],
+        returnEndPosition[2] - Math.max(stationDepth, STATIONAL_LOOK_AHEAD_MIN),
+      ];
+      const focusHoldEndPosition = lerpVec3(
+        focusInEndPosition,
+        returnEndPosition,
+        0.58,
+      );
+      const focusHoldEndLookAt: Vec3 = [
+        item.focusTarget[0],
+        item.focusTarget[1],
+        focusHoldEndPosition[2] - Math.max(stationDepth, STATIONAL_LOOK_AHEAD_MIN),
+      ];
+
+      push(
+        travel.end,
+        item.centerPosition,
+        item.lookAt,
+        `artwork-${item.index}-travel-end`,
+        item.index,
+      );
+      push(
+        focusIn.end,
+        focusInEndPosition,
+        focusInEndLookAt,
+        `artwork-${item.index}-focus-in-end`,
+        item.index,
+      );
+      push(
+        focusHold.end,
+        focusHoldEndPosition,
+        focusHoldEndLookAt,
+        `artwork-${item.index}-focus-hold-end`,
+        item.index,
+      );
+      push(
+        returnSegment.end,
+        returnEndPosition,
+        returnEndLookAt,
+        `artwork-${item.index}-return-end`,
+        null,
+      );
+      return;
+    }
+
     const turnKeyframes = Math.max(1, Math.round(config.artworkTurnKeyframes));
     const turnLeadIn = clamp(config.artworkTurnLeadIn, 0, 0.85);
     const previousKeyframe = keyframes[keyframes.length - 1];

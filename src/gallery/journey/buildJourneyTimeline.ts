@@ -37,20 +37,23 @@ export const buildJourneyTimeline = (
   const segments: SegmentInput[] = [{ label: "intro", weight: timings.introDuration }];
 
   for (const item of items) {
-    const travelWeight = item.type === "stational-card"
-      ? timings.travelDuration * 1.2
+    const isStationalCard = item.type === "stational-card";
+    const travelWeight = isStationalCard
+      ? timings.travelDuration * 1.12
       : timings.travelDuration;
-    const focusWeight = item.type === "stational-card"
-      ? timings.focusDuration * 1.35
+    const focusWeight = isStationalCard
+      ? timings.focusDuration * 0.5
       : timings.focusDuration;
-    const returnWeight = item.type === "stational-card"
-      ? timings.returnDuration * 1.15
+    const returnWeight = isStationalCard
+      ? timings.returnDuration * 0.68
       : timings.returnDuration;
+    const focusInShare = isStationalCard ? 0.96 : 0.45;
+    const focusHoldShare = 1 - focusInShare;
 
     segments.push(
       { label: `artwork-${item.index}-travel`, weight: travelWeight },
-      { label: `artwork-${item.index}-focus-in`, weight: focusWeight * 0.45 },
-      { label: `artwork-${item.index}-focus-hold`, weight: focusWeight * 0.55 },
+      { label: `artwork-${item.index}-focus-in`, weight: focusWeight * focusInShare },
+      { label: `artwork-${item.index}-focus-hold`, weight: focusWeight * focusHoldShare },
       { label: `artwork-${item.index}-return`, weight: returnWeight },
     );
   }

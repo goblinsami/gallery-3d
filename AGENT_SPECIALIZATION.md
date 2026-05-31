@@ -73,3 +73,26 @@
 - `PERFORMANCE_RULES.md`
 - `RENDERING_PIPELINE.md`
 - `rendering_summary.md`
+
+## TemplateAgent
+### Responsibilities
+- Author and maintain gallery templates (preset JSON) for playground/runtime scenarios.
+- Keep template configs aligned with validator, defaults, and journey/render constraints.
+### Allowed Scope
+- `src/gallery/playground/sampleGalleryConfig.ts`
+- Template-authoring UI support in `src/gallery/playground/*`
+- Schema/default/validator updates only when template knobs are required.
+### Forbidden Scope
+- Adding config fields without `types -> defaults -> validateGalleryConfig` parity.
+- Runtime/engine rewrites not directly tied to template behavior.
+### Preferred Patterns
+- Base from `DEFAULT_GALLERY_CONFIG` with deliberate overrides.
+- Keep `items` and `artworks` coherence, especially in mixed stational/artwork presets.
+- Preserve stable template IDs/titles for selector predictability.
+### Required Context Files
+- `AGENTS.md`
+- `AI_RULES.md`
+- `REPO_MAP.md`
+- `src/gallery/playground/sampleGalleryConfig.ts`
+- `src/gallery/utils/validateGalleryConfig.ts`
+- `src/gallery/config/defaultGalleryConfig.ts`

@@ -30,6 +30,9 @@ const clamp = (value: number, min: number, max: number): number =>
 const cleanColor = (value: string | undefined, fallback: string): string =>
   typeof value === "string" && value.trim() ? value.trim() : fallback;
 
+const isHeroStationVariant = (variant: PositionedStationalCard["variant"]): boolean =>
+  variant === "about" || variant === "contact";
+
 const resolveCanvasSize = (
   planeWidth: number,
   planeHeight: number,
@@ -97,6 +100,7 @@ const createTextTexture = (
   planeHeight: number,
 ): CanvasTexture => {
   const content = renderStationalCardContent(station);
+  const heroStation = isHeroStationVariant(station.variant);
   const { canvasWidth, canvasHeight, scale } = resolveCanvasSize(planeWidth, planeHeight);
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth;
@@ -119,22 +123,42 @@ const createTextTexture = (
   const textWidth = Math.max(64, canvasWidth - paddingX * 2);
   let cursorY = Math.round(82 * scale);
 
-  context.fillStyle = "rgba(186, 204, 232, 0.92)";
-  context.font = `600 ${Math.round(30 * scale)}px 'Segoe UI', sans-serif`;
-  context.fillText(content.eyebrow.toUpperCase(), paddingX, cursorY);
-  cursorY += Math.round(62 * scale);
+  if (heroStation) {
+    const eyebrow = (content.subtitle ?? content.eyebrow).toUpperCase();
+    context.fillStyle = "rgba(205, 218, 236, 0.92)";
+    context.font = `600 ${Math.round(25 * scale)}px 'Segoe UI', sans-serif`;
+    context.fillText(eyebrow, paddingX, cursorY);
+    cursorY += Math.round(54 * scale);
 
-  context.fillStyle = "#f3f8ff";
-  context.font = `700 ${Math.round(58 * scale)}px 'Segoe UI', sans-serif`;
-  cursorY = drawWrappedText(
-    context,
-    content.title,
-    paddingX,
-    cursorY,
-    textWidth,
-    Math.round(66 * scale),
-    3,
-  );
+    context.fillStyle = "#f7fbff";
+    context.font = `800 ${Math.round(126 * scale)}px 'Segoe UI', sans-serif`;
+    cursorY = drawWrappedText(
+      context,
+      content.title.toUpperCase(),
+      paddingX,
+      cursorY,
+      textWidth,
+      Math.round(114 * scale),
+      2,
+    );
+  } else {
+    context.fillStyle = "rgba(186, 204, 232, 0.92)";
+    context.font = `600 ${Math.round(30 * scale)}px 'Segoe UI', sans-serif`;
+    context.fillText(content.eyebrow.toUpperCase(), paddingX, cursorY);
+    cursorY += Math.round(62 * scale);
+
+    context.fillStyle = "#f3f8ff";
+    context.font = `700 ${Math.round(58 * scale)}px 'Segoe UI', sans-serif`;
+    cursorY = drawWrappedText(
+      context,
+      content.title,
+      paddingX,
+      cursorY,
+      textWidth,
+      Math.round(66 * scale),
+      3,
+    );
+  }
 
   if (content.subtitle) {
     cursorY += Math.round(8 * scale);
@@ -151,7 +175,7 @@ const createTextTexture = (
     );
   }
 
-  if (content.description) {
+  if (content.description && !heroStation) {
     cursorY += Math.round(10 * scale);
     context.fillStyle = "rgba(224, 233, 248, 0.95)";
     context.font = `400 ${Math.round(31 * scale)}px 'Segoe UI', sans-serif`;
@@ -172,7 +196,7 @@ const createTextTexture = (
     content.cta ? `${content.cta.label}: ${content.cta.url}` : undefined,
   ].filter((entry): entry is string => Boolean(entry));
 
-  if (detailLines.length > 0) {
+  if (detailLines.length > 0 && !heroStation) {
     cursorY += Math.round(12 * scale);
     context.fillStyle = "rgba(168, 188, 217, 0.9)";
     context.font = `500 ${Math.round(25 * scale)}px 'Segoe UI', sans-serif`;

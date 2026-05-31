@@ -179,6 +179,9 @@ export interface ArtGallerySceneConfig {
   artworkBacklightEnabled: boolean;
   artworkBacklightColor: string;
   artworkBacklightIntensity: number;
+  artworkDirectionalKeyLightEnabled: boolean;
+  artworkDirectionalKeyLightColor: string;
+  artworkDirectionalKeyLightIntensity: number;
   enhanceNightReadibility: boolean;
   scrollStrength: number;
   mobileDetailsOverlayEnabled: boolean;

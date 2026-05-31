@@ -212,7 +212,7 @@ export class GalleryEngine {
 
     const maxDistancePx = clamp(focusViewport.width * 0.3, 90, 300);
     let closestIndex: number | null = null;
-    let closestDistanceSq = maxDistancePx * maxDistancePx;
+    let closestScore = Number.POSITIVE_INFINITY;
 
     for (const item of this.buildArtifacts.layout) {
       const [x, y, z] = item.focusTarget;
@@ -235,9 +235,25 @@ export class GalleryEngine {
       const dx = localX - screenX;
       const dy = localY - screenY;
       const distanceSq = dx * dx + dy * dy;
+      const isStation = isStationalCard(item);
+      const captureRadiusPx = isStation ? maxDistancePx * 1.28 : maxDistancePx;
+      const captureRadiusSq = captureRadiusPx * captureRadiusPx;
+      if (distanceSq > captureRadiusSq) {
+        continue;
+      }
 
-      if (distanceSq <= closestDistanceSq) {
-        closestDistanceSq = distanceSq;
+      let score = distanceSq;
+      if (isStation) {
+        const cameraZ = this.camera.position.z;
+        const nearDepth = Math.abs(cameraZ - item.position[2]);
+        const depthThreshold = Math.max(2.4, (item.depth ?? 0.2) * 10);
+        if (nearDepth <= depthThreshold) {
+          score *= 0.58;
+        }
+      }
+
+      if (score <= closestScore) {
+        closestScore = score;
         closestIndex = item.index;
       }
     }

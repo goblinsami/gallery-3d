@@ -387,6 +387,15 @@ export const validateGalleryConfig = (
       0,
       4,
     ),
+    artworkDirectionalKeyLightEnabled:
+      source.artworkDirectionalKeyLightEnabled ?? defaultConfig.artworkDirectionalKeyLightEnabled,
+    artworkDirectionalKeyLightColor:
+      source.artworkDirectionalKeyLightColor ?? defaultConfig.artworkDirectionalKeyLightColor,
+    artworkDirectionalKeyLightIntensity: clamp(
+      source.artworkDirectionalKeyLightIntensity ?? defaultConfig.artworkDirectionalKeyLightIntensity,
+      0,
+      4,
+    ),
     enhanceNightReadibility:
       typeof source.enhanceNightReadibility === "boolean"
         ? source.enhanceNightReadibility

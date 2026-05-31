@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { buildCameraKeyframes, calculateArtworkLayout } from "../journey/cameraKeyframes";
-import type { PositionedArtwork } from "../types/galleryRuntime";
+import type { PositionedArtwork, PositionedStationalCard } from "../types/galleryRuntime";
 
 const getArtworkLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedArtwork[] =>
   calculateArtworkLayout(...args).filter(
     (item): item is PositionedArtwork => item.type !== "stational-card",
+  );
+
+const getStationalLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedStationalCard[] =>
+  calculateArtworkLayout(...args).filter(
+    (item): item is PositionedStationalCard => item.type === "stational-card",
   );
 
 describe("buildCameraKeyframes", () => {
@@ -148,6 +153,35 @@ describe("buildCameraKeyframes", () => {
     expect(travelEnd).toBeDefined();
     expect(leadStart!.position[2]).toBeGreaterThan(travelEnd!.position[2]);
     expect(leadStart!.lookAt[0]).not.toBe(travelEnd!.lookAt[0]);
+  });
+
+  it("skips turn keyframes for stational cards and pushes through the card", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworkTurnKeyframes: 8,
+      artworkTurnLeadIn: 0.45,
+      items: [
+        {
+          id: "station-01",
+          type: "stational-card" as const,
+          title: "Station",
+        },
+      ],
+      artworks: [],
+    };
+
+    const stationalLayout = getStationalLayout(config);
+    const station = stationalLayout[0];
+    const stationDepth = station.depth ?? 0;
+    const keyframes = buildCameraKeyframes(config, stationalLayout);
+
+    expect(station).toBeDefined();
+    expect(keyframes.some((entry) => entry.label.includes("turn-lead-start"))).toBe(false);
+    expect(keyframes.some((entry) => entry.label.includes("focus-turn-"))).toBe(false);
+
+    const focusInEnd = keyframes.find((entry) => entry.label === "artwork-0-focus-in-end");
+    expect(focusInEnd).toBeDefined();
+    expect(focusInEnd!.position[2]).toBeLessThan(station.position[2] - stationDepth / 2);
   });
 });
 

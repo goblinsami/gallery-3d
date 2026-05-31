@@ -23,7 +23,9 @@ interface ControlSection {
   controls: PlaygroundControlDefinition[];
 }
 
-const initialSample = sampleGalleryConfigs[0];
+const initialSample =
+  sampleGalleryConfigs.find((sample) => sample.id === "portfolio-stations") ??
+  sampleGalleryConfigs[0];
 const activeSampleId = ref(initialSample.id);
 const cameraAspectPreset = ref<AspectRatioPreset>(
   resolveAspectPresetFromRatio(initialSample.camera.targetAspectRatio, DEFAULT_CAMERA_ASPECT_PRESET),
@@ -72,6 +74,10 @@ const controlOptionsByKey = computed<Record<string, PlaygroundControlOption[]>>(
   })),
 }));
 
+const selectedSampleTemplate = computed(
+  () => sampleGalleryConfigs.find((entry) => entry.id === activeSampleId.value) ?? sampleGalleryConfigs[0],
+);
+
 const controlsBySection = computed<ControlSection[]>(() => {
   const grouped = new Map<string, PlaygroundControlDefinition[]>();
 
@@ -89,6 +95,42 @@ const controlsBySection = computed<ControlSection[]>(() => {
 
 const syncJsonDraft = (): void => {
   jsonDraft.value = JSON.stringify(rawConfig.value, null, 2);
+};
+
+const sanitizeFileSegment = (value: string): string => {
+  const sanitized = value.toLowerCase().replace(/[^a-z0-9-_]+/g, "-").replace(/^-+|-+$/g, "");
+  return sanitized || "template";
+};
+
+const downloadJsonFile = (fileName: string, payload: unknown): void => {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(objectUrl);
+};
+
+const showActiveTemplateJson = (): void => {
+  jsonDraft.value = JSON.stringify(selectedSampleTemplate.value, null, 2);
+  parseError.value = "";
+};
+
+const downloadActiveTemplateJson = (): void => {
+  const template = selectedSampleTemplate.value;
+  downloadJsonFile(`template-${sanitizeFileSegment(template.id)}.json`, template);
+};
+
+const downloadAllTemplatesJson = (): void => {
+  const payload = sampleGalleryConfigs.map((template) => ({
+    id: template.id,
+    sceneTitle: template.sceneTitle,
+    config: template,
+  }));
+  downloadJsonFile("gallery-templates.json", payload);
 };
 
 const applyAspectRatioPresetsToConfig = (): void => {
@@ -238,6 +280,19 @@ const onRuntimeProgress = (progress: number): void => {
       </section>
 
       <p class="meta">Current progress: {{ progressLabel }}</p>
+      <p class="meta">Template activo: {{ selectedSampleTemplate.id }}</p>
+
+      <div class="template-actions">
+        <button type="button" class="secondary-button" @click="showActiveTemplateJson">
+          Ver JSON real del template activo
+        </button>
+        <button type="button" class="secondary-button" @click="downloadActiveTemplateJson">
+          Descargar template activo (.json)
+        </button>
+        <button type="button" class="secondary-button" @click="downloadAllTemplatesJson">
+          Descargar todos los templates (.json)
+        </button>
+      </div>
 
       <label class="json-label">
         Runtime JSON Draft
@@ -427,6 +482,17 @@ button {
 
 .feedback.error {
   color: var(--token-feedback-error);
+}
+
+.template-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.secondary-button {
+  background: var(--token-field-bg);
+  border-color: var(--token-border);
+  color: var(--token-text);
 }
 
 @media (max-width: 960px) {
