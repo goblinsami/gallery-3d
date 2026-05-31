@@ -135,6 +135,21 @@ const progressBarTrackStyle = computed<Record<string, string>>(() => ({
 const progressBarFillStyle = computed<Record<string, string>>(() => ({
   transform: `scaleX(${Math.max(0, Math.min(1, journeyProgress.value))})`,
 }));
+const blurLayerAUrl = ref<string | null>(null);
+const blurLayerBUrl = ref<string | null>(null);
+const blurLayerAOpacity = ref(0);
+const blurLayerBOpacity = ref(0);
+const blurLayerActive = ref<"a" | "b">("a");
+const artworkGapFillStyleA = computed<Record<string, string>>(() => ({
+  opacity: String(blurLayerAOpacity.value),
+  backgroundImage: blurLayerAUrl.value ? `url("${blurLayerAUrl.value}")` : "none",
+}));
+const artworkGapFillStyleB = computed<Record<string, string>>(() => ({
+  opacity: String(blurLayerBOpacity.value),
+  backgroundImage: blurLayerBUrl.value ? `url("${blurLayerBUrl.value}")` : "none",
+}));
+const desktopSheetSide = computed(() => resolvedConfig.value.desktopDetailsPanelSide);
+const desktopSheetWidth = computed(() => resolvedConfig.value.desktopDetailsPanelWidth);
 
 const setActiveItemIndex = (index: number | null): void => {
   activeItemIndex.value = index;
@@ -152,10 +167,89 @@ const handleBottomSheetStateChange = (state: BottomSheetState): void => {
   syncScrollOwnership();
 };
 
+const handleSceneClick = (event: MouseEvent): void => {
+  if (!engine || !containerRef.value) {
+    return;
+  }
+
+  if (event.button !== 0) {
+    return;
+  }
+
+  const target = event.target;
+  if (target instanceof Element && target.closest(".bottom-sheet__surface")) {
+    return;
+  }
+
+  const nextIndex = engine.getClosestItemIndexFromClientPoint(event.clientX, event.clientY);
+  if (nextIndex === null) {
+    if (bottomSheetState.value !== "collapsed") {
+      bottomSheetState.value = "collapsed";
+      syncScrollOwnership();
+      syncBottomSheetCameraFocus();
+    }
+    return;
+  }
+
+  setActiveItemIndex(nextIndex);
+  if (bottomSheetState.value === "collapsed") {
+    bottomSheetState.value = "half";
+    syncScrollOwnership();
+  }
+  syncBottomSheetCameraFocus();
+};
+
 const syncBottomSheetCameraFocus = (): void => {
   const currentItemIndex = activeItemIndex.value ?? lastKnownItemIndex.value;
   const enabled = bottomSheetState.value !== "collapsed" && currentItemIndex !== null;
-  engine?.setBottomSheetFocus(currentItemIndex, enabled, isMobileLayout.value, bottomSheetState.value);
+  engine?.setBottomSheetFocus(
+    currentItemIndex,
+    enabled,
+    isMobileLayout.value,
+    bottomSheetState.value,
+    desktopSheetSide.value,
+    desktopSheetWidth.value,
+  );
+};
+
+const setArtworkGapBlur = (imageUrl: string | undefined): void => {
+  if (!imageUrl) {
+    blurLayerAOpacity.value = 0;
+    blurLayerBOpacity.value = 0;
+    return;
+  }
+
+  const activeUrl = blurLayerActive.value === "a" ? blurLayerAUrl.value : blurLayerBUrl.value;
+  if (activeUrl === imageUrl) {
+    if (blurLayerActive.value === "a") {
+      blurLayerAOpacity.value = 1;
+      blurLayerBOpacity.value = 0;
+    } else {
+      blurLayerAOpacity.value = 0;
+      blurLayerBOpacity.value = 1;
+    }
+    return;
+  }
+
+  const nextLayer = blurLayerActive.value === "a" ? "b" : "a";
+  if (nextLayer === "a") {
+    blurLayerAUrl.value = imageUrl;
+    blurLayerAOpacity.value = 0;
+  } else {
+    blurLayerBUrl.value = imageUrl;
+    blurLayerBOpacity.value = 0;
+  }
+
+  requestAnimationFrame(() => {
+    if (nextLayer === "a") {
+      blurLayerAOpacity.value = 1;
+      blurLayerBOpacity.value = 0;
+    } else {
+      blurLayerAOpacity.value = 0;
+      blurLayerBOpacity.value = 1;
+    }
+    blurLayerActive.value = nextLayer;
+  });
 };
 
 const handleProgress = (state: ScrollProgressState): void => {
@@ -262,6 +356,14 @@ watch(
   },
 );
 
+watch(
+  () => activeJourneyContent.value?.thumbnailUrl,
+  (nextImageUrl) => {
+    setArtworkGapBlur(nextImageUrl);
+  },
+  { immediate: true },
+);
+
 onBeforeUnmount(() => {
   scrollController?.dispose();
   scrollController = null;
@@ -296,7 +398,10 @@ onBeforeUnmount(() => {
     ref="containerRef"
     class="art-gallery-runtime"
     aria-label="3D Art Gallery Runtime"
+    @click="handleSceneClick"
   >
+    <div class="artwork-gap-fill artwork-gap-fill--a" :style="artworkGapFillStyleA" aria-hidden="true" />
+    <div class="artwork-gap-fill artwork-gap-fill--b" :style="artworkGapFillStyleB" aria-hidden="true" />
     <div class="white-overlay" :style="whiteOverlayStyle" />
     <div
       class="progress-bar-track"
@@ -309,6 +414,9 @@ onBeforeUnmount(() => {
     <BottomSheet
       :content="activeJourneyContent"
       :is-mobile="isMobileLayout"
+      :desktop-side="desktopSheetSide"
+      :desktop-width="desktopSheetWidth"
+      :external-state="bottomSheetState"
       @state-change="handleBottomSheetStateChange"
     />
   </div>

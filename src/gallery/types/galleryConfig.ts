@@ -9,6 +9,8 @@ export type MobileDetailsButtonPosition =
   | "bottom-right";
 export type MobileDetailsModalPosition = "top" | "bottom";
 export type ProgressBarPosition = "top" | "bottom";
+export type DesktopDetailsPanelSide = "left" | "right";
+export type DesktopDetailsPanelWidth = 0.25 | 0.5;
 
 export interface ArtworkMetadata {
   artist?: string;
@@ -190,6 +192,8 @@ export interface ArtGallerySceneConfig {
   progressBarOpacity: number;
   progressBarYOffset: number;
   progressBarHorizontalPadding: number;
+  desktopDetailsPanelSide: DesktopDetailsPanelSide;
+  desktopDetailsPanelWidth: DesktopDetailsPanelWidth;
   loopWhiteAfterEndWindow: number;
   loopWhiteStartsBeforeEndWindow: number;
   loopWhiteFadeOutRevealWindow: number;

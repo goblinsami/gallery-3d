@@ -104,6 +104,9 @@ const applyAspectRatioPresetsToConfig = (): void => {
   );
 };
 
+applyAspectRatioPresetsToConfig();
+syncJsonDraft();
+
 const resetFromSample = (sampleId: string): void => {
   const sample = sampleGalleryConfigs.find((entry) => entry.id === sampleId) ?? sampleGalleryConfigs[0];
   activeSampleId.value = sample.id;

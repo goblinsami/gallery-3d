@@ -10,7 +10,11 @@ import { GALLERY_TOKENS } from "../config/galleryTokens";
 
 export const createRenderer = (config: ArtGallerySceneConfig): WebGLRenderer => {
   RectAreaLightUniformsLib.init();
-  const renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+  const renderer = new WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    powerPreference: "high-performance",
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
@@ -21,7 +25,7 @@ export const createRenderer = (config: ArtGallerySceneConfig): WebGLRenderer => 
     config.lightingMode === "contrast"
       ? GALLERY_TOKENS.scene.rendererClearContrast
       : GALLERY_TOKENS.scene.rendererClearDay,
-    1,
+    0,
   );
   return renderer;
 };

@@ -7,6 +7,9 @@ type BottomSheetState = "collapsed" | "half" | "full";
 interface Props {
   content: RenderedJourneyNodeContent | null;
   isMobile: boolean;
+  desktopSide: "left" | "right";
+  desktopWidth: 0.25 | 0.5;
+  externalState?: BottomSheetState | null;
 }
 
 const DRAG_THRESHOLD_PX = 36;
@@ -29,6 +32,11 @@ const isExpanded = computed(() => sheetState.value !== "collapsed");
 const isFullExpanded = computed(() => sheetState.value === "full");
 const stateClass = computed(() => `bottom-sheet--${sheetState.value}`);
 const viewportClass = computed(() => (props.isMobile ? "bottom-sheet--mobile" : "bottom-sheet--desktop"));
+const desktopSideClass = computed(() => `bottom-sheet--desktop-${props.desktopSide}`);
+const desktopWidthClass = computed(() => `bottom-sheet--desktop-width-${props.desktopWidth === 0.5 ? "50" : "25"}`);
+const desktopSplitClass = computed(
+  () => (!props.isMobile && sheetState.value !== "collapsed" ? "bottom-sheet--desktop-split" : ""),
+);
 
 const setSheetState = async (nextState: BottomSheetState): Promise<void> => {
   if (sheetState.value === nextState) {
@@ -196,6 +204,16 @@ watch(
   },
 );
 
+watch(
+  () => props.externalState,
+  (nextState) => {
+    if (!nextState) {
+      return;
+    }
+    void setSheetState(nextState);
+  },
+);
+
 onMounted(() => {
   emit("state-change", sheetState.value);
   window.addEventListener("keydown", onWindowKeyDown);
@@ -211,7 +229,7 @@ onBeforeUnmount(() => {
     v-if="hasContent && content"
     ref="sheetRef"
     class="bottom-sheet"
-    :class="[stateClass, viewportClass]"
+    :class="[stateClass, viewportClass, desktopSplitClass, desktopSideClass, desktopWidthClass]"
     role="region"
     aria-label="Journey details panel"
     :aria-expanded="isExpanded"
@@ -231,11 +249,16 @@ onBeforeUnmount(() => {
         >
           <span class="bottom-sheet__grip" />
         </button>
-        <button v-if="isExpanded" type="button" class="bottom-sheet__close" @click="closeSheet">
-          Close
+        <button
+          v-if="isExpanded"
+          type="button"
+          class="bottom-sheet__close"
+          aria-label="Close details panel"
+          @click="closeSheet"
+        >
+          &times;
         </button>
       </header>
-
       <button type="button" class="bottom-sheet__summary" @click="onSummaryClick">
         <img
           v-if="content.thumbnailUrl"
@@ -251,7 +274,7 @@ onBeforeUnmount(() => {
         </div>
         <p class="bottom-sheet__progress">{{ content.progressLabel }}</p>
       </button>
-
+      <div v-if="!isExpanded" class="bottom-sheet__collapsed-bottom-zone" aria-hidden="true" />
       <div
         v-if="isExpanded"
         class="bottom-sheet__body"
@@ -308,14 +331,25 @@ onBeforeUnmount(() => {
 
 .bottom-sheet--desktop {
   --sheet-max-width: min(720px, calc(100% - 34px));
-  --sheet-collapsed-height: 86px;
+  --desktop-sheet-width: 50%;
+  --sheet-collapsed-height: 88px;
+  --collapsed-handle-zone: 20px;
   --sheet-half-height: min(50%, 440px);
   --sheet-full-height: min(100%, 760px);
 }
 
+.bottom-sheet--desktop-width-25 {
+  --desktop-sheet-width: 25%;
+}
+
+.bottom-sheet--desktop-width-50 {
+  --desktop-sheet-width: 50%;
+}
+
 .bottom-sheet--mobile {
   --sheet-max-width: 100%;
-  --sheet-collapsed-height: 80px;
+  --sheet-collapsed-height: 82px;
+  --collapsed-handle-zone: 18px;
   --sheet-half-height: 58%;
   --sheet-full-height: 100%;
 }
@@ -354,6 +388,27 @@ onBeforeUnmount(() => {
   padding-top: 10px;
 }
 
+.bottom-sheet--desktop-split {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 10px;
+}
+
+.bottom-sheet--desktop-split.bottom-sheet--desktop-right {
+  justify-content: flex-end;
+}
+
+.bottom-sheet--desktop-split .bottom-sheet__surface {
+  width: var(--desktop-sheet-width);
+  height: 100%;
+  max-height: calc(100% - 2px);
+}
+
+.bottom-sheet--desktop-split.bottom-sheet--half .bottom-sheet__surface,
+.bottom-sheet--desktop-split.bottom-sheet--full .bottom-sheet__surface {
+  height: 100%;
+}
+
 .bottom-sheet--mobile.bottom-sheet--full {
   padding: 0;
 }
@@ -373,6 +428,11 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-height: 22px;
   padding: 8px 12px 2px;
+}
+
+.bottom-sheet--collapsed .bottom-sheet__rail {
+  min-height: var(--collapsed-handle-zone);
+  padding: 6px 10px 0;
 }
 
 .bottom-sheet__handle {
@@ -401,16 +461,21 @@ onBeforeUnmount(() => {
 
 .bottom-sheet__close {
   position: absolute;
-  right: 12px;
-  top: 5px;
+  right: 10px;
+  top: 4px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
   color: #f2f6ff;
-  font-size: 0.72rem;
+  font-size: 1.35rem;
   line-height: 1;
-  letter-spacing: 0.01em;
-  padding: 6px 10px;
+  letter-spacing: 0;
+  padding: 0;
   cursor: pointer;
 }
 
@@ -426,6 +491,16 @@ onBeforeUnmount(() => {
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.bottom-sheet--collapsed .bottom-sheet__summary {
+  min-height: calc(var(--sheet-collapsed-height) - (var(--collapsed-handle-zone) * 2));
+  padding: 2px 14px;
+}
+
+.bottom-sheet__collapsed-bottom-zone {
+  min-height: var(--collapsed-handle-zone);
+  flex-shrink: 0;
 }
 
 .bottom-sheet__thumb {
@@ -553,3 +628,5 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+

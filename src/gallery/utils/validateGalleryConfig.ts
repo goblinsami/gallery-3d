@@ -13,6 +13,8 @@ import type {
   MobileDetailsButtonPosition,
   MobileDetailsModalPosition,
   ProgressBarPosition,
+  DesktopDetailsPanelSide,
+  DesktopDetailsPanelWidth,
   DeepPartial,
   LightingMode,
   Vec3,
@@ -46,6 +48,8 @@ const VALID_MOBILE_DETAILS_BUTTON_POSITIONS: MobileDetailsButtonPosition[] = [
 ];
 const VALID_MOBILE_DETAILS_MODAL_POSITIONS: MobileDetailsModalPosition[] = ["top", "bottom"];
 const VALID_PROGRESS_BAR_POSITIONS: ProgressBarPosition[] = ["top", "bottom"];
+const VALID_DESKTOP_DETAILS_PANEL_SIDES: DesktopDetailsPanelSide[] = ["left", "right"];
+const VALID_DESKTOP_DETAILS_PANEL_WIDTHS: DesktopDetailsPanelWidth[] = [0.25, 0.5];
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -437,6 +441,16 @@ export const validateGalleryConfig = (
       0,
       240,
     ),
+    desktopDetailsPanelSide: VALID_DESKTOP_DETAILS_PANEL_SIDES.includes(
+      source.desktopDetailsPanelSide as DesktopDetailsPanelSide,
+    )
+      ? (source.desktopDetailsPanelSide as DesktopDetailsPanelSide)
+      : defaultConfig.desktopDetailsPanelSide,
+    desktopDetailsPanelWidth: VALID_DESKTOP_DETAILS_PANEL_WIDTHS.includes(
+      source.desktopDetailsPanelWidth as DesktopDetailsPanelWidth,
+    )
+      ? (source.desktopDetailsPanelWidth as DesktopDetailsPanelWidth)
+      : defaultConfig.desktopDetailsPanelWidth,
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,
       0.02,

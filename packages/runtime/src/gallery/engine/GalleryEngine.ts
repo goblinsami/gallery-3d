@@ -56,6 +56,8 @@ interface RenderViewport {
   aspect: number;
 }
 type BottomSheetState = "collapsed" | "half" | "full";
+type DesktopSheetSide = "left" | "right";
+type DesktopSheetWidth = 0.25 | 0.5;
 
 const LOOP_FOG_BOOST = 0.08;
 const MIN_AUTO_LANDSCAPE_ASPECT = 1.35;
@@ -106,6 +108,8 @@ export class GalleryEngine {
   private overlayFocusItemIndex: number | null = null;
   private overlayFocusMobile = false;
   private overlayFocusSheetState: BottomSheetState = "collapsed";
+  private overlayFocusDesktopSide: DesktopSheetSide = "left";
+  private overlayFocusDesktopWidth: DesktopSheetWidth = 0.5;
   private overlayFocusMix = 0;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
@@ -128,7 +132,9 @@ export class GalleryEngine {
     this.renderer.domElement.style.maxHeight = "100%";
     this.renderer.domElement.style.position = "absolute";
     this.renderer.domElement.style.inset = "0";
+    this.renderer.domElement.style.zIndex = "1";
     this.renderer.domElement.style.touchAction = "none";
+      "radial-gradient(ellipse 120% 120% at 50% 50%, #000 72%, rgba(0, 0, 0, 0) 100%)";
     this.container.appendChild(this.renderer.domElement);
     this.resetAtmosphereBase();
 
@@ -163,11 +169,15 @@ export class GalleryEngine {
     enabled: boolean,
     mobile: boolean,
     sheetState: BottomSheetState,
+    desktopSide: DesktopSheetSide,
+    desktopWidth: DesktopSheetWidth,
   ): void {
     this.overlayFocusEnabled = enabled && itemIndex !== null;
     this.overlayFocusItemIndex = itemIndex;
     this.overlayFocusMobile = mobile;
     this.overlayFocusSheetState = sheetState;
+    this.overlayFocusDesktopSide = desktopSide;
+    this.overlayFocusDesktopWidth = desktopWidth;
     this.resize(true);
     this.applyState();
   }
@@ -297,6 +307,16 @@ export class GalleryEngine {
       effectiveViewport.height,
     );
     this.renderer.setScissorTest(true);
+    this.container.style.setProperty("--gallery-vp-left", `${effectiveViewport.x}px`);
+    this.container.style.setProperty("--gallery-vp-top", `${effectiveViewport.y}px`);
+    this.container.style.setProperty(
+      "--gallery-vp-right",
+      `${Math.max(0, containerWidth - (effectiveViewport.x + effectiveViewport.width))}px`,
+    );
+    this.container.style.setProperty(
+      "--gallery-vp-bottom",
+      `${Math.max(0, containerHeight - (effectiveViewport.y + effectiveViewport.height))}px`,
+    );
     this.updateJourneyViewportAspect(effectiveViewport.aspect, force);
   }
 
@@ -321,6 +341,8 @@ export class GalleryEngine {
     this.overlayFocusEnabled = false;
     this.overlayFocusItemIndex = null;
     this.overlayFocusSheetState = "collapsed";
+    this.overlayFocusDesktopSide = "left";
+    this.overlayFocusDesktopWidth = 0.5;
     this.overlayFocusMix = 0;
     this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
@@ -563,19 +585,36 @@ export class GalleryEngine {
   }
 
   private resolveEffectiveRenderViewport(baseViewport: RenderViewport): RenderViewport {
-    const topVisibleRatio = this.getTopVisibleRatioForBottomSheet();
-    if (topVisibleRatio >= 0.999) {
+    if (!this.overlayFocusEnabled) {
       return baseViewport;
     }
 
-    const clampedRatio = clamp(topVisibleRatio, 0.1, 0.95);
-    const croppedHeight = Math.max(1, Math.round(baseViewport.height * clampedRatio));
+    if (this.overlayFocusMobile) {
+      const topVisibleRatio = this.getTopVisibleRatioForBottomSheet();
+      if (topVisibleRatio >= 0.999) {
+        return baseViewport;
+      }
+
+      const clampedRatio = clamp(topVisibleRatio, 0.1, 0.95);
+      const croppedHeight = Math.max(1, Math.round(baseViewport.height * clampedRatio));
+      return {
+        x: baseViewport.x,
+        y: baseViewport.y + (baseViewport.height - croppedHeight),
+        width: baseViewport.width,
+        height: croppedHeight,
+        aspect: baseViewport.width / croppedHeight,
+      };
+    }
+
+    const desktopVisibleRatio = clamp(1 - this.overlayFocusDesktopWidth, 0.25, 0.75);
+    const croppedWidth = Math.max(1, Math.round(baseViewport.width * desktopVisibleRatio));
+    const anchoredToRight = this.overlayFocusDesktopSide === "left";
     return {
-      x: baseViewport.x,
-      y: baseViewport.y + (baseViewport.height - croppedHeight),
-      width: baseViewport.width,
-      height: croppedHeight,
-      aspect: baseViewport.width / croppedHeight,
+      x: anchoredToRight ? baseViewport.x + (baseViewport.width - croppedWidth) : baseViewport.x,
+      y: baseViewport.y,
+      width: croppedWidth,
+      height: baseViewport.height,
+      aspect: croppedWidth / baseViewport.height,
     };
   }
 
@@ -706,7 +745,7 @@ export class GalleryEngine {
       this.scene.fog.density = this.baseFogDensity + whiteMix * LOOP_FOG_BOOST;
     }
 
-    this.renderer.setClearColor(this.mixedBackgroundColor, 1);
+    this.renderer.setClearColor(this.mixedBackgroundColor, 0);
   }
 
   private clearSceneGraph(): void {

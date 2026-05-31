@@ -75,6 +75,8 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   progressBarOpacity: 0.82,
   progressBarYOffset: 0,
   progressBarHorizontalPadding: 14,
+  desktopDetailsPanelSide: "left",
+  desktopDetailsPanelWidth: 0.25,
   loopWhiteAfterEndWindow: 0.14,
   loopWhiteStartsBeforeEndWindow: 0.05,
   loopWhiteFadeOutRevealWindow: 0.12,

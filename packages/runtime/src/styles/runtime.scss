@@ -55,6 +55,20 @@
   transition: opacity 80ms linear;
 }
 
+.artwork-gap-fill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.08);
+  filter: blur(28px) saturate(1.08);
+  transition: opacity 420ms ease;
+}
+
 .progress-bar-track {
   position: absolute;
   left: var(--progress-bar-horizontal-padding, 14px);
