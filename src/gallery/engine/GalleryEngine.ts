@@ -70,6 +70,11 @@ const DEFAULT_JOURNEY_ASPECT = 16 / 9;
 const JOURNEY_ASPECT_EPSILON = 0.01;
 const OVERLAY_FOCUS_BLEND_SPEED = 0.18;
 const OVERLAY_FOCUS_MIX_EPSILON = 0.001;
+const STATION_OVERLAY_CENTER_BLEND_MOBILE = 0.14;
+const STATION_OVERLAY_CENTER_BLEND_DESKTOP = 0.1;
+const STATION_OVERLAY_DISTANCE_BOOST_MOBILE = 0.34;
+const STATION_OVERLAY_DISTANCE_BOOST_DESKTOP = 0.24;
+const STATION_OVERLAY_FOCUS_PULL = 0.02;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -587,9 +592,15 @@ export class GalleryEngine {
     const focusPosition = item.focusPosition;
     const centerPosition = item.centerPosition;
     const focusTarget = item.focusTarget;
-    const blendToCenter = this.overlayFocusMobile ? 0.4 : 0.26;
+    const blendToCenter = this.overlayFocusMobile
+      ? STATION_OVERLAY_CENTER_BLEND_MOBILE
+      : STATION_OVERLAY_CENTER_BLEND_DESKTOP;
+    const distanceBoost = this.overlayFocusMobile
+      ? STATION_OVERLAY_DISTANCE_BOOST_MOBILE
+      : STATION_OVERLAY_DISTANCE_BOOST_DESKTOP;
     const anchoredPosition = lerpVec3(focusPosition, centerPosition, blendToCenter);
-    const framedPosition = lerpVec3(anchoredPosition, focusTarget, 0.13);
+    const fartherPosition = lerpVec3(focusTarget, anchoredPosition, 1 + distanceBoost);
+    const framedPosition = lerpVec3(fartherPosition, focusTarget, STATION_OVERLAY_FOCUS_PULL);
 
     return {
       position: framedPosition,

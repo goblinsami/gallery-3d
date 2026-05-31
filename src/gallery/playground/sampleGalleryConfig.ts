@@ -112,7 +112,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
       ...artwork,
       id: `c-${index + 1}`,
       side: index % 2 === 0 ? "left" : "right",
-      frameEnabled: true,
+      frameEnabled: false,
       frameColor: "#6e1b40",
       spotlightIntensity: 1.55,
       sideText: artwork.sideText
@@ -170,7 +170,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
       ...artwork,
       id: `n-${index + 1}`,
       side: index % 2 === 0 ? "right" : "left",
-      frameEnabled: true,
+      frameEnabled: false,
       frameColor: "#1f5f83",
       spotlightIntensity: 1.65,
       sideText: artwork.sideText
@@ -205,7 +205,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
       ...artwork,
       id: `p-${index + 1}`,
       side: index % 2 === 0 ? "left" : "right",
-      frameEnabled: true,
+      frameEnabled: false,
       frameColor: "#1c2a3f",
     })),
     items: [
@@ -214,7 +214,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         type: "artwork" as const,
         id: `p-${index + 1}`,
         side: index % 2 === 0 ? "left" : "right",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
       })),
       {
@@ -280,7 +280,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "A global campaign celebrating movement, innovation and contemporary culture.",
         imageUrl: "/images/projects/project1.jpg",
         side: "left",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Nike",
@@ -296,7 +296,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "Product storytelling through light, sound and visual atmosphere.",
         imageUrl: "/images/projects/sony-bravia.jpg",
         side: "right",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Sony",
@@ -312,7 +312,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "A visual identity refresh inspired by youth culture and urban expression.",
         imageUrl: "/images/projects/adidas-originals.jpg",
         side: "left",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Adidas",
@@ -328,7 +328,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "Exploring spatial storytelling for next-generation interfaces.",
         imageUrl: "/images/projects/apple-vision.jpg",
         side: "right",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Concept Project",
@@ -344,7 +344,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "A visual exploration of music discovery and emotional journeys.",
         imageUrl: "/images/projects/spotify-reimagined.jpg",
         side: "left",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Spotify",
@@ -362,7 +362,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "A global campaign celebrating movement, innovation and contemporary culture.",
         imageUrl: "/images/projects/project1.png",
         side: "left",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Nike",
@@ -378,7 +378,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "Product storytelling through light, sound and visual atmosphere.",
         imageUrl: "/images/projects/project2.png",
         side: "right",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Sony",
@@ -394,7 +394,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "A visual identity refresh inspired by youth culture and urban expression.",
         imageUrl: "/images/projects/project3.png",
         side: "left",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Adidas",
@@ -408,7 +408,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         type: "stational-card" as const,
         variant: "about" as const,
         title: "About Me",
-        subtitle: "ABOUT",
+        subtitle: "Stationary Card",
         biography: "I turn brands into stories people feel.",
         manifesto:
           "I am a creative director specializing in brand storytelling, campaign development and immersive digital experiences. Over the past decade I have collaborated with global brands, multidisciplinary teams and independent creators to build visual narratives that connect strategy and emotion.",
@@ -420,7 +420,10 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         ],
         references: ["Based in Barcelona, Spain"],
         image: "/images/projects/profile.jpg",
-        layout: "image-right" as const,
+        layout: "text" as const,
+        width: 1,
+        height: 1,
+        depth: 0.04,
         cta: {
           label: "Contact Me",
           url: "#contact",
@@ -433,7 +436,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "Exploring spatial storytelling for next-generation interfaces.",
         imageUrl: "/images/projects/project4.png",
         side: "right",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Concept Project",
@@ -449,7 +452,7 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         description: "A visual exploration of music discovery and emotional journeys.",
         imageUrl: "/images/projects/project5.png",
         side: "left",
-        frameEnabled: true,
+        frameEnabled: false,
         frameColor: "#1c2a3f",
         metadata: {
           artist: "Spotify",
@@ -463,10 +466,13 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
         type: "stational-card" as const,
         variant: "contact" as const,
         title: "Let's Work Together",
-        subtitle: "CONTACT",
+        subtitle: "Stationary Card",
         manifesto:
           "Available for selected collaborations, consulting and creative leadership roles. Whether you are launching a new brand, developing a global campaign, or exploring an immersive digital experience, I would love to hear about your project.",
         layout: "text" as const,
+        width: 2.9,
+        height: 2.05,
+        depth: 0.04,
         contact: {
           email: "hello@yourstudio.com",
           location: "Barcelona, Spain",

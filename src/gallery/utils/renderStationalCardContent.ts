@@ -57,9 +57,10 @@ const artworkToContent = (artwork: ArtworkConfig): RenderedGalleryItemContent =>
 export const renderStationalCardContent = (
   station: StationalCardConfig,
 ): RenderedGalleryItemContent => {
-  const eyebrow =
+/*   const eyebrow =
     (station.variant ? VARIANT_LABELS[station.variant] : undefined) ??
-    "Station";
+    "Station"; */
+    const eyebrow = ''
   const title = clean(station.title) ?? "Station";
   const subtitle = clean(station.subtitle);
   const description = clean(station.description);

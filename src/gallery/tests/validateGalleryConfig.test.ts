@@ -97,6 +97,48 @@ describe("validateGalleryConfig", () => {
     expect(result.config.artworks).toHaveLength(0);
   });
 
+  it("preserves and clamps custom stational card sizing", () => {
+    const sized = validateGalleryConfig({
+      items: [
+        {
+          id: "station-sized",
+          type: "stational-card",
+          title: "Sized Station",
+          width: 2.9,
+          height: 1.95,
+          depth: 0.04,
+        },
+      ],
+    });
+
+    expect(sized.config.items).toHaveLength(1);
+    expect(sized.config.items?.[0].type).toBe("stational-card");
+    if (sized.config.items?.[0].type === "stational-card") {
+      expect(sized.config.items[0].width).toBeCloseTo(2.9);
+      expect(sized.config.items[0].height).toBeCloseTo(1.95);
+      expect(sized.config.items[0].depth).toBeCloseTo(0.04);
+    }
+
+    const clamped = validateGalleryConfig({
+      items: [
+        {
+          id: "station-clamped",
+          type: "stational-card",
+          title: "Clamped Station",
+          width: 20,
+          height: 0.5,
+          depth: 1,
+        },
+      ],
+    });
+
+    if (clamped.config.items?.[0].type === "stational-card") {
+      expect(clamped.config.items[0].width).toBe(8);
+      expect(clamped.config.items[0].height).toBe(1.2);
+      expect(clamped.config.items[0].depth).toBe(0.4);
+    }
+  });
+
   it("detects invalid artworks and preserves valid ones", () => {
     const result = validateGalleryConfig({
       artworks: [

@@ -24,7 +24,7 @@ interface ControlSection {
 }
 
 const initialSample =
-  sampleGalleryConfigs.find((sample) => sample.id === "portfolio-stations") ??
+  sampleGalleryConfigs.find((sample) => sample.id === "creative-director-portfolio") ??
   sampleGalleryConfigs[0];
 const activeSampleId = ref(initialSample.id);
 const cameraAspectPreset = ref<AspectRatioPreset>(

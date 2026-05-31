@@ -58,7 +58,7 @@ export const ASPECT_RATIO_PRESET_VALUES: Record<AspectRatioPreset, number | unde
 };
 
 export const DEFAULT_CAMERA_ASPECT_PRESET: AspectRatioPreset = "auto";
-export const DEFAULT_MOBILE_CAMERA_ASPECT_PRESET: AspectRatioPreset = "ratio_3_4";
+export const DEFAULT_MOBILE_CAMERA_ASPECT_PRESET: AspectRatioPreset = "ratio_9_20";
 
 const EPSILON = 0.0001;
 
