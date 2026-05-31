@@ -3,7 +3,18 @@ import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 
 export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
-  DEFAULT_GALLERY_CONFIG,
+  {
+    ...DEFAULT_GALLERY_CONFIG,
+    artworks: DEFAULT_GALLERY_CONFIG.artworks.map((artwork) => ({
+      ...artwork,
+      sideText: undefined,
+    })),
+    items: DEFAULT_GALLERY_CONFIG.artworks.map((artwork) => ({
+      ...artwork,
+      type: "artwork" as const,
+      sideText: undefined,
+    })),
+  },
   {
     ...DEFAULT_GALLERY_CONFIG,
     id: "mistery-museum",

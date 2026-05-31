@@ -50,6 +50,18 @@ const VALID_PROGRESS_BAR_POSITIONS: ProgressBarPosition[] = ["top", "bottom"];
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
+const sanitizeStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const cleaned = value
+    .map((entry) => (isNonEmptyString(entry) ? entry.trim() : ""))
+    .filter((entry) => entry.length > 0);
+
+  return cleaned.length > 0 ? cleaned : undefined;
+};
+
 const toVec3 = (value: unknown, fallback: Vec3): Vec3 => {
   if (
     Array.isArray(value) &&
@@ -196,6 +208,11 @@ const sanitizeStationalCard = (
     title: station.title.trim(),
     subtitle: isNonEmptyString(station.subtitle) ? station.subtitle.trim() : undefined,
     description: isNonEmptyString(station.description) ? station.description.trim() : undefined,
+    biography: isNonEmptyString(station.biography) ? station.biography.trim() : undefined,
+    manifesto: isNonEmptyString(station.manifesto) ? station.manifesto.trim() : undefined,
+    services: sanitizeStringArray(station.services),
+    testimonials: sanitizeStringArray(station.testimonials),
+    references: sanitizeStringArray(station.references),
     image: isNonEmptyString(station.image) ? station.image.trim() : undefined,
     layout: VALID_STATIONAL_LAYOUTS.includes(station.layout as StationalCardLayout)
       ? (station.layout as StationalCardLayout)

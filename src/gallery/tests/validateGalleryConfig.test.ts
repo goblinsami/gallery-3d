@@ -66,6 +66,10 @@ describe("validateGalleryConfig", () => {
           title: "About Me",
           subtitle: "Creative Director",
           description: "Story-driven design in immersive spaces.",
+          biography: "Designing narrative systems for immersive products.",
+          services: ["Creative Direction", "Experience Design", " "],
+          testimonials: ["\"A visionary partner\" - Studio North"],
+          references: ["Awwwards", "FWA"],
           layout: "image-right",
           image: "/images/profile.jpg",
           socialLinks: [{ label: "LinkedIn", url: "https://linkedin.com/in/demo" }],
@@ -77,6 +81,19 @@ describe("validateGalleryConfig", () => {
 
     expect(result.config.items).toHaveLength(1);
     expect(result.config.items?.[0].type).toBe("stational-card");
+    if (result.config.items?.[0].type === "stational-card") {
+      expect(result.config.items[0].biography).toBe(
+        "Designing narrative systems for immersive products.",
+      );
+      expect(result.config.items[0].services).toEqual([
+        "Creative Direction",
+        "Experience Design",
+      ]);
+      expect(result.config.items[0].testimonials).toEqual([
+        "\"A visionary partner\" - Studio North",
+      ]);
+      expect(result.config.items[0].references).toEqual(["Awwwards", "FWA"]);
+    }
     expect(result.config.artworks).toHaveLength(0);
   });
 

@@ -34,6 +34,7 @@ export class ScrollProgressController {
   private loopWhiteFadeOutRevealWindow: number;
   private loopProgressAdvanceDuringWhiteFadeOut: number;
   private hasCompletedInitialLoop = false;
+  private interactionEnabled = true;
 
   private running = false;
   private velocity = 0;
@@ -88,16 +89,26 @@ export class ScrollProgressController {
   };
 
   private readonly onWheel = (event: WheelEvent): void => {
-    event.preventDefault();
+    if (!this.interactionEnabled) {
+      return;
+    }
+
     if (event.ctrlKey) {
       return;
     }
 
+    event.preventDefault();
     const normalizedDelta = this.normalizeWheelDelta(event);
     this.velocity += normalizedDelta * this.sensitivity;
   };
 
   private readonly onTouchStart = (event: TouchEvent): void => {
+    if (!this.interactionEnabled) {
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+      return;
+    }
+
     const touch = event.touches[0];
     if (!touch) {
       return;
@@ -108,6 +119,10 @@ export class ScrollProgressController {
   };
 
   private readonly onTouchMove = (event: TouchEvent): void => {
+    if (!this.interactionEnabled) {
+      return;
+    }
+
     if (this.lastTouchY === null) {
       return;
     }
@@ -133,6 +148,12 @@ export class ScrollProgressController {
   };
 
   private readonly onTouchEnd = (event: TouchEvent): void => {
+    if (!this.interactionEnabled) {
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+      return;
+    }
+
     const touches = Array.from(event.touches);
     if (touches.length === 0) {
       this.activeTouchId = null;
@@ -239,6 +260,20 @@ export class ScrollProgressController {
     this.targetProgress = normalized;
     this.velocity = 0;
     this.emitCurrentState();
+  }
+
+  setInteractionEnabled(enabled: boolean): void {
+    if (this.interactionEnabled === enabled) {
+      return;
+    }
+
+    this.interactionEnabled = enabled;
+    if (!enabled) {
+      this.velocity = 0;
+      this.targetProgress = this.progress;
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+    }
   }
 
   dispose(): void {

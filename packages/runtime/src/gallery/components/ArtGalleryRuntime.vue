@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import BottomSheet from "./BottomSheet.vue";
 import { GalleryEngine } from "../engine/GalleryEngine";
 import type { ArtGallerySceneConfig, DeepPartial, GalleryItem } from "../types/galleryConfig";
 import { validateGalleryConfig } from "../utils/validateGalleryConfig";
@@ -10,7 +11,9 @@ import {
 import { toWheelSensitivity } from "../utils/scrollStrength";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { getGalleryItems, isArtworkItem } from "../utils/galleryItems";
-import { renderGalleryItemContent } from "../utils/renderStationalCardContent";
+import { renderJourneyNodeContent } from "../utils/renderJourneyNodeContent";
+
+type BottomSheetState = "collapsed" | "half" | "full";
 
 interface Props {
   config: ArtGallerySceneConfig | DeepPartial<ArtGallerySceneConfig>;
@@ -18,12 +21,6 @@ interface Props {
 }
 
 const DEFAULT_MOBILE_BREAKPOINT = 820;
-const MOBILE_TAP_MOVE_THRESHOLD_PX = 18;
-const MOBILE_TAP_TIME_THRESHOLD_MS = 450;
-const MOBILE_SURFACE_CLICK_DEDUPE_MS = 420;
-const MOBILE_POINTER_TO_CLICK_GUARD_MS = 1100;
-const MOBILE_STALE_POINTER_RESET_MS = 1600;
-const MOBILE_TAP_DEBUG_WINDOW_FLAG = "__SCROLLIX_MOBILE_TAP_DEBUG__";
 
 const props = withDefaults(defineProps<Props>(), {
   initialProgress: 0,
@@ -38,48 +35,15 @@ const whiteOverlayOpacity = ref(0);
 const journeyProgress = ref(0);
 const containerWidth = ref(0);
 const containerHeight = ref(0);
-const activeArtworkIndex = ref<number | null>(null);
-const lastKnownArtworkIndex = ref<number | null>(null);
-const mobileOverlayVisible = ref(false);
-const tapPointerId = ref<number | null>(null);
-const tapStartX = ref(0);
-const tapStartY = ref(0);
-const tapStartTime = ref(0);
-const tapMoved = ref(false);
+const activeItemIndex = ref<number | null>(null);
+const lastKnownItemIndex = ref<number | null>(null);
+const bottomSheetState = ref<BottomSheetState>("collapsed");
+
 let engine: GalleryEngine | null = null;
 let scrollController: ScrollProgressController | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeTimeout: number | null = null;
 let viewportResizeTimeout: number | null = null;
-let lastSurfaceToggleTimestamp = Number.NEGATIVE_INFINITY;
-let lastPointerTapToggleTimestamp = Number.NEGATIVE_INFINITY;
-
-const isTapDebugEnabled = (): boolean => {
-  if (import.meta.env.DEV) return true;
-  if (typeof window === "undefined") return false;
-  return (
-    (window as Window & { __SCROLLIX_MOBILE_TAP_DEBUG__?: boolean })[
-      MOBILE_TAP_DEBUG_WINDOW_FLAG
-    ] === true
-  );
-};
-
-const debugTap = (stage: string, details: Record<string, unknown> = {}): void => {
-  if (!isTapDebugEnabled()) return;
-  console.info(`[Scrollix][MobileTap] ${stage}`, details);
-};
-
-const describeEventTarget = (target: EventTarget | null): string => {
-  if (!(target instanceof Element)) return "non-element";
-  const idPart = target.id ? `#${target.id}` : "";
-  const classPart =
-    target.classList.length > 0
-      ? `.${Array.from(target.classList)
-          .slice(0, 2)
-          .join(".")}`
-      : "";
-  return `${target.tagName.toLowerCase()}${idPart}${classPart}`;
-};
 
 const updateContainerMetrics = (): void => {
   if (!containerRef.value) return;
@@ -90,8 +54,6 @@ const updateContainerMetrics = (): void => {
 
 const resolveMobileBreakpoint = (config: ArtGallerySceneConfig): number =>
   Math.max(320, Math.min(1600, config.camera.mobileBreakpointWidth ?? DEFAULT_MOBILE_BREAKPOINT));
-
-const isMobileContainer = (width: number, breakpoint: number): boolean => width <= breakpoint;
 
 const requestResize = (delayMs = 0): void => {
   if (viewportResizeTimeout !== null) {
@@ -124,7 +86,7 @@ const isMobileLayout = computed(() => {
   const config = resolvedConfig.value;
   const breakpoint = resolveMobileBreakpoint(config);
   const width = containerWidth.value || (typeof window !== "undefined" ? window.innerWidth : 0);
-  return isMobileContainer(width, breakpoint);
+  return width <= breakpoint;
 });
 const runtimeSceneConfig = computed<ArtGallerySceneConfig>(() => {
   const config = resolvedConfig.value;
@@ -134,92 +96,30 @@ const runtimeSceneConfig = computed<ArtGallerySceneConfig>(() => {
 
   const mobileItems = getGalleryItems(config).map((item) =>
     isArtworkItem(item)
-      ? (
-          config.mobileDetailsOverlayEnabled
-            ? {
-                ...item,
-                sideText: undefined,
-              }
-            : item
-        )
+      ? item
       : {
           ...item,
           mobileColumnLayout: true,
         },
   );
 
-  if (!config.mobileDetailsOverlayEnabled) {
-    return {
-      ...config,
-      items: mobileItems,
-    };
-  }
-
   return {
     ...config,
     items: mobileItems,
-    artworks: config.artworks.map((artwork) => ({
-      ...artwork,
-      sideText: undefined,
-    })),
   };
 });
 const whiteOverlayStyle = computed(() => ({
   opacity: whiteOverlayOpacity.value,
   background: GALLERY_TOKENS.scene.white,
 }));
-const galleryItems = computed<GalleryItem[]>(() => getGalleryItems(resolvedConfig.value));
-const activeGalleryItem = computed<GalleryItem | null>(() => {
-  const index = activeArtworkIndex.value ?? lastKnownArtworkIndex.value;
+const galleryItems = computed<GalleryItem[]>(() => getGalleryItems(runtimeSceneConfig.value));
+const activeJourneyContent = computed(() => {
+  const index = activeItemIndex.value ?? lastKnownItemIndex.value;
   if (index === null || index < 0 || index >= galleryItems.value.length) {
     return null;
   }
-  return galleryItems.value[index];
-});
-const overlayContent = computed(() => renderGalleryItemContent(activeGalleryItem.value));
-const overlayEyebrow = computed(() => overlayContent.value?.eyebrow ?? "Gallery Note");
-const overlayTitle = computed(() => overlayContent.value?.title ?? "");
-const overlaySubtitle = computed(() => overlayContent.value?.subtitle ?? "");
-const overlayDescription = computed(() => overlayContent.value?.description ?? "");
-const overlayContactLines = computed(() => overlayContent.value?.contactLines ?? []);
-const overlaySocialLinks = computed(() => overlayContent.value?.socialLinks ?? []);
-const overlayCta = computed(() => overlayContent.value?.cta);
-const canShowMobileOverlay = computed(
-  () =>
-    resolvedConfig.value.mobileDetailsOverlayEnabled &&
-    isMobileLayout.value &&
-    Boolean(
-      overlayTitle.value ||
-        overlaySubtitle.value ||
-        overlayDescription.value ||
-        overlayContactLines.value.length ||
-        overlaySocialLinks.value.length,
-    ),
-);
-const mobileOverlayHasBackdrop = computed(() => resolvedConfig.value.mobileDetailsBackdropEnabled);
-const mobileOverlayButtonPositionClass = computed(
-  () => `mobile-overlay-toggle--${resolvedConfig.value.mobileDetailsButtonPosition}`,
-);
-const mobileOverlayModalPositionClass = computed(
-  () => `mobile-artwork-overlay--${resolvedConfig.value.mobileDetailsModalPosition}`,
-);
-const mobileOverlayUsesTopAnchor = computed(
-  () => resolvedConfig.value.mobileDetailsModalPosition === "top",
-);
-const mobileOverlayBackdropStyle = computed(() => {
-  if (!mobileOverlayHasBackdrop.value) {
-    return { background: "transparent" };
-  }
 
-  const intensity = Math.max(0, Math.min(1, resolvedConfig.value.mobileDetailsBackdropIntensity));
-  const height = Math.max(0, Math.min(1, resolvedConfig.value.mobileDetailsBackdropHeight));
-  const midStop = Math.round(height * 42);
-  const endStop = Math.round(height * 100);
-  const direction = mobileOverlayUsesTopAnchor.value ? "to bottom" : "to top";
-
-  return {
-    background: `linear-gradient(${direction}, rgba(2, 7, 20, ${(0.78 * intensity).toFixed(3)}) 0%, rgba(2, 7, 20, ${(0.35 * intensity).toFixed(3)}) ${midStop}%, rgba(2, 7, 20, ${(0.08 * intensity).toFixed(3)}) ${endStop}%, transparent 100%)`,
-  };
+  return renderJourneyNodeContent(galleryItems.value[index], index, galleryItems.value.length);
 });
 const progressBarPositionClass = computed(
   () => `progress-bar-track--${resolvedConfig.value.progressBarPosition}`,
@@ -236,287 +136,26 @@ const progressBarFillStyle = computed<Record<string, string>>(() => ({
   transform: `scaleX(${Math.max(0, Math.min(1, journeyProgress.value))})`,
 }));
 
-const closeMobileOverlay = (): void => {
-  mobileOverlayVisible.value = false;
-};
-
 const setActiveItemIndex = (index: number | null): void => {
-  activeArtworkIndex.value = index;
+  activeItemIndex.value = index;
   if (index !== null) {
-    lastKnownArtworkIndex.value = index;
+    lastKnownItemIndex.value = index;
   }
 };
 
-const isTapIgnoredTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  return Boolean(
-    target.closest(".mobile-overlay-toggle") ||
-      target.closest(".mobile-artwork-overlay") ||
-      target.closest(".mobile-artwork-overlay-card"),
-  );
+const syncScrollOwnership = (): void => {
+  scrollController?.setInteractionEnabled(bottomSheetState.value === "collapsed");
 };
 
-const toggleMobileOverlay = (): void => {
-  if (!canShowMobileOverlay.value) return;
-  mobileOverlayVisible.value = !mobileOverlayVisible.value;
+const handleBottomSheetStateChange = (state: BottomSheetState): void => {
+  bottomSheetState.value = state;
+  syncScrollOwnership();
 };
 
-const canHandleMobileOverlayGesture = (): boolean =>
-  isMobileLayout.value && resolvedConfig.value.mobileDetailsOverlayEnabled;
-
-const tryActivateNearestItemFromSurfaceTap = (clientX: number, clientY: number): boolean => {
-  const nearestItemIndex = engine?.getClosestItemIndexFromClientPoint(clientX, clientY) ?? null;
-  debugTap("nearest-item:query", {
-    clientX,
-    clientY,
-    nearestItemIndex,
-    activeArtworkIndex: activeArtworkIndex.value,
-    lastKnownArtworkIndex: lastKnownArtworkIndex.value,
-  });
-  if (nearestItemIndex === null) {
-    return false;
-  }
-
-  setActiveItemIndex(nearestItemIndex);
-  return true;
-};
-
-const toggleMobileOverlayFromSurface = (clientX: number, clientY: number): boolean => {
-  const activatedNearestItem = tryActivateNearestItemFromSurfaceTap(clientX, clientY);
-  if (!canShowMobileOverlay.value) {
-    debugTap("surface-toggle:blocked", {
-      reason: "canShowMobileOverlay=false",
-      activatedNearestItem,
-      activeArtworkIndex: activeArtworkIndex.value,
-      lastKnownArtworkIndex: lastKnownArtworkIndex.value,
-    });
-    return false;
-  }
-
-  if (activatedNearestItem) {
-    mobileOverlayVisible.value = true;
-  } else {
-    debugTap("surface-tap:no-nearest-noop", {
-      clientX,
-      clientY,
-      overlayVisible: mobileOverlayVisible.value,
-    });
-    return false;
-  }
-
-  lastSurfaceToggleTimestamp = performance.now();
-  debugTap("surface-toggle:done", {
-    clientX,
-    clientY,
-    activatedNearestItem,
-    overlayVisible: mobileOverlayVisible.value,
-    activeArtworkIndex: activeArtworkIndex.value,
-    lastKnownArtworkIndex: lastKnownArtworkIndex.value,
-  });
-  return true;
-};
-
-const handlePointerDown = (event: PointerEvent): void => {
-  if (!canHandleMobileOverlayGesture()) {
-    debugTap("pointerdown:ignored", {
-      reason: "gesture-disabled",
-      isMobileLayout: isMobileLayout.value,
-      mobileDetailsOverlayEnabled: resolvedConfig.value.mobileDetailsOverlayEnabled,
-    });
-    return;
-  }
-  if (isTapIgnoredTarget(event.target)) {
-    debugTap("pointerdown:ignored", {
-      reason: "target-ignored",
-      target: describeEventTarget(event.target),
-    });
-    return;
-  }
-  if (event.isPrimary === false) {
-    debugTap("pointerdown:ignored", {
-      reason: "non-primary-pointer",
-      pointerId: event.pointerId,
-      pointerType: event.pointerType,
-      isPrimary: event.isPrimary,
-    });
-    return;
-  }
-  if (tapPointerId.value !== null) {
-    const trackedDurationMs = Math.max(0, event.timeStamp - tapStartTime.value);
-    if (trackedDurationMs > MOBILE_STALE_POINTER_RESET_MS) {
-      debugTap("pointerdown:reset-stale-tracked-pointer", {
-        trackedPointerId: tapPointerId.value,
-        incomingPointerId: event.pointerId,
-        trackedDurationMs,
-        staleThresholdMs: MOBILE_STALE_POINTER_RESET_MS,
-      });
-      resetTapState();
-    } else {
-      debugTap("pointerdown:ignored", {
-        reason: "pointer-already-tracked",
-        trackedPointerId: tapPointerId.value,
-        incomingPointerId: event.pointerId,
-        trackedDurationMs,
-      });
-      return;
-    }
-  }
-  tapPointerId.value = event.pointerId;
-  tapStartX.value = event.clientX;
-  tapStartY.value = event.clientY;
-  tapStartTime.value = event.timeStamp;
-  tapMoved.value = false;
-  debugTap("pointerdown", {
-    pointerId: event.pointerId,
-    x: event.clientX,
-    y: event.clientY,
-    ts: event.timeStamp,
-    target: describeEventTarget(event.target),
-  });
-  if (
-    event.pointerType === "mouse" &&
-    event.currentTarget instanceof Element &&
-    typeof event.currentTarget.setPointerCapture === "function"
-  ) {
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // noop: some browsers reject pointer capture for touch gestures.
-    }
-  }
-};
-
-const handlePointerMove = (event: PointerEvent): void => {
-  if (tapPointerId.value !== event.pointerId) return;
-  if (tapMoved.value) return;
-  const dx = event.clientX - tapStartX.value;
-  const dy = event.clientY - tapStartY.value;
-  if (Math.hypot(dx, dy) > MOBILE_TAP_MOVE_THRESHOLD_PX) {
-    tapMoved.value = true;
-    debugTap("pointermove:tap-cancelled-by-move", {
-      pointerId: event.pointerId,
-      dx,
-      dy,
-      distance: Math.hypot(dx, dy),
-      threshold: MOBILE_TAP_MOVE_THRESHOLD_PX,
-    });
-  }
-};
-
-const resetTapState = (): void => {
-  const pointerId = tapPointerId.value;
-  if (
-    pointerId !== null &&
-    containerRef.value &&
-    typeof containerRef.value.releasePointerCapture === "function"
-  ) {
-    try {
-      const hasPointerCapture =
-        typeof containerRef.value.hasPointerCapture === "function"
-          ? containerRef.value.hasPointerCapture(pointerId)
-          : true;
-      if (hasPointerCapture) {
-        containerRef.value.releasePointerCapture(pointerId);
-      }
-    } catch {
-      // noop
-    }
-  }
-  tapPointerId.value = null;
-  tapMoved.value = false;
-  tapStartTime.value = 0;
-};
-
-const handlePointerUp = (event: PointerEvent): void => {
-  if (tapPointerId.value !== event.pointerId) {
-    debugTap("pointerup:ignored", {
-      reason: "pointer-id-mismatch",
-      pointerId: event.pointerId,
-      trackedPointerId: tapPointerId.value,
-    });
-    return;
-  }
-  if (isTapIgnoredTarget(event.target)) {
-    debugTap("pointerup:ignored", {
-      reason: "target-ignored",
-      target: describeEventTarget(event.target),
-    });
-    resetTapState();
-    return;
-  }
-  const elapsed = event.timeStamp - tapStartTime.value;
-  const shouldToggle = !tapMoved.value && elapsed <= MOBILE_TAP_TIME_THRESHOLD_MS;
-  debugTap("pointerup:evaluated", {
-    pointerId: event.pointerId,
-    elapsed,
-    tapMoved: tapMoved.value,
-    shouldToggle,
-    thresholdMs: MOBILE_TAP_TIME_THRESHOLD_MS,
-    x: event.clientX,
-    y: event.clientY,
-  });
-  resetTapState();
-  if (!shouldToggle) return;
-  const didToggle = toggleMobileOverlayFromSurface(event.clientX, event.clientY);
-  if (didToggle) {
-    lastPointerTapToggleTimestamp = performance.now();
-  }
-};
-
-const handlePointerCancel = (): void => {
-  debugTap("pointercancel", {
-    trackedPointerId: tapPointerId.value,
-  });
-  resetTapState();
-};
-
-const handleContainerClick = (event: MouseEvent): void => {
-  if (!canHandleMobileOverlayGesture()) {
-    debugTap("click:ignored", {
-      reason: "gesture-disabled",
-      isMobileLayout: isMobileLayout.value,
-      mobileDetailsOverlayEnabled: resolvedConfig.value.mobileDetailsOverlayEnabled,
-    });
-    return;
-  }
-  if (isTapIgnoredTarget(event.target)) {
-    debugTap("click:ignored", {
-      reason: "target-ignored",
-      target: describeEventTarget(event.target),
-    });
-    return;
-  }
-
-  const now = performance.now();
-  if (now - lastPointerTapToggleTimestamp <= MOBILE_POINTER_TO_CLICK_GUARD_MS) {
-    debugTap("click:guarded-after-pointerup", {
-      now,
-      lastPointerTapToggleTimestamp,
-      guardWindowMs: MOBILE_POINTER_TO_CLICK_GUARD_MS,
-      deltaMs: now - lastPointerTapToggleTimestamp,
-    });
-    return;
-  }
-
-  if (now - lastSurfaceToggleTimestamp <= MOBILE_SURFACE_CLICK_DEDUPE_MS) {
-    debugTap("click:deduped", {
-      now,
-      lastSurfaceToggleTimestamp,
-      dedupeWindowMs: MOBILE_SURFACE_CLICK_DEDUPE_MS,
-      deltaMs: now - lastSurfaceToggleTimestamp,
-    });
-    return;
-  }
-
-  debugTap("click:accepted", {
-    x: event.clientX,
-    y: event.clientY,
-    target: describeEventTarget(event.target),
-  });
-  toggleMobileOverlayFromSurface(event.clientX, event.clientY);
+const syncBottomSheetCameraFocus = (): void => {
+  const currentItemIndex = activeItemIndex.value ?? lastKnownItemIndex.value;
+  const enabled = bottomSheetState.value !== "collapsed" && currentItemIndex !== null;
+  engine?.setBottomSheetFocus(currentItemIndex, enabled, isMobileLayout.value, bottomSheetState.value);
 };
 
 const handleProgress = (state: ScrollProgressState): void => {
@@ -524,10 +163,7 @@ const handleProgress = (state: ScrollProgressState): void => {
   journeyProgress.value = state.progress;
   engine?.setLoopWhiteMix(state.whiteMix);
   engine?.setProgress(state.progress);
-  setActiveItemIndex(engine?.getActiveArtworkIndex() ?? null);
-  if (!canShowMobileOverlay.value) {
-    closeMobileOverlay();
-  }
+  setActiveItemIndex(engine?.getActiveItemIndex() ?? engine?.getActiveArtworkIndex() ?? null);
   emit("progress", state.progress);
 };
 
@@ -542,7 +178,8 @@ onMounted(async () => {
   engine = new GalleryEngine(containerRef.value, runtimeSceneConfig.value);
   await engine.init();
   engine.setProgress(props.initialProgress);
-  setActiveItemIndex(engine.getActiveArtworkIndex());
+  setActiveItemIndex(engine.getActiveItemIndex() ?? engine.getActiveArtworkIndex());
+  syncBottomSheetCameraFocus();
 
   scrollController = new ScrollProgressController({
     element: containerRef.value,
@@ -558,6 +195,7 @@ onMounted(async () => {
   });
   scrollController.start();
   scrollController.setProgress(props.initialProgress);
+  syncScrollOwnership();
 
   resizeObserver = new ResizeObserver(() => {
     if (resizeTimeout !== null) {
@@ -597,20 +235,30 @@ watch(
       nextConfig.loopProgressAdvanceDuringWhiteFadeOut,
     );
     scrollController?.setLoop(nextConfig.infiniteCorridor);
-    setActiveItemIndex(engine.getActiveArtworkIndex());
-    if (!canShowMobileOverlay.value) {
-      closeMobileOverlay();
-    }
+    setActiveItemIndex(engine.getActiveItemIndex() ?? engine.getActiveArtworkIndex());
+    syncScrollOwnership();
+    syncBottomSheetCameraFocus();
   },
   { deep: true },
 );
 
 watch(
-  () => isMobileLayout.value,
+  () => [bottomSheetState.value, activeItemIndex.value, lastKnownItemIndex.value, isMobileLayout.value],
   () => {
-    if (!isMobileLayout.value) {
-      closeMobileOverlay();
+    syncBottomSheetCameraFocus();
+  },
+);
+
+watch(
+  () => activeJourneyContent.value,
+  (content) => {
+    if (content) {
+      return;
     }
+
+    bottomSheetState.value = "collapsed";
+    syncScrollOwnership();
+    syncBottomSheetCameraFocus();
   },
 );
 
@@ -648,11 +296,6 @@ onBeforeUnmount(() => {
     ref="containerRef"
     class="art-gallery-runtime"
     aria-label="3D Art Gallery Runtime"
-    @click="handleContainerClick"
-    @pointerdown="handlePointerDown"
-    @pointermove="handlePointerMove"
-    @pointerup="handlePointerUp"
-    @pointercancel="handlePointerCancel"
   >
     <div class="white-overlay" :style="whiteOverlayStyle" />
     <div
@@ -663,58 +306,10 @@ onBeforeUnmount(() => {
     >
       <div class="progress-bar-fill" :style="progressBarFillStyle" />
     </div>
-    <button
-      v-if="canShowMobileOverlay"
-      type="button"
-      class="mobile-overlay-toggle"
-      :class="mobileOverlayButtonPositionClass"
-      @click.stop="toggleMobileOverlay"
-      aria-label="Toggle artwork details"
-    >
-      Details
-    </button>
-    <div
-      v-if="mobileOverlayVisible && canShowMobileOverlay"
-      class="mobile-artwork-overlay"
-      :class="[mobileOverlayModalPositionClass, { 'no-backdrop': !mobileOverlayHasBackdrop }]"
-      :style="mobileOverlayBackdropStyle"
-      role="dialog"
-      aria-modal="false"
-      @click.self="closeMobileOverlay"
-    >
-      <article class="mobile-artwork-overlay-card">
-        <header class="mobile-artwork-overlay-header">
-          <p class="mobile-artwork-overlay-eyebrow">{{ overlayEyebrow }}</p>
-          <button
-            type="button"
-            class="mobile-artwork-overlay-close"
-            @click.stop="closeMobileOverlay"
-            aria-label="Close details"
-          >
-            Close
-          </button>
-        </header>
-        <h3 class="mobile-artwork-overlay-title">{{ overlayTitle }}</h3>
-        <p v-if="overlaySubtitle" class="mobile-artwork-overlay-subtitle">
-          {{ overlaySubtitle }}
-        </p>
-        <p v-if="overlayDescription" class="mobile-artwork-overlay-description">
-          {{ overlayDescription }}
-        </p>
-        <ul v-if="overlayContactLines.length > 0" class="mobile-artwork-overlay-list">
-          <li v-for="line in overlayContactLines" :key="line">{{ line }}</li>
-        </ul>
-        <ul v-if="overlaySocialLinks.length > 0" class="mobile-artwork-overlay-list">
-          <li v-for="link in overlaySocialLinks" :key="`${link.label}:${link.url}`">
-            <a :href="link.url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
-          </li>
-        </ul>
-        <p v-if="overlayCta" class="mobile-artwork-overlay-cta">
-          <a :href="overlayCta.url" target="_blank" rel="noopener noreferrer">{{ overlayCta.label }}</a>
-        </p>
-      </article>
-    </div>
+    <BottomSheet
+      :content="activeJourneyContent"
+      :is-mobile="isMobileLayout"
+      @state-change="handleBottomSheetStateChange"
+    />
   </div>
 </template>
-
-

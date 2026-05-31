@@ -92,6 +92,11 @@ export interface StationalCardConfig {
   title: string;
   subtitle?: string;
   description?: string;
+  biography?: string;
+  manifesto?: string;
+  services?: string[];
+  testimonials?: string[];
+  references?: string[];
   image?: string;
   layout?: StationalCardLayout;
   socialLinks?: StationalCardSocialLink[];
