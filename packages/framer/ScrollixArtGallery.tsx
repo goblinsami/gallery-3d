@@ -111,6 +111,11 @@ interface StationalCardConfig {
     title: string
     subtitle?: string
     description?: string
+    biography?: string
+    manifesto?: string
+    services?: string[]
+    testimonials?: string[]
+    references?: string[]
     image?: string
     layout?: StationalCardLayout
     socialLinks?: StationalCardSocialLink[]
@@ -682,12 +687,264 @@ const PORTFOLIO_SAMPLE: ArtGallerySceneConfig = {
     ],
 }
 
+const CREATIVE_DIRECTOR_SAMPLE: ArtGallerySceneConfig = {
+    ...DAYLIGHT_GALLERY_SAMPLE,
+    id: "creative-director-portfolio",
+    sceneTitle: "Creative Direction Portfolio",
+    lightingMode: "contrast",
+    infiniteCorridor: true,
+    sceneBackgroundColor: "#090d15",
+    sceneFogColor: "#111a2a",
+    ceilingSpotsEnabled: true,
+    ceilingSpotsColor: "#c6d6ff",
+    ceilingSpotsIntensity: 2.2,
+    artworkBacklightEnabled: true,
+    artworkBacklightColor: "#8bb4ff",
+    artworkBacklightIntensity: 1.9,
+    artworks: [
+        {
+            id: "nike-air-max-campaign",
+            type: "artwork",
+            title: "Nike Air Max Campaign",
+            description:
+                "A global campaign celebrating movement, innovation and contemporary culture.",
+            imageUrl: "/images/projects/project1.jpg",
+            side: "left",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Nike",
+                year: "2025",
+                medium: "Campaign Direction",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "sony-bravia-launch",
+            type: "artwork",
+            title: "Sony Bravia Launch",
+            description:
+                "Product storytelling through light, sound and visual atmosphere.",
+            imageUrl: "/images/projects/sony-bravia.jpg",
+            side: "right",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Sony",
+                year: "2024",
+                medium: "Launch Campaign",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "adidas-originals",
+            type: "artwork",
+            title: "Adidas Originals",
+            description:
+                "A visual identity refresh inspired by youth culture and urban expression.",
+            imageUrl: "/images/projects/adidas-originals.jpg",
+            side: "left",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Adidas",
+                year: "2024",
+                medium: "Brand Refresh",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "apple-vision-concept",
+            type: "artwork",
+            title: "Apple Vision Concept",
+            description:
+                "Exploring spatial storytelling for next-generation interfaces.",
+            imageUrl: "/images/projects/apple-vision.jpg",
+            side: "right",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Concept Project",
+                year: "2025",
+                medium: "Experience Design",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "spotify-reimagined",
+            type: "artwork",
+            title: "Spotify Reimagined",
+            description:
+                "A visual exploration of music discovery and emotional journeys.",
+            imageUrl: "/images/projects/spotify-reimagined.jpg",
+            side: "left",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Spotify",
+                year: "2023",
+                medium: "Experience Concept",
+                tags: ["Creative Director"],
+            },
+        },
+    ],
+    items: [
+        {
+            id: "nike-air-max-campaign",
+            type: "artwork",
+            title: "Nike Air Max Campaign",
+            description:
+                "A global campaign celebrating movement, innovation and contemporary culture.",
+            imageUrl: "/images/projects/project1.png",
+            side: "left",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Nike",
+                year: "2025",
+                medium: "Campaign Direction",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "sony-bravia-launch",
+            type: "artwork",
+            title: "Sony Bravia Launch",
+            description:
+                "Product storytelling through light, sound and visual atmosphere.",
+            imageUrl: "/images/projects/project2.png",
+            side: "right",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Sony",
+                year: "2024",
+                medium: "Launch Campaign",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "adidas-originals",
+            type: "artwork",
+            title: "Adidas Originals",
+            description:
+                "A visual identity refresh inspired by youth culture and urban expression.",
+            imageUrl: "/images/projects/project3.png",
+            side: "left",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Adidas",
+                year: "2024",
+                medium: "Brand Refresh",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "about-station",
+            type: "stational-card",
+            variant: "about",
+            title: "About Me",
+            subtitle: "Stationary Card",
+            biography: "I turn brands into stories people feel.",
+            manifesto:
+                "I am a creative director specializing in brand storytelling, campaign development and immersive digital experiences. Over the past decade I have collaborated with global brands, multidisciplinary teams and independent creators to build visual narratives that connect strategy and emotion.",
+            services: [
+                "10+ Years - Experience",
+                "Brand Storytelling - Strategy and Concept",
+                "Campaign Direction - Creative Leadership",
+                "Immersive Experiences - Digital and Spatial",
+            ],
+            references: ["Based in Barcelona, Spain"],
+            image: "/images/projects/profile.jpg",
+            layout: "text",
+            width: 1,
+            height: 1,
+            depth: 0.04,
+            cta: {
+                label: "Contact Me",
+                url: "#contact",
+            },
+        },
+        {
+            id: "apple-vision-concept",
+            type: "artwork",
+            title: "Apple Vision Concept",
+            description:
+                "Exploring spatial storytelling for next-generation interfaces.",
+            imageUrl: "/images/projects/project4.png",
+            side: "right",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Concept Project",
+                year: "2025",
+                medium: "Experience Design",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "spotify-reimagined",
+            type: "artwork",
+            title: "Spotify Reimagined",
+            description:
+                "A visual exploration of music discovery and emotional journeys.",
+            imageUrl: "/images/projects/project5.png",
+            side: "left",
+            frameEnabled: false,
+            frameColor: "#1c2a3f",
+            metadata: {
+                artist: "Spotify",
+                year: "2023",
+                medium: "Experience Concept",
+                tags: ["Creative Director"],
+            },
+        },
+        {
+            id: "contact-station",
+            type: "stational-card",
+            variant: "contact",
+            title: "Let's Work Together",
+            subtitle: "Stationary Card",
+            manifesto:
+                "Available for selected collaborations, consulting and creative leadership roles. Whether you are launching a new brand, developing a global campaign, or exploring an immersive digital experience, I would love to hear about your project.",
+            layout: "text",
+            width: 2.9,
+            height: 2.05,
+            depth: 0.04,
+            contact: {
+                email: "hello@yourstudio.com",
+                location: "Barcelona, Spain",
+            },
+            socialLinks: [
+                {
+                    label: "Behance",
+                    url: "https://behance.net",
+                },
+                {
+                    label: "LinkedIn",
+                    url: "https://linkedin.com",
+                },
+                {
+                    label: "Instagram",
+                    url: "https://instagram.com",
+                },
+            ],
+            cta: {
+                label: "Contact Me",
+                url: "mailto:hello@yourstudio.com",
+            },
+        },
+    ],
+}
+
 const SAMPLE_CONFIGS = {
     daylight: DAYLIGHT_GALLERY_SAMPLE,
     mistery: MISTERY_MUSEUM_SAMPLE,
     cabaret: CABARET_GALLERY_SAMPLE,
     naveNodriza: NAVE_NODRIZA_SAMPLE,
     portfolio: PORTFOLIO_SAMPLE,
+    creativeDirector: CREATIVE_DIRECTOR_SAMPLE,
 } as const
 
 type SamplePreset = keyof typeof SAMPLE_CONFIGS
@@ -741,6 +998,7 @@ const TEMPLATE_PATHS: Record<SamplePreset, string> = {
     cabaret: "./templates/cabaret-nocturno.json",
     naveNodriza: "./templates/nave-nodriza.json",
     portfolio: "./templates/portfolio-showcase.json",
+    creativeDirector: "./templates/creative-director-portfolio.json",
 }
 
 const isValidSceneConfig = (value: unknown): value is ArtGallerySceneConfig => {
@@ -789,13 +1047,14 @@ const loadTemplateConfigFromPath = async (
 const loadTemplateConfigs = async (
     fallbackConfigs: SampleConfigMap
 ): Promise<SampleConfigMap> => {
-    const [daylight, mistery, cabaret, naveNodriza, portfolio] =
+    const [daylight, mistery, cabaret, naveNodriza, portfolio, creativeDirector] =
         await Promise.all([
         loadTemplateConfigFromPath("daylight", fallbackConfigs.daylight),
         loadTemplateConfigFromPath("mistery", fallbackConfigs.mistery),
         loadTemplateConfigFromPath("cabaret", fallbackConfigs.cabaret),
         loadTemplateConfigFromPath("naveNodriza", fallbackConfigs.naveNodriza),
         loadTemplateConfigFromPath("portfolio", fallbackConfigs.portfolio),
+        loadTemplateConfigFromPath("creativeDirector", fallbackConfigs.creativeDirector),
     ])
 
     return {
@@ -804,6 +1063,7 @@ const loadTemplateConfigs = async (
         cabaret,
         naveNodriza,
         portfolio,
+        creativeDirector,
     }
 }
 
@@ -813,6 +1073,7 @@ const cloneSampleConfigs = (): SampleConfigMap => ({
     cabaret: cloneConfig(SAMPLE_CONFIGS.cabaret),
     naveNodriza: cloneConfig(SAMPLE_CONFIGS.naveNodriza),
     portfolio: cloneConfig(SAMPLE_CONFIGS.portfolio),
+    creativeDirector: cloneConfig(SAMPLE_CONFIGS.creativeDirector),
 })
 
 const RUNTIME_SCRIPT_ATTR = "data-scrollix-runtime-url"
@@ -3383,7 +3644,7 @@ ScrollixArtGallery.defaultProps = {
     runtimeScriptUrl: "",
     runtimeVersion: DEFAULT_RUNTIME_VERSION,
     runtimeCacheKey: "",
-    samplePreset: "daylight",
+    samplePreset: "creativeDirector",
     artworkSource: "sample",
     artworkImageOverrides: DEFAULT_ARTWORK_IMAGE_OVERRIDES,
     stationalCards: DEFAULT_MANUAL_STATIONAL_CARDS,
@@ -3587,8 +3848,9 @@ addPropertyControls(ScrollixArtGallery, {
             "Cabaret",
             "Nave Nodriza",
             "Portfolio",
+            "Creative Director",
         ],
-        defaultValue: "daylight",
+        defaultValue: "creativeDirector",
     },
     artworkImageOverrides: {
         type: ControlType.Array,
