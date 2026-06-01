@@ -140,6 +140,19 @@ export const PLAYGROUND_CONTROLS: PlaygroundControlDefinition[] = [
     defaultValue: DEFAULT_GALLERY_CONFIG.sceneTitle,
   },
   {
+    key: "startPosition",
+    path: "startPosition",
+    label: "Start Position",
+    description: "Modo de arranque de cámara y título inicial.",
+    section: "Experience",
+    inputType: "select",
+    options: [
+      { label: "forward", value: "forward" },
+      { label: "back", value: "back" },
+    ],
+    defaultValue: DEFAULT_GALLERY_CONFIG.startPosition,
+  },
+  {
     key: "lightingMode",
     path: "lightingMode",
     label: "Lighting Mode",
@@ -459,6 +472,20 @@ export const PLAYGROUND_CONTROLS: PlaygroundControlDefinition[] = [
     max: 0.45,
     step: 0.01,
     defaultValue: DEFAULT_GALLERY_CONFIG.loopProgressAdvanceDuringWhiteFadeOut,
+  },
+  {
+    key: "artworkOverlayFramingMode",
+    path: "artworkOverlayFramingMode",
+    label: "Overlay Framing Mode",
+    description: "Preset de encuadre al abrir una obra en show item.",
+    section: "Journey Focus",
+    inputType: "select",
+    options: [
+      { label: "frontal", value: "frontal" },
+      { label: "balanced", value: "balanced" },
+      { label: "cinematic", value: "cinematic" },
+    ],
+    defaultValue: DEFAULT_GALLERY_CONFIG.artworkOverlayFramingMode,
   },
   {
     key: "artworkFocusFill",

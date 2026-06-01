@@ -19,6 +19,9 @@ const STATIONAL_PASS_THROUGH_MIN = 0.18;
 const STATIONAL_LOOK_AHEAD_MIN = 0.28;
 const STATIONAL_RETURN_FORWARD_MIN = 1.4;
 const STATIONAL_RETURN_FORWARD_SPACING_SHARE = 0.16;
+const START_TITLE_FRAME_MARGIN = 1.12;
+const START_TITLE_VERTICAL_PAD = 1.9;
+const START_TITLE_HORIZONTAL_PAD = 1.08;
 const smootherstep = (t: number): number => {
   const clamped = clamp01(t);
   return clamped * clamped * clamped * (clamped * (clamped * 6 - 15) + 10);
@@ -89,6 +92,19 @@ const getFocusDistance = (
     (itemWidth * 0.5) / Math.max(0.0001, Math.tan(halfHorizontalFov) * focusFill);
 
   return Math.max(0.9, Math.max(distanceByHeight, distanceByWidth));
+};
+
+const resolveForwardStartCameraPosition = (config: ArtGallerySceneConfig, titlePosition: Vec3): Vec3 => {
+  const viewportAspect = ASSUMED_VIEWPORT_ASPECT;
+  const halfVerticalFov = (config.camera.fov * Math.PI) / 360;
+  const halfHorizontalFov = Math.atan(Math.tan(halfVerticalFov) * viewportAspect);
+  const titleHeight = Math.max(0.22, config.sceneTitleConfig.size * config.sceneTitleConfig.lineHeight * START_TITLE_VERTICAL_PAD);
+  const titleWidth = Math.max(0.9, config.sceneTitleConfig.maxWidth * START_TITLE_HORIZONTAL_PAD);
+  const distanceByHeight = (titleHeight * 0.5) / Math.max(0.0001, Math.tan(halfVerticalFov));
+  const distanceByWidth = (titleWidth * 0.5) / Math.max(0.0001, Math.tan(halfHorizontalFov));
+  const titleDistance = Math.max(distanceByHeight, distanceByWidth) * START_TITLE_FRAME_MARGIN;
+
+  return [0, config.camera.height, titlePosition[2] + Math.max(1.4, titleDistance)];
 };
 
 export const calculateArtworkLayout = (
@@ -233,8 +249,12 @@ export const buildCameraKeyframes = (
     config.sceneTitleConfig.position[1],
     config.sceneTitleConfig.position[2],
   ];
+  const startPosition =
+    config.startPosition === "forward"
+      ? resolveForwardStartCameraPosition(config, startLookAt)
+      : config.camera.startPosition;
 
-  push(0, config.camera.startPosition, startLookAt, "start", null);
+  push(0, startPosition, startLookAt, "start", null);
 
   const intro = findSegment(timeline.segments, "intro");
   const introEndPosition: Vec3 = [0, config.camera.height, 0.5];

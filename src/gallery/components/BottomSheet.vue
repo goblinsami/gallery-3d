@@ -37,6 +37,26 @@ const desktopWidthClass = computed(() => `bottom-sheet--desktop-width-${props.de
 const desktopSplitClass = computed(
   () => (!props.isMobile && sheetState.value !== "collapsed" ? "bottom-sheet--desktop-split" : ""),
 );
+const thumbnailUrl = computed(() => {
+  const content = props.content;
+  if (!content) {
+    return undefined;
+  }
+
+  if (content.node.type === "StationalNode") {
+    const item = content.node.item;
+    if (item.type !== "stational-card") {
+      return undefined;
+    }
+
+    const image = item.image?.trim();
+    if (!image) {
+      return undefined;
+    }
+  }
+
+  return content.thumbnailUrl;
+});
 
 const setSheetState = async (nextState: BottomSheetState): Promise<void> => {
   if (sheetState.value === nextState) {
@@ -235,7 +255,12 @@ onBeforeUnmount(() => {
     :aria-expanded="isExpanded"
     tabindex="-1"
   >
-    <article class="bottom-sheet__surface">
+    <article
+      class="bottom-sheet__surface"
+      @click.stop
+      @pointerdown.stop
+      @pointerup.stop
+    >
       <header class="bottom-sheet__rail">
         <button
           type="button"
@@ -261,9 +286,9 @@ onBeforeUnmount(() => {
       </header>
       <button type="button" class="bottom-sheet__summary" @click="onSummaryClick">
         <img
-          v-if="content.thumbnailUrl"
+          v-if="thumbnailUrl"
           class="bottom-sheet__thumb"
-          :src="content.thumbnailUrl"
+          :src="thumbnailUrl"
           :alt="`${content.title} thumbnail`"
           loading="lazy"
         />

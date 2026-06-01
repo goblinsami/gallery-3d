@@ -57,6 +57,20 @@ const clean = (value: string | undefined): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const cleanAssetUrl = (value: string | undefined): string | undefined => {
+  const cleaned = clean(value);
+  if (!cleaned) {
+    return undefined;
+  }
+
+  const lowered = cleaned.toLowerCase();
+  if (lowered === "undefined" || lowered === "null") {
+    return undefined;
+  }
+
+  return cleaned;
+};
+
 const toNonEmptyLines = (values: Array<string | undefined>): string[] =>
   values.filter((entry): entry is string => Boolean(entry && entry.trim().length > 0));
 
@@ -127,7 +141,7 @@ const renderArtworkNodeContent = (
     title: clean(artwork.title) ?? "Untitled",
     subtitle: subtitleParts.length > 0 ? subtitleParts.join(" · ") : undefined,
     description: clean(artwork.description) ?? clean(artwork.sideText?.description),
-    thumbnailUrl: clean(artwork.imageUrl),
+    thumbnailUrl: cleanAssetUrl(artwork.imageUrl),
     contactLines: [],
     socialLinks: [],
     cta: undefined,
@@ -224,7 +238,7 @@ const renderStationalNodeContent = (
     title: clean(station.title) ?? "Station",
     subtitle,
     description,
-    thumbnailUrl: clean(station.image),
+    thumbnailUrl: cleanAssetUrl(station.image),
     contactLines,
     socialLinks,
     cta,

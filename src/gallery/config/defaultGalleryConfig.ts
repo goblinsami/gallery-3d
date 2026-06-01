@@ -52,6 +52,7 @@ const DEFAULT_ARTWORKS: ArtworkConfig[] = [
 export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   id: "daylight-galery",
   sceneTitle: "DayLight galery",
+  startPosition: "forward",
   lightingMode: "day",
   infiniteCorridor: true,
   sceneBackgroundColor: GALLERY_TOKENS.scene.defaultBackground,
@@ -89,6 +90,11 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
   artworkTurnSmoothness: 0.65,
   artworkTurnKeyframes: 4,
   artworkTurnLeadIn: 0.2,
+  artworkOverlayFramingMode: "balanced",
+  artworkOverlayAngleDistanceScale: 0.72,
+  artworkOverlayAngleDistanceMin: 0.95,
+  artworkOverlayAngleDistanceMax: 1.8,
+  artworkOverlayForwardOffset: 0.14,
   camera: {
     fov: CAMERA_DEFAULTS.fov,
     startPosition: [0, CAMERA_DEFAULTS.height, 10],
@@ -121,7 +127,7 @@ export const DEFAULT_GALLERY_CONFIG: ArtGallerySceneConfig = {
     daylightContrastEnabled: true,
     daylightContrastColor: GALLERY_TOKENS.scene.defaultDaylightTitleContrast,
     daylightContrastStrength: 0.3,
-    position: [0, 1.75, 3.25],
+    position: [0, 1.72, -3.4],
     maxOpacity: 1,
     fadeStartProgress: 0.1,
     fadeEndProgress: 0.22,

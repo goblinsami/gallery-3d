@@ -80,9 +80,7 @@ describe("ScrollProgressController loop phases", () => {
     (controller as unknown as { running: boolean; velocity: number; tick: () => void }).velocity = -0.4;
     (controller as unknown as { running: boolean; velocity: number; tick: () => void }).tick();
 
-    expect(states[0]).toEqual({ progress: 0, whiteMix: 0 });
-    expect(states[1].progress).toBe(0);
-    expect(states[1].whiteMix).toBe(0);
+    expect(states.at(-1)).toEqual({ progress: 0, whiteMix: 0 });
   });
 
   it("keeps loop restart continuity after first full cycle", () => {

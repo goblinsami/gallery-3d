@@ -201,6 +201,11 @@ const handleSceneClick = (event: MouseEvent): void => {
     return;
   }
 
+  // When details mode is active, lock scene picking to avoid accidental re-selection.
+  if (bottomSheetState.value !== "collapsed") {
+    return;
+  }
+
   if (event.button !== 0) {
     return;
   }
@@ -285,8 +290,7 @@ const setArtworkGapBlur = (imageUrl: string | undefined): void => {
 const handleProgress = (state: ScrollProgressState): void => {
   whiteOverlayOpacity.value = state.whiteMix;
   journeyProgress.value = state.progress;
-  engine?.setLoopWhiteMix(state.whiteMix);
-  engine?.setProgress(state.progress);
+  engine?.setJourneyState(state.progress, state.whiteMix);
   setActiveItemIndex(engine?.getActiveItemIndex() ?? engine?.getActiveArtworkIndex() ?? null);
   emit("progress", state.progress);
 };

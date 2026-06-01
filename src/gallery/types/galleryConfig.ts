@@ -11,6 +11,8 @@ export type MobileDetailsModalPosition = "top" | "bottom";
 export type ProgressBarPosition = "top" | "bottom";
 export type DesktopDetailsPanelSide = "left" | "right";
 export type DesktopDetailsPanelWidth = 0.25 | 0.5;
+export type ArtworkOverlayFramingMode = "frontal" | "balanced" | "cinematic";
+export type StartPositionMode = "back" | "forward";
 
 export interface ArtworkMetadata {
   artist?: string;
@@ -169,6 +171,7 @@ export interface GalleryTimingsConfig {
 export interface ArtGallerySceneConfig {
   id: string;
   sceneTitle: string;
+  startPosition: StartPositionMode;
   lightingMode: LightingMode;
   infiniteCorridor: boolean;
   sceneBackgroundColor: string;
@@ -206,6 +209,11 @@ export interface ArtGallerySceneConfig {
   artworkTurnSmoothness: number;
   artworkTurnKeyframes: number;
   artworkTurnLeadIn: number;
+  artworkOverlayFramingMode: ArtworkOverlayFramingMode;
+  artworkOverlayAngleDistanceScale: number;
+  artworkOverlayAngleDistanceMin: number;
+  artworkOverlayAngleDistanceMax: number;
+  artworkOverlayForwardOffset: number;
   camera: GalleryCameraConfig;
   corridor: GalleryCorridorConfig;
   sceneTitleConfig: SceneTitleConfig;

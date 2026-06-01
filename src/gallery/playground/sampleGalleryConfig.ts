@@ -419,7 +419,6 @@ export const sampleGalleryConfigs: ArtGallerySceneConfig[] = [
           "Immersive Experiences - Digital and Spatial",
         ],
         references: ["Based in Barcelona, Spain"],
-        image: "/images/projects/profile.jpg",
         layout: "text" as const,
         width: 1,
         height: 1,

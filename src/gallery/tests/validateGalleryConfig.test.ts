@@ -6,6 +6,7 @@ describe("validateGalleryConfig", () => {
   it("returns defaults for empty payload", () => {
     const result = validateGalleryConfig();
     expect(result.config.id).toBe(DEFAULT_GALLERY_CONFIG.id);
+    expect(result.config.startPosition).toBe(DEFAULT_GALLERY_CONFIG.startPosition);
     expect(result.config.items?.length).toBeGreaterThan(0);
     expect(result.config.artworks.length).toBeGreaterThan(0);
     expect(result.config.sceneBackgroundColor).toBe(DEFAULT_GALLERY_CONFIG.sceneBackgroundColor);
@@ -159,6 +160,7 @@ describe("validateGalleryConfig", () => {
   it("merges partial payload with defaults", () => {
     const result = validateGalleryConfig({
       sceneTitle: "Custom Title",
+      startPosition: "back",
       sceneBackgroundColor: "#020202",
       sceneFogColor: "#090909",
       ceilingSpotsEnabled: true,
@@ -205,6 +207,7 @@ describe("validateGalleryConfig", () => {
     });
 
     expect(result.config.sceneTitle).toBe("Custom Title");
+    expect(result.config.startPosition).toBe("back");
     expect(result.config.sceneBackgroundColor).toBe("#020202");
     expect(result.config.sceneFogColor).toBe("#090909");
     expect(result.config.ceilingSpotsEnabled).toBe(true);
@@ -477,6 +480,14 @@ describe("validateGalleryConfig", () => {
     const result = validateGalleryConfig({ infiniteGallery: true } as never);
     expect(result.config.infiniteCorridor).toBe(true);
     expect(result.warnings.some((warning) => warning.includes("infiniteGallery"))).toBe(true);
+  });
+
+  it("sanitizes invalid startPosition values", () => {
+    const result = validateGalleryConfig({
+      startPosition: "diagonal" as never,
+    });
+
+    expect(result.config.startPosition).toBe(DEFAULT_GALLERY_CONFIG.startPosition);
   });
 
   it("sanitizes artwork sideText and clamps its sizing values", () => {

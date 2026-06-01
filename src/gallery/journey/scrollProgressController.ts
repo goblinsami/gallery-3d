@@ -21,6 +21,9 @@ export interface ScrollProgressControllerOptions {
   onProgress: (state: ScrollProgressState) => void;
 }
 
+const EMIT_PROGRESS_EPSILON = 0.000001;
+const EMIT_WHITE_MIX_EPSILON = 0.000001;
+
 export class ScrollProgressController {
   private readonly element: HTMLElement;
   private readonly onProgress: (state: ScrollProgressState) => void;
@@ -42,6 +45,7 @@ export class ScrollProgressController {
   private targetProgress = 0;
   private activeTouchId: number | null = null;
   private lastTouchY: number | null = null;
+  private lastEmittedState: ScrollProgressState | null = null;
   private readonly smoothstep = (value: number): number => {
     const t = clamp(value, 0, 1);
     return t * t * (3 - 2 * t);
@@ -396,6 +400,16 @@ export class ScrollProgressController {
   }
 
   private emitCurrentState(): void {
-    this.onProgress(this.resolveProgressState(this.progress));
+    const state = this.resolveProgressState(this.progress);
+    if (
+      this.lastEmittedState &&
+      Math.abs(state.progress - this.lastEmittedState.progress) <= EMIT_PROGRESS_EPSILON &&
+      Math.abs(state.whiteMix - this.lastEmittedState.whiteMix) <= EMIT_WHITE_MIX_EPSILON
+    ) {
+      return;
+    }
+
+    this.lastEmittedState = state;
+    this.onProgress(state);
   }
 }

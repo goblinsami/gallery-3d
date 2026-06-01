@@ -75,6 +75,8 @@ const STATION_OVERLAY_CENTER_BLEND_DESKTOP = 0.1;
 const STATION_OVERLAY_DISTANCE_BOOST_MOBILE = 0.34;
 const STATION_OVERLAY_DISTANCE_BOOST_DESKTOP = 0.24;
 const STATION_OVERLAY_FOCUS_PULL = 0.02;
+const JOURNEY_PROGRESS_EPSILON = 0.000001;
+const LOOP_WHITE_MIX_EPSILON = 0.000001;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -152,13 +154,15 @@ export class GalleryEngine {
   }
 
   setProgress(progress: number): void {
-    this.progress = clamp(progress, 0, 1);
-    this.applyState();
+    this.updateJourneyState(progress, this.loopWhiteMix);
   }
 
   setLoopWhiteMix(whiteMix: number): void {
-    this.loopWhiteMix = clamp(whiteMix, 0, 1);
-    this.applyState();
+    this.updateJourneyState(this.progress, whiteMix);
+  }
+
+  setJourneyState(progress: number, whiteMix: number): void {
+    this.updateJourneyState(progress, whiteMix);
   }
 
   getActiveArtworkIndex(): number | null {
@@ -183,6 +187,7 @@ export class GalleryEngine {
     this.overlayFocusSheetState = sheetState;
     this.overlayFocusDesktopSide = desktopSide;
     this.overlayFocusDesktopWidth = desktopWidth;
+    this.overlayFocusMix = this.overlayFocusEnabled ? 1 : 0;
     this.resize(true);
     this.applyState();
   }
@@ -215,7 +220,7 @@ export class GalleryEngine {
       return null;
     }
 
-    const maxDistancePx = clamp(focusViewport.width * 0.3, 90, 300);
+    const maxDistancePx = clamp(focusViewport.width * 0.2, 64, 180);
     let closestIndex: number | null = null;
     let closestScore = Number.POSITIVE_INFINITY;
 
@@ -241,23 +246,24 @@ export class GalleryEngine {
       const dy = localY - screenY;
       const distanceSq = dx * dx + dy * dy;
       const isStation = isStationalCard(item);
-      const captureRadiusPx = isStation ? maxDistancePx * 1.28 : maxDistancePx;
+      const captureRadiusPx = isStation ? maxDistancePx * 1.12 : maxDistancePx;
       const captureRadiusSq = captureRadiusPx * captureRadiusPx;
       if (distanceSq > captureRadiusSq) {
         continue;
       }
 
       let score = distanceSq;
+      score *= 1 + Math.max(0, projected.z) * 0.35;
       if (isStation) {
         const cameraZ = this.camera.position.z;
         const nearDepth = Math.abs(cameraZ - item.position[2]);
         const depthThreshold = Math.max(2.4, (item.depth ?? 0.2) * 10);
         if (nearDepth <= depthThreshold) {
-          score *= 0.58;
+          score *= 0.8;
         }
       }
 
-      if (score <= closestScore) {
+      if (score < closestScore) {
         closestScore = score;
         closestIndex = item.index;
       }
@@ -553,6 +559,23 @@ export class GalleryEngine {
     });
   }
 
+  private updateJourneyState(progress: number, whiteMix: number): void {
+    const clampedProgress = clamp(progress, 0, 1);
+    const clampedWhiteMix = this.config.infiniteCorridor ? clamp(whiteMix, 0, 1) : 0;
+    const progressChanged =
+      Math.abs(clampedProgress - this.progress) > JOURNEY_PROGRESS_EPSILON;
+    const whiteMixChanged =
+      Math.abs(clampedWhiteMix - this.loopWhiteMix) > LOOP_WHITE_MIX_EPSILON;
+
+    if (!progressChanged && !whiteMixChanged) {
+      return;
+    }
+
+    this.progress = clampedProgress;
+    this.loopWhiteMix = clampedWhiteMix;
+    this.applyState();
+  }
+
   private resolveBottomSheetFocusTarget(): { position: Vec3; lookAt: Vec3 } | null {
     if (
       !this.overlayFocusEnabled ||
@@ -570,19 +593,7 @@ export class GalleryEngine {
     }
 
     if ("side" in targetItem) {
-      const focusPosition = targetItem.focusPosition;
-      const centerPosition = targetItem.centerPosition;
-      const focusTarget = targetItem.focusTarget;
-      const mobileBlendToCenter = 0.32;
-      const desktopBlendToCenter = 0.22;
-      const blendToCenter = this.overlayFocusMobile ? mobileBlendToCenter : desktopBlendToCenter;
-      const anchoredPosition = lerpVec3(focusPosition, centerPosition, blendToCenter);
-      const framedPosition = lerpVec3(anchoredPosition, focusTarget, 0.16);
-
-      return {
-        position: framedPosition,
-        lookAt: focusTarget,
-      };
+      return this.resolveBottomSheetArtworkTarget(targetItem);
     }
 
     return this.resolveBottomSheetStationTarget(targetItem);
@@ -601,6 +612,31 @@ export class GalleryEngine {
     const anchoredPosition = lerpVec3(focusPosition, centerPosition, blendToCenter);
     const fartherPosition = lerpVec3(focusTarget, anchoredPosition, 1 + distanceBoost);
     const framedPosition = lerpVec3(fartherPosition, focusTarget, STATION_OVERLAY_FOCUS_PULL);
+
+    return {
+      position: framedPosition,
+      lookAt: focusTarget,
+    };
+  }
+
+  private resolveBottomSheetArtworkTarget(item: PositionedGalleryItem): { position: Vec3; lookAt: Vec3 } {
+    if (!("side" in item)) {
+      return this.resolveBottomSheetStationTarget(item);
+    }
+
+    const focusTarget = item.focusTarget;
+    const normalX = item.side === "left" ? 1 : -1;
+    const baseDistance = Math.abs(item.focusPosition[0] - focusTarget[0]);
+    const stableDistance = clamp(
+      baseDistance * this.config.artworkOverlayAngleDistanceScale,
+      this.config.artworkOverlayAngleDistanceMin,
+      this.config.artworkOverlayAngleDistanceMax,
+    );
+    const framedPosition: Vec3 = [
+      focusTarget[0] + normalX * stableDistance,
+      focusTarget[1],
+      focusTarget[2] + this.config.artworkOverlayForwardOffset,
+    ];
 
     return {
       position: framedPosition,

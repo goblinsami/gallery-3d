@@ -61,6 +61,21 @@ describe("buildCameraKeyframes", () => {
     expect(keyframes[keyframes.length - 1].progress).toBe(1);
   });
 
+  it("frames title from inside corridor when startPosition is forward", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      startPosition: "forward" as const,
+      artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
+    };
+    const layout = getArtworkLayout(config);
+    const keyframes = buildCameraKeyframes(config, layout);
+    const start = keyframes.find((entry) => entry.label === "start");
+
+    expect(start).toBeDefined();
+    expect(start!.lookAt[2]).toBeLessThan(0);
+    expect(start!.position[2]).toBeGreaterThan(start!.lookAt[2]);
+  });
+
   it("moves camera closer when artworkFocusFill is higher", () => {
     const closeConfig = {
       ...DEFAULT_GALLERY_CONFIG,
