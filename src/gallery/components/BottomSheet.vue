@@ -344,7 +344,7 @@ onBeforeUnmount(() => {
   </section>
 </template>
 
-<style scoped>
+<style>
 .bottom-sheet {
   position: absolute;
   inset: 0;
