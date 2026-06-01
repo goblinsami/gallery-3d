@@ -304,12 +304,6 @@ const DAYLIGHT_GALLERY_SAMPLE: ArtGallerySceneConfig = {
             title: "Echoes of Atrium",
             description: "A suspended fragment of stillness.",
             imageUrl: "/images/work1.jpg",
-            sideText: {
-                eyebrow: "Gallery Note",
-                title: "Echoes of Atrium",
-                description:
-                    "A suspended fragment of stillness in atmospheric low-contrast tones.",
-            },
             metadata: {
                 artist: "A. Mercer",
                 year: "2026",
@@ -321,13 +315,6 @@ const DAYLIGHT_GALLERY_SAMPLE: ArtGallerySceneConfig = {
             title: "Soft Geometry",
             description: "Planes, silence, and reflected light.",
             imageUrl: "/images/work2.jpg",
-            sideText: {
-                eyebrow: "Collection",
-                title: "Soft Geometry",
-                description:
-                    "Planes, silence and reflected light arranged in a restrained composition.",
-                align: "before",
-            },
             metadata: {
                 artist: "I. Rowan",
                 year: "2025",
@@ -525,11 +512,182 @@ const NAVE_NODRIZA_SAMPLE: ArtGallerySceneConfig = {
     })),
 }
 
+const PORTFOLIO_ARTWORKS: ArtworkConfig[] = DAYLIGHT_GALLERY_SAMPLE.artworks.map(
+    (artwork, index) => {
+        const titles = [
+            "Brand Identity System",
+            "E-commerce UX Case Study",
+            "Motion Landing Concept",
+            "3D Product Hero Frame",
+        ]
+        const descriptions = [
+            "Logo architecture, visual language, and implementation rules for a scalable brand.",
+            "Conversion-oriented flow redesign with retention hooks and checkout simplification.",
+            "Narrative web animation sequence focused on launch storytelling and pacing.",
+            "Realtime lighting and composition study for premium product presentation.",
+        ]
+        const artists = [
+            "Creative Direction",
+            "UX / Product Design",
+            "Motion Design",
+            "3D Art Direction",
+        ]
+        return {
+            ...artwork,
+            id: `p-${index + 1}`,
+            title: titles[index] ?? artwork.title,
+            description: descriptions[index] ?? artwork.description,
+            side: index % 2 === 0 ? "right" : "left",
+            frameEnabled: true,
+            frameColor: "#27384d",
+            spotlightIntensity: 1.3,
+            sideText: artwork.sideText
+                ? {
+                      ...artwork.sideText,
+                      eyebrow: "Portfolio",
+                      title: titles[index] ?? artwork.sideText.title,
+                      description:
+                          descriptions[index] ?? artwork.sideText.description,
+                      backgroundColor: "#0f1a2a",
+                      textColor: "#eaf2ff",
+                      borderEnabled: true,
+                      borderColor: "#7fc4ff",
+                      borderIntensity: 1.9,
+                      borderWidth: 0.04,
+                  }
+                : artwork.sideText,
+            metadata: {
+                ...artwork.metadata,
+                artist: artists[index] ?? artwork.metadata?.artist,
+                year: "2026",
+                medium: "Digital Project",
+            },
+        }
+    }
+)
+
+const PORTFOLIO_STATIONS: StationalCardConfig[] = [
+    {
+        id: "portfolio-about",
+        type: "stational-card",
+        variant: "about",
+        title: "About The Studio",
+        subtitle: "Design + Motion + 3D",
+        description:
+            "Boutique team building visual systems, digital experiences, and realtime art direction for brands and products.",
+        layout: "text",
+        width: 4.4,
+        height: 2.8,
+        depth: 0.055,
+        backgroundColor: "#0d1a2c",
+        borderColor: "rgba(127,196,255,0.34)",
+        glowColor: "rgba(127,196,255,0.12)",
+        spotlightIntensity: 1.45,
+    },
+    {
+        id: "portfolio-services",
+        type: "stational-card",
+        variant: "services",
+        title: "Core Services",
+        subtitle: "From concept to launch",
+        description:
+            "Brand systems, product UX/UI, motion language, landing pages, and 3D visuals for high-impact launches.",
+        layout: "text",
+        width: 4.6,
+        height: 2.9,
+        depth: 0.055,
+        backgroundColor: "#101e33",
+        borderColor: "rgba(153,215,255,0.28)",
+        glowColor: "rgba(153,215,255,0.1)",
+        spotlightIntensity: 1.4,
+        cta: {
+            label: "View Services",
+            url: "https://example.com/services",
+        },
+    },
+    {
+        id: "portfolio-contact",
+        type: "stational-card",
+        variant: "contact",
+        title: "Start A Project",
+        subtitle: "Limited slots each quarter",
+        description:
+            "Share your goal and business context to receive a roadmap with scope, timeline, and deliverables.",
+        layout: "text",
+        width: 4.5,
+        height: 2.85,
+        depth: 0.055,
+        backgroundColor: "#0c1829",
+        borderColor: "rgba(255,212,156,0.32)",
+        glowColor: "rgba(255,212,156,0.11)",
+        spotlightIntensity: 1.42,
+        contact: {
+            email: "hello@portfolio.studio",
+            location: "Remote / Worldwide",
+        },
+        socialLinks: [
+            { label: "Instagram", url: "https://example.com/instagram" },
+            { label: "Behance", url: "https://example.com/behance" },
+        ],
+        cta: {
+            label: "Book Discovery Call",
+            url: "https://example.com/book",
+        },
+    },
+]
+
+const PORTFOLIO_SAMPLE: ArtGallerySceneConfig = {
+    ...DAYLIGHT_GALLERY_SAMPLE,
+    id: "portfolio-showcase",
+    sceneTitle: "Portfolio Showcase",
+    lightingMode: "day",
+    infiniteCorridor: true,
+    sceneBackgroundColor: "#dbe5f0",
+    sceneFogColor: "#dfe9f4",
+    ceilingSpotsEnabled: true,
+    ceilingSpotsColor: "#7fc4ff",
+    ceilingSpotsIntensity: 0.95,
+    artworkBacklightEnabled: true,
+    artworkBacklightColor: "#ffd49c",
+    artworkBacklightIntensity: 1.35,
+    loopWhiteAfterEndWindow: 0.11,
+    loopWhiteStartsBeforeEndWindow: 0.04,
+    loopWhiteFadeOutRevealWindow: 0.13,
+    loopWhiteFadeOutWindow: 0.2,
+    loopProgressAdvanceDuringWhiteFadeOut: 0.17,
+    corridor: {
+        ...DAYLIGHT_GALLERY_SAMPLE.corridor,
+        wallColor: "#cfd8e6",
+        floorColor: "#4f5a6a",
+        ceilingColor: "#e8edf5",
+        carpetColor: "#264a78",
+        carpetWidth: 0.74,
+        artworkSpacing: 13,
+    },
+    sceneTitleConfig: {
+        ...DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig,
+        color: "#f5f9ff",
+        daylightContrastEnabled: true,
+        daylightContrastColor: "#9aacbf",
+        daylightContrastStrength: 0.42,
+        position: [0, 1.8, 3.2],
+    },
+    artworks: PORTFOLIO_ARTWORKS,
+    items: [
+        ...PORTFOLIO_ARTWORKS.map((artwork) => ({
+            ...artwork,
+            type: "artwork" as const,
+        })),
+        ...PORTFOLIO_STATIONS,
+    ],
+}
+
 const SAMPLE_CONFIGS = {
     daylight: DAYLIGHT_GALLERY_SAMPLE,
     mistery: MISTERY_MUSEUM_SAMPLE,
     cabaret: CABARET_GALLERY_SAMPLE,
     naveNodriza: NAVE_NODRIZA_SAMPLE,
+    portfolio: PORTFOLIO_SAMPLE,
 } as const
 
 type SamplePreset = keyof typeof SAMPLE_CONFIGS
@@ -582,6 +740,7 @@ const TEMPLATE_PATHS: Record<SamplePreset, string> = {
     mistery: "./templates/mistery-museum.json",
     cabaret: "./templates/cabaret-nocturno.json",
     naveNodriza: "./templates/nave-nodriza.json",
+    portfolio: "./templates/portfolio-showcase.json",
 }
 
 const isValidSceneConfig = (value: unknown): value is ArtGallerySceneConfig => {
@@ -630,11 +789,13 @@ const loadTemplateConfigFromPath = async (
 const loadTemplateConfigs = async (
     fallbackConfigs: SampleConfigMap
 ): Promise<SampleConfigMap> => {
-    const [daylight, mistery, cabaret, naveNodriza] = await Promise.all([
+    const [daylight, mistery, cabaret, naveNodriza, portfolio] =
+        await Promise.all([
         loadTemplateConfigFromPath("daylight", fallbackConfigs.daylight),
         loadTemplateConfigFromPath("mistery", fallbackConfigs.mistery),
         loadTemplateConfigFromPath("cabaret", fallbackConfigs.cabaret),
         loadTemplateConfigFromPath("naveNodriza", fallbackConfigs.naveNodriza),
+        loadTemplateConfigFromPath("portfolio", fallbackConfigs.portfolio),
     ])
 
     return {
@@ -642,6 +803,7 @@ const loadTemplateConfigs = async (
         mistery,
         cabaret,
         naveNodriza,
+        portfolio,
     }
 }
 
@@ -650,6 +812,7 @@ const cloneSampleConfigs = (): SampleConfigMap => ({
     mistery: cloneConfig(SAMPLE_CONFIGS.mistery),
     cabaret: cloneConfig(SAMPLE_CONFIGS.cabaret),
     naveNodriza: cloneConfig(SAMPLE_CONFIGS.naveNodriza),
+    portfolio: cloneConfig(SAMPLE_CONFIGS.portfolio),
 })
 
 const RUNTIME_SCRIPT_ATTR = "data-scrollix-runtime-url"
@@ -3423,6 +3586,7 @@ addPropertyControls(ScrollixArtGallery, {
             "Mistery",
             "Cabaret",
             "Nave Nodriza",
+            "Portfolio",
         ],
         defaultValue: "daylight",
     },

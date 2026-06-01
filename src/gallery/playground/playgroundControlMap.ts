@@ -58,7 +58,7 @@ export const ASPECT_RATIO_PRESET_VALUES: Record<AspectRatioPreset, number | unde
 };
 
 export const DEFAULT_CAMERA_ASPECT_PRESET: AspectRatioPreset = "auto";
-export const DEFAULT_MOBILE_CAMERA_ASPECT_PRESET: AspectRatioPreset = "ratio_3_4";
+export const DEFAULT_MOBILE_CAMERA_ASPECT_PRESET: AspectRatioPreset = "ratio_9_20";
 
 const EPSILON = 0.0001;
 
@@ -138,6 +138,19 @@ export const PLAYGROUND_CONTROLS: PlaygroundControlDefinition[] = [
     section: "Experience",
     inputType: "text",
     defaultValue: DEFAULT_GALLERY_CONFIG.sceneTitle,
+  },
+  {
+    key: "startPosition",
+    path: "startPosition",
+    label: "Start Position",
+    description: "Modo de arranque de cámara y título inicial.",
+    section: "Experience",
+    inputType: "select",
+    options: [
+      { label: "forward", value: "forward" },
+      { label: "back", value: "back" },
+    ],
+    defaultValue: DEFAULT_GALLERY_CONFIG.startPosition,
   },
   {
     key: "lightingMode",
@@ -459,6 +472,20 @@ export const PLAYGROUND_CONTROLS: PlaygroundControlDefinition[] = [
     max: 0.45,
     step: 0.01,
     defaultValue: DEFAULT_GALLERY_CONFIG.loopProgressAdvanceDuringWhiteFadeOut,
+  },
+  {
+    key: "artworkOverlayFramingMode",
+    path: "artworkOverlayFramingMode",
+    label: "Overlay Framing Mode",
+    description: "Preset de encuadre al abrir una obra en show item.",
+    section: "Journey Focus",
+    inputType: "select",
+    options: [
+      { label: "frontal", value: "frontal" },
+      { label: "balanced", value: "balanced" },
+      { label: "cinematic", value: "cinematic" },
+    ],
+    defaultValue: DEFAULT_GALLERY_CONFIG.artworkOverlayFramingMode,
   },
   {
     key: "artworkFocusFill",

@@ -6,6 +6,7 @@ describe("validateGalleryConfig", () => {
   it("returns defaults for empty payload", () => {
     const result = validateGalleryConfig();
     expect(result.config.id).toBe(DEFAULT_GALLERY_CONFIG.id);
+    expect(result.config.startPosition).toBe(DEFAULT_GALLERY_CONFIG.startPosition);
     expect(result.config.items?.length).toBeGreaterThan(0);
     expect(result.config.artworks.length).toBeGreaterThan(0);
     expect(result.config.sceneBackgroundColor).toBe(DEFAULT_GALLERY_CONFIG.sceneBackgroundColor);
@@ -66,6 +67,10 @@ describe("validateGalleryConfig", () => {
           title: "About Me",
           subtitle: "Creative Director",
           description: "Story-driven design in immersive spaces.",
+          biography: "Designing narrative systems for immersive products.",
+          services: ["Creative Direction", "Experience Design", " "],
+          testimonials: ["\"A visionary partner\" - Studio North"],
+          references: ["Awwwards", "FWA"],
           layout: "image-right",
           image: "/images/profile.jpg",
           socialLinks: [{ label: "LinkedIn", url: "https://linkedin.com/in/demo" }],
@@ -77,7 +82,62 @@ describe("validateGalleryConfig", () => {
 
     expect(result.config.items).toHaveLength(1);
     expect(result.config.items?.[0].type).toBe("stational-card");
+    if (result.config.items?.[0].type === "stational-card") {
+      expect(result.config.items[0].biography).toBe(
+        "Designing narrative systems for immersive products.",
+      );
+      expect(result.config.items[0].services).toEqual([
+        "Creative Direction",
+        "Experience Design",
+      ]);
+      expect(result.config.items[0].testimonials).toEqual([
+        "\"A visionary partner\" - Studio North",
+      ]);
+      expect(result.config.items[0].references).toEqual(["Awwwards", "FWA"]);
+    }
     expect(result.config.artworks).toHaveLength(0);
+  });
+
+  it("preserves and clamps custom stational card sizing", () => {
+    const sized = validateGalleryConfig({
+      items: [
+        {
+          id: "station-sized",
+          type: "stational-card",
+          title: "Sized Station",
+          width: 2.9,
+          height: 1.95,
+          depth: 0.04,
+        },
+      ],
+    });
+
+    expect(sized.config.items).toHaveLength(1);
+    expect(sized.config.items?.[0].type).toBe("stational-card");
+    if (sized.config.items?.[0].type === "stational-card") {
+      expect(sized.config.items[0].width).toBeCloseTo(2.9);
+      expect(sized.config.items[0].height).toBeCloseTo(1.95);
+      expect(sized.config.items[0].depth).toBeCloseTo(0.04);
+    }
+
+    const clamped = validateGalleryConfig({
+      items: [
+        {
+          id: "station-clamped",
+          type: "stational-card",
+          title: "Clamped Station",
+          width: 20,
+          height: 0.5,
+          depth: 1,
+        },
+      ],
+    });
+
+    if (clamped.config.items?.[0].type === "stational-card") {
+      expect(clamped.config.items[0].width).toBe(8);
+      expect(clamped.config.items[0].height).toBe(1.2);
+      expect(clamped.config.items[0].depth).toBe(0.4);
+    }
   });
 
   it("detects invalid artworks and preserves valid ones", () => {
@@ -100,6 +160,7 @@ describe("validateGalleryConfig", () => {
   it("merges partial payload with defaults", () => {
     const result = validateGalleryConfig({
       sceneTitle: "Custom Title",
+      startPosition: "back",
       sceneBackgroundColor: "#020202",
       sceneFogColor: "#090909",
       ceilingSpotsEnabled: true,
@@ -146,6 +207,7 @@ describe("validateGalleryConfig", () => {
     });
 
     expect(result.config.sceneTitle).toBe("Custom Title");
+    expect(result.config.startPosition).toBe("back");
     expect(result.config.sceneBackgroundColor).toBe("#020202");
     expect(result.config.sceneFogColor).toBe("#090909");
     expect(result.config.ceilingSpotsEnabled).toBe(true);
@@ -418,6 +480,14 @@ describe("validateGalleryConfig", () => {
     const result = validateGalleryConfig({ infiniteGallery: true } as never);
     expect(result.config.infiniteCorridor).toBe(true);
     expect(result.warnings.some((warning) => warning.includes("infiniteGallery"))).toBe(true);
+  });
+
+  it("sanitizes invalid startPosition values", () => {
+    const result = validateGalleryConfig({
+      startPosition: "diagonal" as never,
+    });
+
+    expect(result.config.startPosition).toBe(DEFAULT_GALLERY_CONFIG.startPosition);
   });
 
   it("sanitizes artwork sideText and clamps its sizing values", () => {

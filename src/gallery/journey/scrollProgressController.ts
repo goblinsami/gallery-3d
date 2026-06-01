@@ -21,6 +21,9 @@ export interface ScrollProgressControllerOptions {
   onProgress: (state: ScrollProgressState) => void;
 }
 
+const EMIT_PROGRESS_EPSILON = 0.000001;
+const EMIT_WHITE_MIX_EPSILON = 0.000001;
+
 export class ScrollProgressController {
   private readonly element: HTMLElement;
   private readonly onProgress: (state: ScrollProgressState) => void;
@@ -34,6 +37,7 @@ export class ScrollProgressController {
   private loopWhiteFadeOutRevealWindow: number;
   private loopProgressAdvanceDuringWhiteFadeOut: number;
   private hasCompletedInitialLoop = false;
+  private interactionEnabled = true;
 
   private running = false;
   private velocity = 0;
@@ -41,6 +45,7 @@ export class ScrollProgressController {
   private targetProgress = 0;
   private activeTouchId: number | null = null;
   private lastTouchY: number | null = null;
+  private lastEmittedState: ScrollProgressState | null = null;
   private readonly smoothstep = (value: number): number => {
     const t = clamp(value, 0, 1);
     return t * t * (3 - 2 * t);
@@ -88,16 +93,26 @@ export class ScrollProgressController {
   };
 
   private readonly onWheel = (event: WheelEvent): void => {
-    event.preventDefault();
+    if (!this.interactionEnabled) {
+      return;
+    }
+
     if (event.ctrlKey) {
       return;
     }
 
+    event.preventDefault();
     const normalizedDelta = this.normalizeWheelDelta(event);
     this.velocity += normalizedDelta * this.sensitivity;
   };
 
   private readonly onTouchStart = (event: TouchEvent): void => {
+    if (!this.interactionEnabled) {
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+      return;
+    }
+
     const touch = event.touches[0];
     if (!touch) {
       return;
@@ -108,6 +123,10 @@ export class ScrollProgressController {
   };
 
   private readonly onTouchMove = (event: TouchEvent): void => {
+    if (!this.interactionEnabled) {
+      return;
+    }
+
     if (this.lastTouchY === null) {
       return;
     }
@@ -133,6 +152,12 @@ export class ScrollProgressController {
   };
 
   private readonly onTouchEnd = (event: TouchEvent): void => {
+    if (!this.interactionEnabled) {
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+      return;
+    }
+
     const touches = Array.from(event.touches);
     if (touches.length === 0) {
       this.activeTouchId = null;
@@ -239,6 +264,20 @@ export class ScrollProgressController {
     this.targetProgress = normalized;
     this.velocity = 0;
     this.emitCurrentState();
+  }
+
+  setInteractionEnabled(enabled: boolean): void {
+    if (this.interactionEnabled === enabled) {
+      return;
+    }
+
+    this.interactionEnabled = enabled;
+    if (!enabled) {
+      this.velocity = 0;
+      this.targetProgress = this.progress;
+      this.activeTouchId = null;
+      this.lastTouchY = null;
+    }
   }
 
   dispose(): void {
@@ -361,6 +400,16 @@ export class ScrollProgressController {
   }
 
   private emitCurrentState(): void {
-    this.onProgress(this.resolveProgressState(this.progress));
+    const state = this.resolveProgressState(this.progress);
+    if (
+      this.lastEmittedState &&
+      Math.abs(state.progress - this.lastEmittedState.progress) <= EMIT_PROGRESS_EPSILON &&
+      Math.abs(state.whiteMix - this.lastEmittedState.whiteMix) <= EMIT_WHITE_MIX_EPSILON
+    ) {
+      return;
+    }
+
+    this.lastEmittedState = state;
+    this.onProgress(state);
   }
 }

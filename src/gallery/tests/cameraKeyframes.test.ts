@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { buildCameraKeyframes, calculateArtworkLayout } from "../journey/cameraKeyframes";
-import type { PositionedArtwork } from "../types/galleryRuntime";
+import type { PositionedArtwork, PositionedStationalCard } from "../types/galleryRuntime";
 
 const getArtworkLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedArtwork[] =>
   calculateArtworkLayout(...args).filter(
     (item): item is PositionedArtwork => item.type !== "stational-card",
+  );
+
+const getStationalLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedStationalCard[] =>
+  calculateArtworkLayout(...args).filter(
+    (item): item is PositionedStationalCard => item.type === "stational-card",
   );
 
 describe("buildCameraKeyframes", () => {
@@ -54,6 +59,21 @@ describe("buildCameraKeyframes", () => {
 
     expect(keyframes[0].progress).toBe(0);
     expect(keyframes[keyframes.length - 1].progress).toBe(1);
+  });
+
+  it("frames title from inside corridor when startPosition is forward", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      startPosition: "forward" as const,
+      artworks: DEFAULT_GALLERY_CONFIG.artworks.slice(0, 1),
+    };
+    const layout = getArtworkLayout(config);
+    const keyframes = buildCameraKeyframes(config, layout);
+    const start = keyframes.find((entry) => entry.label === "start");
+
+    expect(start).toBeDefined();
+    expect(start!.lookAt[2]).toBeLessThan(0);
+    expect(start!.position[2]).toBeGreaterThan(start!.lookAt[2]);
   });
 
   it("moves camera closer when artworkFocusFill is higher", () => {
@@ -148,6 +168,75 @@ describe("buildCameraKeyframes", () => {
     expect(travelEnd).toBeDefined();
     expect(leadStart!.position[2]).toBeGreaterThan(travelEnd!.position[2]);
     expect(leadStart!.lookAt[0]).not.toBe(travelEnd!.lookAt[0]);
+  });
+
+  it("skips turn keyframes for stational cards and pushes through the card", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      artworkTurnKeyframes: 8,
+      artworkTurnLeadIn: 0.45,
+      items: [
+        {
+          id: "station-01",
+          type: "stational-card" as const,
+          title: "Station",
+        },
+      ],
+      artworks: [],
+    };
+
+    const stationalLayout = getStationalLayout(config);
+    const station = stationalLayout[0];
+    const stationDepth = station.depth ?? 0;
+    const keyframes = buildCameraKeyframes(config, stationalLayout);
+
+    expect(station).toBeDefined();
+    expect(keyframes.some((entry) => entry.label.includes("turn-lead-start"))).toBe(false);
+    expect(keyframes.some((entry) => entry.label.includes("focus-turn-"))).toBe(false);
+
+    const focusInEnd = keyframes.find((entry) => entry.label === "artwork-0-focus-in-end");
+    expect(focusInEnd).toBeDefined();
+    expect(focusInEnd!.position[2]).toBeLessThan(station.position[2] - stationDepth / 2);
+  });
+
+  it("keeps forward cadence after stational card pass-through", () => {
+    const config = {
+      ...DEFAULT_GALLERY_CONFIG,
+      corridor: {
+        ...DEFAULT_GALLERY_CONFIG.corridor,
+        artworkSpacing: 14,
+      },
+      items: [
+        {
+          id: "station-01",
+          type: "stational-card" as const,
+          title: "Station",
+        },
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          id: "work-after-station",
+          type: "artwork" as const,
+          side: "left" as const,
+        },
+      ],
+      artworks: [
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          id: "work-after-station",
+          side: "left" as const,
+        },
+      ],
+    };
+
+    const layout = calculateArtworkLayout(config);
+    const keyframes = buildCameraKeyframes(config, layout);
+    const focusInEnd = keyframes.find((entry) => entry.label === "artwork-0-focus-in-end");
+    const returnEnd = keyframes.find((entry) => entry.label === "artwork-0-return-end");
+
+    expect(focusInEnd).toBeDefined();
+    expect(returnEnd).toBeDefined();
+    const forwardAdvance = focusInEnd!.position[2] - returnEnd!.position[2];
+    expect(forwardAdvance).toBeGreaterThanOrEqual(config.corridor.artworkSpacing * 0.14);
   });
 });
 

@@ -30,6 +30,7 @@ import { lerpVec3 } from "../utils/math";
 import { LIGHTING_PRESETS } from "../constants/lightingPresets";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { isStationalCard } from "../utils/galleryItems";
+import type { PositionedGalleryItem } from "../types/galleryRuntime";
 
 interface FocusSpotlightEntry {
   itemIndex: number;
@@ -54,6 +55,9 @@ interface RenderViewport {
   height: number;
   aspect: number;
 }
+type BottomSheetState = "collapsed" | "half" | "full";
+type DesktopSheetSide = "left" | "right";
+type DesktopSheetWidth = 0.25 | 0.5;
 
 const LOOP_FOG_BOOST = 0.08;
 const MIN_AUTO_LANDSCAPE_ASPECT = 1.35;
@@ -64,6 +68,15 @@ const MAX_EXPLICIT_ASPECT = 2.6;
 const DEFAULT_MOBILE_BREAKPOINT = 820;
 const DEFAULT_JOURNEY_ASPECT = 16 / 9;
 const JOURNEY_ASPECT_EPSILON = 0.01;
+const OVERLAY_FOCUS_BLEND_SPEED = 0.18;
+const OVERLAY_FOCUS_MIX_EPSILON = 0.001;
+const STATION_OVERLAY_CENTER_BLEND_MOBILE = 0.14;
+const STATION_OVERLAY_CENTER_BLEND_DESKTOP = 0.1;
+const STATION_OVERLAY_DISTANCE_BOOST_MOBILE = 0.34;
+const STATION_OVERLAY_DISTANCE_BOOST_DESKTOP = 0.24;
+const STATION_OVERLAY_FOCUS_PULL = 0.02;
+const JOURNEY_PROGRESS_EPSILON = 0.000001;
+const LOOP_WHITE_MIX_EPSILON = 0.000001;
 
 export class GalleryEngine {
   private readonly container: HTMLElement;
@@ -95,8 +108,16 @@ export class GalleryEngine {
   private lastContainerWidth = 0;
   private lastContainerHeight = 0;
   private renderViewport: RenderViewport | null = null;
+  private effectiveRenderViewport: RenderViewport | null = null;
   private journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
   private activeItemIndex: number | null = null;
+  private overlayFocusEnabled = false;
+  private overlayFocusItemIndex: number | null = null;
+  private overlayFocusMobile = false;
+  private overlayFocusSheetState: BottomSheetState = "collapsed";
+  private overlayFocusDesktopSide: DesktopSheetSide = "left";
+  private overlayFocusDesktopWidth: DesktopSheetWidth = 0.5;
+  private overlayFocusMix = 0;
 
   constructor(container: HTMLElement, config: ArtGallerySceneConfig) {
     this.container = container;
@@ -111,6 +132,16 @@ export class GalleryEngine {
     this.scene = createScene(this.config);
     this.camera = createCamera(this.config);
     this.renderer = createRenderer(this.config);
+    this.renderer.domElement.style.display = "block";
+    this.renderer.domElement.style.width = "100%";
+    this.renderer.domElement.style.height = "100%";
+    this.renderer.domElement.style.maxWidth = "100%";
+    this.renderer.domElement.style.maxHeight = "100%";
+    this.renderer.domElement.style.position = "absolute";
+    this.renderer.domElement.style.inset = "0";
+    this.renderer.domElement.style.zIndex = "1";
+    this.renderer.domElement.style.touchAction = "none";
+      "radial-gradient(ellipse 120% 120% at 50% 50%, #000 72%, rgba(0, 0, 0, 0) 100%)";
     this.container.appendChild(this.renderer.domElement);
     this.resetAtmosphereBase();
 
@@ -123,13 +154,15 @@ export class GalleryEngine {
   }
 
   setProgress(progress: number): void {
-    this.progress = clamp(progress, 0, 1);
-    this.applyState();
+    this.updateJourneyState(progress, this.loopWhiteMix);
   }
 
   setLoopWhiteMix(whiteMix: number): void {
-    this.loopWhiteMix = clamp(whiteMix, 0, 1);
-    this.applyState();
+    this.updateJourneyState(this.progress, whiteMix);
+  }
+
+  setJourneyState(progress: number, whiteMix: number): void {
+    this.updateJourneyState(progress, whiteMix);
   }
 
   getActiveArtworkIndex(): number | null {
@@ -138,6 +171,25 @@ export class GalleryEngine {
 
   getActiveItemIndex(): number | null {
     return this.activeItemIndex;
+  }
+
+  setBottomSheetFocus(
+    itemIndex: number | null,
+    enabled: boolean,
+    mobile: boolean,
+    sheetState: BottomSheetState,
+    desktopSide: DesktopSheetSide,
+    desktopWidth: DesktopSheetWidth,
+  ): void {
+    this.overlayFocusEnabled = enabled && itemIndex !== null;
+    this.overlayFocusItemIndex = itemIndex;
+    this.overlayFocusMobile = mobile;
+    this.overlayFocusSheetState = sheetState;
+    this.overlayFocusDesktopSide = desktopSide;
+    this.overlayFocusDesktopWidth = desktopWidth;
+    this.overlayFocusMix = this.overlayFocusEnabled ? 1 : 0;
+    this.resize(true);
+    this.applyState();
   }
 
   getClosestItemIndexFromClientPoint(clientX: number, clientY: number): number | null {
@@ -157,19 +209,20 @@ export class GalleryEngine {
       height: fallbackHeight,
       aspect: fallbackWidth / fallbackHeight,
     };
+    const focusViewport = this.resolveEffectiveRenderViewport(viewport);
 
     if (
-      localX < viewport.x ||
-      localX > viewport.x + viewport.width ||
-      localY < viewport.y ||
-      localY > viewport.y + viewport.height
+      localX < focusViewport.x ||
+      localX > focusViewport.x + focusViewport.width ||
+      localY < focusViewport.y ||
+      localY > focusViewport.y + focusViewport.height
     ) {
       return null;
     }
 
-    const maxDistancePx = clamp(viewport.width * 0.3, 90, 300);
+    const maxDistancePx = clamp(focusViewport.width * 0.2, 64, 180);
     let closestIndex: number | null = null;
-    let closestDistanceSq = maxDistancePx * maxDistancePx;
+    let closestScore = Number.POSITIVE_INFINITY;
 
     for (const item of this.buildArtifacts.layout) {
       const [x, y, z] = item.focusTarget;
@@ -187,14 +240,31 @@ export class GalleryEngine {
         continue;
       }
 
-      const screenX = viewport.x + ((projected.x + 1) * 0.5) * viewport.width;
-      const screenY = viewport.y + ((1 - projected.y) * 0.5) * viewport.height;
+      const screenX = focusViewport.x + ((projected.x + 1) * 0.5) * focusViewport.width;
+      const screenY = focusViewport.y + ((1 - projected.y) * 0.5) * focusViewport.height;
       const dx = localX - screenX;
       const dy = localY - screenY;
       const distanceSq = dx * dx + dy * dy;
+      const isStation = isStationalCard(item);
+      const captureRadiusPx = isStation ? maxDistancePx * 1.12 : maxDistancePx;
+      const captureRadiusSq = captureRadiusPx * captureRadiusPx;
+      if (distanceSq > captureRadiusSq) {
+        continue;
+      }
 
-      if (distanceSq <= closestDistanceSq) {
-        closestDistanceSq = distanceSq;
+      let score = distanceSq;
+      score *= 1 + Math.max(0, projected.z) * 0.35;
+      if (isStation) {
+        const cameraZ = this.camera.position.z;
+        const nearDepth = Math.abs(cameraZ - item.position[2]);
+        const depthThreshold = Math.max(2.4, (item.depth ?? 0.2) * 10);
+        if (nearDepth <= depthThreshold) {
+          score *= 0.8;
+        }
+      }
+
+      if (score < closestScore) {
+        closestScore = score;
         closestIndex = item.index;
       }
     }
@@ -243,25 +313,37 @@ export class GalleryEngine {
     this.lastContainerWidth = containerWidth;
     this.lastContainerHeight = containerHeight;
     this.renderViewport = nextViewport;
+    const effectiveViewport = this.resolveEffectiveRenderViewport(nextViewport);
+    this.effectiveRenderViewport = effectiveViewport;
 
-    this.camera.aspect = nextViewport.aspect;
+    this.camera.aspect = effectiveViewport.aspect;
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(containerWidth, containerHeight, false);
     this.renderer.setViewport(
-      nextViewport.x,
-      nextViewport.y,
-      nextViewport.width,
-      nextViewport.height,
+      effectiveViewport.x,
+      effectiveViewport.y,
+      effectiveViewport.width,
+      effectiveViewport.height,
     );
     this.renderer.setScissor(
-      nextViewport.x,
-      nextViewport.y,
-      nextViewport.width,
-      nextViewport.height,
+      effectiveViewport.x,
+      effectiveViewport.y,
+      effectiveViewport.width,
+      effectiveViewport.height,
     );
     this.renderer.setScissorTest(true);
-    this.updateJourneyViewportAspect(nextViewport.aspect, force);
+    this.container.style.setProperty("--gallery-vp-left", `${effectiveViewport.x}px`);
+    this.container.style.setProperty("--gallery-vp-top", `${effectiveViewport.y}px`);
+    this.container.style.setProperty(
+      "--gallery-vp-right",
+      `${Math.max(0, containerWidth - (effectiveViewport.x + effectiveViewport.width))}px`,
+    );
+    this.container.style.setProperty(
+      "--gallery-vp-bottom",
+      `${Math.max(0, containerHeight - (effectiveViewport.y + effectiveViewport.height))}px`,
+    );
+    this.updateJourneyViewportAspect(effectiveViewport.aspect, force);
   }
 
   dispose(): void {
@@ -282,7 +364,14 @@ export class GalleryEngine {
     textureCache.clear();
     this.loopWhiteMix = 0;
     this.activeItemIndex = null;
+    this.overlayFocusEnabled = false;
+    this.overlayFocusItemIndex = null;
+    this.overlayFocusSheetState = "collapsed";
+    this.overlayFocusDesktopSide = "left";
+    this.overlayFocusDesktopWidth = 0.5;
+    this.overlayFocusMix = 0;
     this.renderViewport = null;
+    this.effectiveRenderViewport = null;
     this.journeyViewportAspect = DEFAULT_JOURNEY_ASPECT;
     this.initialized = false;
     this.scene = null;
@@ -300,18 +389,19 @@ export class GalleryEngine {
       this.renderer.setScissorTest(false);
       this.renderer.clear(true, true, true);
 
-      if (this.renderViewport) {
+      const viewport = this.effectiveRenderViewport ?? this.renderViewport;
+      if (viewport) {
         this.renderer.setViewport(
-          this.renderViewport.x,
-          this.renderViewport.y,
-          this.renderViewport.width,
-          this.renderViewport.height,
+          viewport.x,
+          viewport.y,
+          viewport.width,
+          viewport.height,
         );
         this.renderer.setScissor(
-          this.renderViewport.x,
-          this.renderViewport.y,
-          this.renderViewport.width,
-          this.renderViewport.height,
+          viewport.x,
+          viewport.y,
+          viewport.width,
+          viewport.height,
         );
         this.renderer.setScissorTest(true);
       }
@@ -420,14 +510,26 @@ export class GalleryEngine {
     }
 
     const state = getCameraStateAtProgress(this.keyframes, this.progress);
-    const desiredPosition = state.position;
-    const desiredLookAt = state.lookAt;
+    let desiredPosition = state.position;
+    let desiredLookAt = state.lookAt;
     const titleOpacity = state.titleOpacity;
     const whiteMix = this.config.infiniteCorridor ? this.loopWhiteMix : 0;
     const activeItemIndex = state.activeItemIndex ?? state.activeArtworkIndex;
     this.activeItemIndex = activeItemIndex;
 
     this.applyAtmosphere(whiteMix);
+
+    const overlayTarget = this.resolveBottomSheetFocusTarget();
+    const targetMix = overlayTarget ? 1 : 0;
+    this.overlayFocusMix += (targetMix - this.overlayFocusMix) * OVERLAY_FOCUS_BLEND_SPEED;
+    if (Math.abs(targetMix - this.overlayFocusMix) < OVERLAY_FOCUS_MIX_EPSILON) {
+      this.overlayFocusMix = targetMix;
+    }
+
+    if (overlayTarget && this.overlayFocusMix > 0) {
+      desiredPosition = lerpVec3(desiredPosition, overlayTarget.position, this.overlayFocusMix);
+      desiredLookAt = lerpVec3(desiredLookAt, overlayTarget.lookAt, this.overlayFocusMix);
+    }
 
     const lookAtSmoothing = clamp(1 - this.config.artworkTurnSmoothness * 0.85, 0.03, 1);
 
@@ -455,6 +557,141 @@ export class GalleryEngine {
       const nextScale = currentScale + (targetScale - currentScale) * entry.damping;
       entry.root.scale.set(nextScale, nextScale, nextScale);
     });
+  }
+
+  private updateJourneyState(progress: number, whiteMix: number): void {
+    const clampedProgress = clamp(progress, 0, 1);
+    const clampedWhiteMix = this.config.infiniteCorridor ? clamp(whiteMix, 0, 1) : 0;
+    const progressChanged =
+      Math.abs(clampedProgress - this.progress) > JOURNEY_PROGRESS_EPSILON;
+    const whiteMixChanged =
+      Math.abs(clampedWhiteMix - this.loopWhiteMix) > LOOP_WHITE_MIX_EPSILON;
+
+    if (!progressChanged && !whiteMixChanged) {
+      return;
+    }
+
+    this.progress = clampedProgress;
+    this.loopWhiteMix = clampedWhiteMix;
+    this.applyState();
+  }
+
+  private resolveBottomSheetFocusTarget(): { position: Vec3; lookAt: Vec3 } | null {
+    if (
+      !this.overlayFocusEnabled ||
+      this.overlayFocusItemIndex === null ||
+      !this.buildArtifacts
+    ) {
+      return null;
+    }
+
+    const targetItem = this.buildArtifacts.layout.find(
+      (entry) => entry.index === this.overlayFocusItemIndex,
+    );
+    if (!targetItem) {
+      return null;
+    }
+
+    if ("side" in targetItem) {
+      return this.resolveBottomSheetArtworkTarget(targetItem);
+    }
+
+    return this.resolveBottomSheetStationTarget(targetItem);
+  }
+
+  private resolveBottomSheetStationTarget(item: PositionedGalleryItem): { position: Vec3; lookAt: Vec3 } {
+    const focusPosition = item.focusPosition;
+    const centerPosition = item.centerPosition;
+    const focusTarget = item.focusTarget;
+    const blendToCenter = this.overlayFocusMobile
+      ? STATION_OVERLAY_CENTER_BLEND_MOBILE
+      : STATION_OVERLAY_CENTER_BLEND_DESKTOP;
+    const distanceBoost = this.overlayFocusMobile
+      ? STATION_OVERLAY_DISTANCE_BOOST_MOBILE
+      : STATION_OVERLAY_DISTANCE_BOOST_DESKTOP;
+    const anchoredPosition = lerpVec3(focusPosition, centerPosition, blendToCenter);
+    const fartherPosition = lerpVec3(focusTarget, anchoredPosition, 1 + distanceBoost);
+    const framedPosition = lerpVec3(fartherPosition, focusTarget, STATION_OVERLAY_FOCUS_PULL);
+
+    return {
+      position: framedPosition,
+      lookAt: focusTarget,
+    };
+  }
+
+  private resolveBottomSheetArtworkTarget(item: PositionedGalleryItem): { position: Vec3; lookAt: Vec3 } {
+    if (!("side" in item)) {
+      return this.resolveBottomSheetStationTarget(item);
+    }
+
+    const focusTarget = item.focusTarget;
+    const normalX = item.side === "left" ? 1 : -1;
+    const baseDistance = Math.abs(item.focusPosition[0] - focusTarget[0]);
+    const stableDistance = clamp(
+      baseDistance * this.config.artworkOverlayAngleDistanceScale,
+      this.config.artworkOverlayAngleDistanceMin,
+      this.config.artworkOverlayAngleDistanceMax,
+    );
+    const framedPosition: Vec3 = [
+      focusTarget[0] + normalX * stableDistance,
+      focusTarget[1],
+      focusTarget[2] + this.config.artworkOverlayForwardOffset,
+    ];
+
+    return {
+      position: framedPosition,
+      lookAt: focusTarget,
+    };
+  }
+
+  private resolveEffectiveRenderViewport(baseViewport: RenderViewport): RenderViewport {
+    if (!this.overlayFocusEnabled) {
+      return baseViewport;
+    }
+
+    if (this.overlayFocusMobile) {
+      const topVisibleRatio = this.getTopVisibleRatioForBottomSheet();
+      if (topVisibleRatio >= 0.999) {
+        return baseViewport;
+      }
+
+      const clampedRatio = clamp(topVisibleRatio, 0.1, 0.95);
+      const croppedHeight = Math.max(1, Math.round(baseViewport.height * clampedRatio));
+      return {
+        x: baseViewport.x,
+        y: baseViewport.y + (baseViewport.height - croppedHeight),
+        width: baseViewport.width,
+        height: croppedHeight,
+        aspect: baseViewport.width / croppedHeight,
+      };
+    }
+
+    const desktopVisibleRatio = clamp(1 - this.overlayFocusDesktopWidth, 0.25, 0.75);
+    const croppedWidth = Math.max(1, Math.round(baseViewport.width * desktopVisibleRatio));
+    const anchoredToRight = this.overlayFocusDesktopSide === "left";
+    return {
+      x: anchoredToRight ? baseViewport.x + (baseViewport.width - croppedWidth) : baseViewport.x,
+      y: baseViewport.y,
+      width: croppedWidth,
+      height: baseViewport.height,
+      aspect: croppedWidth / baseViewport.height,
+    };
+  }
+
+  private getTopVisibleRatioForBottomSheet(): number {
+    if (!this.overlayFocusEnabled) {
+      return 1;
+    }
+
+    if (this.overlayFocusSheetState === "full") {
+      return this.overlayFocusMobile ? 0.14 : 0.18;
+    }
+
+    if (this.overlayFocusSheetState === "half") {
+      return this.overlayFocusMobile ? 0.42 : 0.5;
+    }
+
+    return 1;
   }
 
   private async rebuildScene(): Promise<void> {
@@ -568,7 +805,7 @@ export class GalleryEngine {
       this.scene.fog.density = this.baseFogDensity + whiteMix * LOOP_FOG_BOOST;
     }
 
-    this.renderer.setClearColor(this.mixedBackgroundColor, 1);
+    this.renderer.setClearColor(this.mixedBackgroundColor, 0);
   }
 
   private clearSceneGraph(): void {

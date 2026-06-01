@@ -15,6 +15,13 @@ const ASSUMED_VIEWPORT_ASPECT = 16 / 9;
 const MIN_VIEWPORT_ASPECT = 0.45;
 const MAX_VIEWPORT_ASPECT = 3.2;
 const IMAGE_SURFACE_OFFSET = 0.02;
+const STATIONAL_PASS_THROUGH_MIN = 0.18;
+const STATIONAL_LOOK_AHEAD_MIN = 0.28;
+const STATIONAL_RETURN_FORWARD_MIN = 1.4;
+const STATIONAL_RETURN_FORWARD_SPACING_SHARE = 0.16;
+const START_TITLE_FRAME_MARGIN = 1.12;
+const START_TITLE_VERTICAL_PAD = 1.9;
+const START_TITLE_HORIZONTAL_PAD = 1.08;
 const smootherstep = (t: number): number => {
   const clamped = clamp01(t);
   return clamped * clamped * clamped * (clamped * (clamped * 6 - 15) + 10);
@@ -85,6 +92,19 @@ const getFocusDistance = (
     (itemWidth * 0.5) / Math.max(0.0001, Math.tan(halfHorizontalFov) * focusFill);
 
   return Math.max(0.9, Math.max(distanceByHeight, distanceByWidth));
+};
+
+const resolveForwardStartCameraPosition = (config: ArtGallerySceneConfig, titlePosition: Vec3): Vec3 => {
+  const viewportAspect = ASSUMED_VIEWPORT_ASPECT;
+  const halfVerticalFov = (config.camera.fov * Math.PI) / 360;
+  const halfHorizontalFov = Math.atan(Math.tan(halfVerticalFov) * viewportAspect);
+  const titleHeight = Math.max(0.22, config.sceneTitleConfig.size * config.sceneTitleConfig.lineHeight * START_TITLE_VERTICAL_PAD);
+  const titleWidth = Math.max(0.9, config.sceneTitleConfig.maxWidth * START_TITLE_HORIZONTAL_PAD);
+  const distanceByHeight = (titleHeight * 0.5) / Math.max(0.0001, Math.tan(halfVerticalFov));
+  const distanceByWidth = (titleWidth * 0.5) / Math.max(0.0001, Math.tan(halfHorizontalFov));
+  const titleDistance = Math.max(distanceByHeight, distanceByWidth) * START_TITLE_FRAME_MARGIN;
+
+  return [0, config.camera.height, titlePosition[2] + Math.max(1.4, titleDistance)];
 };
 
 export const calculateArtworkLayout = (
@@ -229,8 +249,12 @@ export const buildCameraKeyframes = (
     config.sceneTitleConfig.position[1],
     config.sceneTitleConfig.position[2],
   ];
+  const startPosition =
+    config.startPosition === "forward"
+      ? resolveForwardStartCameraPosition(config, startLookAt)
+      : config.camera.startPosition;
 
-  push(0, config.camera.startPosition, startLookAt, "start", null);
+  push(0, startPosition, startLookAt, "start", null);
 
   const intro = findSegment(timeline.segments, "intro");
   const introEndPosition: Vec3 = [0, config.camera.height, 0.5];
@@ -241,6 +265,77 @@ export const buildCameraKeyframes = (
     const focusIn = findSegment(timeline.segments, `artwork-${item.index}-focus-in`);
     const focusHold = findSegment(timeline.segments, `artwork-${item.index}-focus-hold`);
     const returnSegment = findSegment(timeline.segments, `artwork-${item.index}-return`);
+
+    if (isStationalCard(item)) {
+      const stationDepth = item.depth ?? GALLERY_DEFAULTS.stationalCard.depth;
+      const passThroughDepth = Math.max(stationDepth * 0.75, STATIONAL_PASS_THROUGH_MIN);
+      const returnForwardDistance = Math.max(
+        stationDepth * 2.8,
+        STATIONAL_RETURN_FORWARD_MIN,
+        config.corridor.artworkSpacing * STATIONAL_RETURN_FORWARD_SPACING_SHARE,
+      );
+      const focusInEndPosition: Vec3 = [
+        item.position[0],
+        config.camera.height,
+        item.position[2] - passThroughDepth,
+      ];
+      const focusInEndLookAt: Vec3 = [
+        item.focusTarget[0],
+        item.focusTarget[1],
+        focusInEndPosition[2] - Math.max(stationDepth, STATIONAL_LOOK_AHEAD_MIN),
+      ];
+      const returnEndPosition: Vec3 = [
+        item.position[0],
+        config.camera.height,
+        item.position[2] - returnForwardDistance,
+      ];
+      const returnEndLookAt: Vec3 = [
+        item.focusTarget[0],
+        item.focusTarget[1],
+        returnEndPosition[2] - Math.max(stationDepth, STATIONAL_LOOK_AHEAD_MIN),
+      ];
+      const focusHoldEndPosition = lerpVec3(
+        focusInEndPosition,
+        returnEndPosition,
+        0.58,
+      );
+      const focusHoldEndLookAt: Vec3 = [
+        item.focusTarget[0],
+        item.focusTarget[1],
+        focusHoldEndPosition[2] - Math.max(stationDepth, STATIONAL_LOOK_AHEAD_MIN),
+      ];
+
+      push(
+        travel.end,
+        item.centerPosition,
+        item.lookAt,
+        `artwork-${item.index}-travel-end`,
+        item.index,
+      );
+      push(
+        focusIn.end,
+        focusInEndPosition,
+        focusInEndLookAt,
+        `artwork-${item.index}-focus-in-end`,
+        item.index,
+      );
+      push(
+        focusHold.end,
+        focusHoldEndPosition,
+        focusHoldEndLookAt,
+        `artwork-${item.index}-focus-hold-end`,
+        item.index,
+      );
+      push(
+        returnSegment.end,
+        returnEndPosition,
+        returnEndLookAt,
+        `artwork-${item.index}-return-end`,
+        null,
+      );
+      return;
+    }
+
     const turnKeyframes = Math.max(1, Math.round(config.artworkTurnKeyframes));
     const turnLeadIn = clamp(config.artworkTurnLeadIn, 0, 0.85);
     const previousKeyframe = keyframes[keyframes.length - 1];

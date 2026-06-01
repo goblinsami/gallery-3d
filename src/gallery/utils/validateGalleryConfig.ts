@@ -13,8 +13,12 @@ import type {
   MobileDetailsButtonPosition,
   MobileDetailsModalPosition,
   ProgressBarPosition,
+  DesktopDetailsPanelSide,
+  DesktopDetailsPanelWidth,
   DeepPartial,
   LightingMode,
+  ArtworkOverlayFramingMode,
+  StartPositionMode,
   Vec3,
 } from "../types/galleryConfig";
 import { clamp } from "./clamp";
@@ -46,9 +50,58 @@ const VALID_MOBILE_DETAILS_BUTTON_POSITIONS: MobileDetailsButtonPosition[] = [
 ];
 const VALID_MOBILE_DETAILS_MODAL_POSITIONS: MobileDetailsModalPosition[] = ["top", "bottom"];
 const VALID_PROGRESS_BAR_POSITIONS: ProgressBarPosition[] = ["top", "bottom"];
+const VALID_DESKTOP_DETAILS_PANEL_SIDES: DesktopDetailsPanelSide[] = ["left", "right"];
+const VALID_DESKTOP_DETAILS_PANEL_WIDTHS: DesktopDetailsPanelWidth[] = [0.25, 0.5];
+const VALID_START_POSITION_MODES: StartPositionMode[] = ["back", "forward"];
+const VALID_ARTWORK_OVERLAY_FRAMING_MODES: ArtworkOverlayFramingMode[] = [
+  "frontal",
+  "balanced",
+  "cinematic",
+];
+
+const ARTWORK_OVERLAY_FRAMING_PRESETS: Record<
+  ArtworkOverlayFramingMode,
+  {
+    scale: number;
+    min: number;
+    max: number;
+    forwardOffset: number;
+  }
+> = {
+  frontal: {
+    scale: 0.62,
+    min: 0.8,
+    max: 1.4,
+    forwardOffset: 0.08,
+  },
+  balanced: {
+    scale: 0.72,
+    min: 0.95,
+    max: 1.8,
+    forwardOffset: 0.14,
+  },
+  cinematic: {
+    scale: 0.85,
+    min: 1.1,
+    max: 2.2,
+    forwardOffset: 0.2,
+  },
+};
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
+
+const sanitizeStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const cleaned = value
+    .map((entry) => (isNonEmptyString(entry) ? entry.trim() : ""))
+    .filter((entry) => entry.length > 0);
+
+  return cleaned.length > 0 ? cleaned : undefined;
+};
 
 const toVec3 = (value: unknown, fallback: Vec3): Vec3 => {
   if (
@@ -196,6 +249,11 @@ const sanitizeStationalCard = (
     title: station.title.trim(),
     subtitle: isNonEmptyString(station.subtitle) ? station.subtitle.trim() : undefined,
     description: isNonEmptyString(station.description) ? station.description.trim() : undefined,
+    biography: isNonEmptyString(station.biography) ? station.biography.trim() : undefined,
+    manifesto: isNonEmptyString(station.manifesto) ? station.manifesto.trim() : undefined,
+    services: sanitizeStringArray(station.services),
+    testimonials: sanitizeStringArray(station.testimonials),
+    references: sanitizeStringArray(station.references),
     image: isNonEmptyString(station.image) ? station.image.trim() : undefined,
     layout: VALID_STATIONAL_LAYOUTS.includes(station.layout as StationalCardLayout)
       ? (station.layout as StationalCardLayout)
@@ -350,6 +408,9 @@ export const validateGalleryConfig = (
   const config: ArtGallerySceneConfig = {
     id: source.id ?? defaultConfig.id,
     sceneTitle: source.sceneTitle ?? defaultConfig.sceneTitle,
+    startPosition: VALID_START_POSITION_MODES.includes(source.startPosition as StartPositionMode)
+      ? (source.startPosition as StartPositionMode)
+      : defaultConfig.startPosition,
     lightingMode: VALID_LIGHTING_MODES.includes(source.lightingMode as LightingMode)
       ? (source.lightingMode as LightingMode)
       : defaultConfig.lightingMode,
@@ -363,6 +424,15 @@ export const validateGalleryConfig = (
     artworkBacklightColor: source.artworkBacklightColor ?? defaultConfig.artworkBacklightColor,
     artworkBacklightIntensity: clamp(
       source.artworkBacklightIntensity ?? defaultConfig.artworkBacklightIntensity,
+      0,
+      4,
+    ),
+    artworkDirectionalKeyLightEnabled:
+      source.artworkDirectionalKeyLightEnabled ?? defaultConfig.artworkDirectionalKeyLightEnabled,
+    artworkDirectionalKeyLightColor:
+      source.artworkDirectionalKeyLightColor ?? defaultConfig.artworkDirectionalKeyLightColor,
+    artworkDirectionalKeyLightIntensity: clamp(
+      source.artworkDirectionalKeyLightIntensity ?? defaultConfig.artworkDirectionalKeyLightIntensity,
       0,
       4,
     ),
@@ -420,6 +490,16 @@ export const validateGalleryConfig = (
       0,
       240,
     ),
+    desktopDetailsPanelSide: VALID_DESKTOP_DETAILS_PANEL_SIDES.includes(
+      source.desktopDetailsPanelSide as DesktopDetailsPanelSide,
+    )
+      ? (source.desktopDetailsPanelSide as DesktopDetailsPanelSide)
+      : defaultConfig.desktopDetailsPanelSide,
+    desktopDetailsPanelWidth: VALID_DESKTOP_DETAILS_PANEL_WIDTHS.includes(
+      source.desktopDetailsPanelWidth as DesktopDetailsPanelWidth,
+    )
+      ? (source.desktopDetailsPanelWidth as DesktopDetailsPanelWidth)
+      : defaultConfig.desktopDetailsPanelWidth,
     loopWhiteAfterEndWindow: clamp(
       loopWhiteAfterEndWindowRaw,
       0.02,
@@ -458,6 +538,31 @@ export const validateGalleryConfig = (
       source.artworkTurnLeadIn ?? defaultConfig.artworkTurnLeadIn,
       0,
       0.85,
+    ),
+    artworkOverlayFramingMode: VALID_ARTWORK_OVERLAY_FRAMING_MODES.includes(
+      source.artworkOverlayFramingMode as ArtworkOverlayFramingMode,
+    )
+      ? (source.artworkOverlayFramingMode as ArtworkOverlayFramingMode)
+      : defaultConfig.artworkOverlayFramingMode,
+    artworkOverlayAngleDistanceScale: clamp(
+      source.artworkOverlayAngleDistanceScale ?? defaultConfig.artworkOverlayAngleDistanceScale,
+      0.3,
+      1.2,
+    ),
+    artworkOverlayAngleDistanceMin: clamp(
+      source.artworkOverlayAngleDistanceMin ?? defaultConfig.artworkOverlayAngleDistanceMin,
+      0.5,
+      3,
+    ),
+    artworkOverlayAngleDistanceMax: clamp(
+      source.artworkOverlayAngleDistanceMax ?? defaultConfig.artworkOverlayAngleDistanceMax,
+      0.7,
+      4,
+    ),
+    artworkOverlayForwardOffset: clamp(
+      source.artworkOverlayForwardOffset ?? defaultConfig.artworkOverlayForwardOffset,
+      -0.6,
+      0.8,
     ),
     camera: {
       fov: clamp(source.camera?.fov ?? defaultConfig.camera.fov, 35, 90),
@@ -555,12 +660,39 @@ export const validateGalleryConfig = (
     config.sceneTitleConfig.fadeStartProgress = start;
   }
 
+  const hasExplicitTitlePosition =
+    Array.isArray(source.sceneTitleConfig?.position) &&
+    source.sceneTitleConfig?.position.length === 3;
+  if (!hasExplicitTitlePosition) {
+    if (config.startPosition === "forward") {
+      const forwardTitleZ = -clamp(config.corridor.segmentLength * 0.34, 2.2, 5.5);
+      config.sceneTitleConfig.position = [0, config.camera.height + 0.12, forwardTitleZ];
+    } else {
+      config.sceneTitleConfig.position = [0, 1.75, 3.25];
+    }
+  }
+
   if (config.loopWhiteFadeOutRevealWindow > config.loopWhiteFadeOutWindow) {
     warnings.push(
       "loopWhiteFadeOutRevealWindow is greater than loopWhiteFadeOutWindow. Values were aligned.",
     );
     config.loopWhiteFadeOutWindow = config.loopWhiteFadeOutRevealWindow;
   }
+
+  if (config.artworkOverlayAngleDistanceMin > config.artworkOverlayAngleDistanceMax) {
+    warnings.push(
+      "artworkOverlayAngleDistanceMin is greater than artworkOverlayAngleDistanceMax. Values were swapped.",
+    );
+    const minDistance = config.artworkOverlayAngleDistanceMax;
+    config.artworkOverlayAngleDistanceMax = config.artworkOverlayAngleDistanceMin;
+    config.artworkOverlayAngleDistanceMin = minDistance;
+  }
+
+  const framingPreset = ARTWORK_OVERLAY_FRAMING_PRESETS[config.artworkOverlayFramingMode];
+  config.artworkOverlayAngleDistanceScale = framingPreset.scale;
+  config.artworkOverlayAngleDistanceMin = framingPreset.min;
+  config.artworkOverlayAngleDistanceMax = framingPreset.max;
+  config.artworkOverlayForwardOffset = framingPreset.forwardOffset;
 
   return {
     config,

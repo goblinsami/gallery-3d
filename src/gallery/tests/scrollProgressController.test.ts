@@ -80,9 +80,7 @@ describe("ScrollProgressController loop phases", () => {
     (controller as unknown as { running: boolean; velocity: number; tick: () => void }).velocity = -0.4;
     (controller as unknown as { running: boolean; velocity: number; tick: () => void }).tick();
 
-    expect(states[0]).toEqual({ progress: 0, whiteMix: 0 });
-    expect(states[1].progress).toBe(0);
-    expect(states[1].whiteMix).toBe(0);
+    expect(states.at(-1)).toEqual({ progress: 0, whiteMix: 0 });
   });
 
   it("keeps loop restart continuity after first full cycle", () => {
@@ -103,5 +101,35 @@ describe("ScrollProgressController loop phases", () => {
     expect(states[0].progress).toBeGreaterThan(0.17);
     expect(states[1].progress).toBeGreaterThanOrEqual(0.17);
     expect(states[1].progress).toBeLessThanOrEqual(0.181);
+  });
+
+  it("pauses wheel input when interaction is disabled", () => {
+    const states: ScrollProgressState[] = [];
+    const controller = new ScrollProgressController({
+      element: createElementStub(),
+      loop: false,
+      onProgress: (state) => states.push(state),
+    });
+
+    controller.setProgress(0.4);
+    controller.setInteractionEnabled(false);
+
+    const wheelEvent = {
+      deltaY: 120,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+      ctrlKey: false,
+      preventDefault: vi.fn(),
+    } as unknown as WheelEvent;
+
+    (
+      controller as unknown as {
+        onWheel: (event: WheelEvent) => void;
+        velocity: number;
+      }
+    ).onWheel(wheelEvent);
+
+    expect((controller as unknown as { velocity: number }).velocity).toBe(0);
+    expect(wheelEvent.preventDefault).not.toHaveBeenCalled();
+    expect(states.at(-1)).toEqual({ progress: 0.4, whiteMix: 0 });
   });
 });

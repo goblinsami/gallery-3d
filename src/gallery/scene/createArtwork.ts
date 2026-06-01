@@ -1,4 +1,4 @@
-import { Group, Object3D, PointLight, RectAreaLight, SpotLight } from "three";
+import { DirectionalLight, Group, Object3D, PointLight, RectAreaLight, SpotLight } from "three";
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 import type { PositionedArtwork } from "../types/galleryRuntime";
 import { loadTextureWithFallback } from "../utils/textureLoader";
@@ -96,6 +96,19 @@ export const createArtwork = async (
     backFill.position.set(0, 0.02, -0.22);
 
     meshGroup.add(backTarget, rectBackLight, backEdgeSpot, backFill);
+  }
+
+  if (config.artworkDirectionalKeyLightEnabled && config.artworkDirectionalKeyLightIntensity > 0) {
+    const directionalTarget = new Object3D();
+    directionalTarget.position.set(0, 0, 0);
+    const directionalLight = new DirectionalLight(
+      config.artworkDirectionalKeyLightColor,
+      config.artworkDirectionalKeyLightIntensity * (isContrastMode ? 1.1 : 0.92),
+    );
+    directionalLight.position.set(0, 0.2, 1.65);
+    directionalLight.target = directionalTarget;
+    directionalLight.castShadow = false;
+    meshGroup.add(directionalTarget, directionalLight);
   }
 
   return {
