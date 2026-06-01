@@ -306,7 +306,11 @@ onMounted(async () => {
   engine = new GalleryEngine(containerRef.value, runtimeSceneConfig.value);
   await engine.init();
   engine.setProgress(props.initialProgress);
-  setActiveItemIndex(engine.getActiveItemIndex() ?? engine.getActiveArtworkIndex());
+  const initialEngineItemIndex = engine.getActiveItemIndex() ?? engine.getActiveArtworkIndex();
+  setActiveItemIndex(initialEngineItemIndex);
+  if (initialEngineItemIndex === null && galleryItems.value.length > 0) {
+    lastKnownItemIndex.value = 0;
+  }
   syncBottomSheetCameraFocus();
 
   scrollController = new ScrollProgressController({
@@ -361,7 +365,11 @@ watch(
       nextConfig.loopProgressAdvanceDuringWhiteFadeOut,
     );
     scrollController?.setLoop(nextConfig.infiniteCorridor);
-    setActiveItemIndex(engine.getActiveItemIndex() ?? engine.getActiveArtworkIndex());
+    const nextEngineItemIndex = engine.getActiveItemIndex() ?? engine.getActiveArtworkIndex();
+    setActiveItemIndex(nextEngineItemIndex);
+    if (nextEngineItemIndex === null && lastKnownItemIndex.value === null && galleryItems.value.length > 0) {
+      lastKnownItemIndex.value = 0;
+    }
     syncScrollOwnership();
     syncBottomSheetCameraFocus();
   },
