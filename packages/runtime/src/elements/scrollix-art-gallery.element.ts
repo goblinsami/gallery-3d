@@ -3,9 +3,22 @@ import RuntimeArtGallery from "../vue/RuntimeArtGallery.vue";
 import runtimeStyles from "../styles/runtime.scss?inline";
 
 const RUNTIME_STYLE_ATTR = "data-scrollix-runtime-style";
+const RUNTIME_COMPONENT_STYLE_LINK_ATTR = "data-scrollix-runtime-component-style-link";
 const RUNTIME_MODULE_BASE_URL = new URL(/* @vite-ignore */ "./", import.meta.url).toString();
+const RUNTIME_COMPONENT_STYLES_URL = new URL(
+  /* @vite-ignore */ "./scrollix-art-gallery-runtime.css",
+  import.meta.url,
+).toString();
 
 const ensureRuntimeStyle = (shadowRoot: ShadowRoot): void => {
+  if (!shadowRoot.querySelector(`link[${RUNTIME_COMPONENT_STYLE_LINK_ATTR}]`)) {
+    const linkTag = document.createElement("link");
+    linkTag.rel = "stylesheet";
+    linkTag.href = RUNTIME_COMPONENT_STYLES_URL;
+    linkTag.setAttribute(RUNTIME_COMPONENT_STYLE_LINK_ATTR, "true");
+    shadowRoot.prepend(linkTag);
+  }
+
   if (shadowRoot.querySelector(`style[${RUNTIME_STYLE_ATTR}]`)) return;
   const styleTag = document.createElement("style");
   styleTag.setAttribute(RUNTIME_STYLE_ATTR, "true");
