@@ -1,18 +1,12 @@
 import {
-  AdditiveBlending,
-  BoxGeometry,
   CanvasTexture,
-  Color,
   Group,
   LinearFilter,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
-  Object3D,
   PlaneGeometry,
-  PointLight,
   SRGBColorSpace,
-  SpotLight,
   Texture,
 } from "three";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
@@ -28,9 +22,6 @@ const STATIONAL_REFERENCE_TEXT_PLANE_HEIGHT = GALLERY_DEFAULTS.stationalCard.hei
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-const cleanColor = (value: string | undefined, fallback: string): string =>
-  typeof value === "string" && value.trim() ? value.trim() : fallback;
-
 const resolveCanvasSize = (
   planeWidth: number,
   planeHeight: number,
@@ -44,14 +35,6 @@ const resolveCanvasSize = (
     canvasHeight,
     scale: canvasHeight / BASE_CANVAS_HEIGHT,
   };
-};
-
-const extractAlpha = (value: string | undefined, fallback: number): number => {
-  if (!value) return fallback;
-  const rgbaMatch = value.replace(/\s+/g, "").match(/^rgba\((\d+),(\d+),(\d+),([0-9.]+)\)$/i);
-  if (!rgbaMatch) return fallback;
-  const parsed = Number(rgbaMatch[4]);
-  return Number.isFinite(parsed) ? clamp(parsed, 0, 1) : fallback;
 };
 
 const wrapTextLines = (
@@ -194,72 +177,19 @@ const applyTextureCover = (
 
 export interface CreatedStationalCard {
   meshGroup: Group;
-  spotlight: SpotLight;
-  spotlightTarget: Object3D;
-  baseSpotlightIntensity: number;
 }
 
 export const createStationalCard = async (
   station: PositionedStationalCard,
-  lightingMode: "contrast" | "day",
 ): Promise<CreatedStationalCard> => {
   const width = clamp(station.width ?? GALLERY_DEFAULTS.stationalCard.width, 1.6, 8);
   const height = clamp(station.height ?? GALLERY_DEFAULTS.stationalCard.height, 1.2, 5);
   const depth = clamp(station.depth ?? GALLERY_DEFAULTS.stationalCard.depth, 0.02, 0.4);
-  const backgroundColor = cleanColor(station.backgroundColor, GALLERY_DEFAULTS.stationalCard.backgroundColor);
-  const borderColor = cleanColor(station.borderColor, GALLERY_DEFAULTS.stationalCard.borderColor);
-  const glowColor = cleanColor(station.glowColor, GALLERY_DEFAULTS.stationalCard.glowColor);
-  const borderOpacity = extractAlpha(station.borderColor, 0.24);
-  const glowOpacity = extractAlpha(station.glowColor, 0.18);
 
   const root = new Group();
   root.name = `stational-card-${station.id}`;
   root.position.set(station.position[0], station.position[1], station.position[2]);
   root.rotation.set(station.rotation[0], station.rotation[1], station.rotation[2]);
-
-  const panel = new Mesh(
-    new BoxGeometry(width, height, depth),
-    new MeshStandardMaterial({
-      color: new Color(backgroundColor),
-      roughness: 0.42,
-      metalness: 0.18,
-      emissive: new Color(glowColor),
-      emissiveIntensity: lightingMode === "contrast" ? 0.14 : 0.08,
-    }),
-  );
-  panel.castShadow = false;
-  panel.receiveShadow = true;
-  root.add(panel);
-
-  const border = new Mesh(
-    new PlaneGeometry(width * 0.985, height * 0.965),
-    new MeshBasicMaterial({
-      color: new Color(borderColor),
-      transparent: true,
-      opacity: clamp(borderOpacity * (lightingMode === "contrast" ? 1.2 : 1), 0.08, 0.42),
-      blending: AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
-    }),
-  );
-  border.position.set(0, 0, depth / 2 + 0.004);
-  border.renderOrder = 2;
-  root.add(border);
-
-  const glow = new Mesh(
-    new PlaneGeometry(width * 1.08, height * 1.08),
-    new MeshBasicMaterial({
-      color: new Color(glowColor),
-      transparent: true,
-      opacity: clamp(glowOpacity * (lightingMode === "contrast" ? 1.25 : 1), 0.02, 0.26),
-      blending: AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
-    }),
-  );
-  glow.position.set(0, 0, depth / 2 - 0.004);
-  glow.renderOrder = 1;
-  root.add(glow);
 
   const splitLayout = station.layout === "image-left" || station.layout === "image-right";
   const stackAsColumn = splitLayout && station.mobileColumnLayout === true;
@@ -317,39 +247,7 @@ export const createStationalCard = async (
     root.add(imagePlane);
   }
 
-  const stationGlow = new PointLight(
-    new Color(glowColor),
-    lightingMode === "contrast" ? 0.56 : 0.34,
-    width * 1.5,
-    1.5,
-  );
-  stationGlow.position.set(0, 0, depth * 0.4);
-  root.add(stationGlow);
-
-  const spotlightTarget = new Object3D();
-  spotlightTarget.position.set(station.position[0], station.position[1], station.position[2]);
-
-  const baseSpotlightIntensity = clamp(
-    station.spotlightIntensity ?? GALLERY_DEFAULTS.stationalCard.spotlightIntensity,
-    0,
-    4,
-  );
-  const spotlight = new SpotLight(
-    "#ffffff",
-    lightingMode === "contrast" ? baseSpotlightIntensity * 1.08 : baseSpotlightIntensity * 0.86,
-    34,
-    Math.PI / 7.2,
-    0.36,
-    1.25,
-  );
-  spotlight.position.set(0, station.position[1] + 2.3, station.position[2] + 2.6);
-  spotlight.target = spotlightTarget;
-  spotlight.castShadow = false;
-
   return {
     meshGroup: root,
-    spotlight,
-    spotlightTarget,
-    baseSpotlightIntensity,
   };
 };

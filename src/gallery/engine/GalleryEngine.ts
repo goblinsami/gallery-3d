@@ -141,7 +141,6 @@ export class GalleryEngine {
     this.renderer.domElement.style.inset = "0";
     this.renderer.domElement.style.zIndex = "1";
     this.renderer.domElement.style.touchAction = "none";
-      "radial-gradient(ellipse 120% 120% at 50% 50%, #000 72%, rgba(0, 0, 0, 0) 100%)";
     this.container.appendChild(this.renderer.domElement);
     this.resetAtmosphereBase();
 
@@ -387,6 +386,7 @@ export class GalleryEngine {
 
       this.resize();
       this.renderer.setScissorTest(false);
+      this.renderer.setClearColor(this.mixedBackgroundColor, 0);
       this.renderer.clear(true, true, true);
 
       const viewport = this.effectiveRenderViewport ?? this.renderViewport;
@@ -719,17 +719,8 @@ export class GalleryEngine {
 
     for (const item of layout) {
       if (isStationalCard(item)) {
-        const created = await createStationalCard(item, this.config.lightingMode);
+        const created = await createStationalCard(item);
         artworkRoot.add(created.meshGroup);
-        lightingRoot.add(created.spotlight);
-        lightingRoot.add(created.spotlightTarget);
-        this.itemSpotlights.push({
-          itemIndex: item.index,
-          spotlight: created.spotlight,
-          baseIntensity: created.baseSpotlightIntensity,
-          focusBoost: 1.24,
-          idleBoost: 0.54,
-        });
         this.focusSurfaces.push({
           itemIndex: item.index,
           root: created.meshGroup,

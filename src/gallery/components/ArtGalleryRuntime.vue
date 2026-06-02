@@ -22,7 +22,6 @@ interface Props {
 }
 
 const DEFAULT_MOBILE_BREAKPOINT = 820;
-
 const props = withDefaults(defineProps<Props>(), {
   initialProgress: 0,
   forceMobileMode: false,
@@ -120,6 +119,16 @@ const activeJourneyContent = computed(() => {
 
   return renderJourneyNodeContent(galleryItems.value[index], index, galleryItems.value.length);
 });
+const activeDebugLabel = computed(() => {
+  const content = activeJourneyContent.value;
+  if (!content) {
+    return "No active item";
+  }
+
+  const item = content.node.item;
+  const typeLabel = item.type === "stational-card" ? "station" : "artwork";
+  return `${content.node.index + 1}/${content.node.total} ${typeLabel} ${item.id} ${item.title}`;
+});
 const progressBarPositionClass = computed(
   () => `progress-bar-track--${resolvedConfig.value.progressBarPosition}`,
 );
@@ -134,51 +143,22 @@ const progressBarTrackStyle = computed<Record<string, string>>(() => ({
 const progressBarFillStyle = computed<Record<string, string>>(() => ({
   transform: `scaleX(${Math.max(0, Math.min(1, journeyProgress.value))})`,
 }));
-const blurLayerAUrl = ref<string | null>(null);
-const blurLayerBUrl = ref<string | null>(null);
-const blurLayerAOpacity = ref(0);
-const blurLayerBOpacity = ref(0);
-const blurLayerActive = ref<"a" | "b">("a");
-const loadedBlurImageUrls = new Set<string>();
-let blurTransitionVersion = 0;
-const artworkGapFillStyleA = computed<Record<string, string>>(() => ({
-  opacity: String(blurLayerAOpacity.value),
-  backgroundImage: blurLayerAUrl.value ? `url("${blurLayerAUrl.value}")` : "none",
-}));
-const artworkGapFillStyleB = computed<Record<string, string>>(() => ({
-  opacity: String(blurLayerBOpacity.value),
-  backgroundImage: blurLayerBUrl.value ? `url("${blurLayerBUrl.value}")` : "none",
-}));
+const ambientGradientStyle = computed<Record<string, string>>(() => {
+  const corridor = resolvedConfig.value.corridor;
+
+  return {
+    backgroundColor: resolvedConfig.value.sceneBackgroundColor,
+    backgroundImage: [
+      `radial-gradient(72% 82% at 50% 102%, ${corridor.floorColor} 0%, transparent 72%)`,
+      `radial-gradient(78% 76% at 50% -4%, ${corridor.ceilingColor} 0%, transparent 70%)`,
+      `radial-gradient(54% 88% at -6% 50%, ${corridor.wallColor} 0%, transparent 72%)`,
+      `radial-gradient(54% 88% at 106% 50%, ${corridor.wallColor} 0%, transparent 72%)`,
+      `linear-gradient(180deg, ${corridor.ceilingColor} 0%, ${corridor.wallColor} 48%, ${corridor.floorColor} 100%)`,
+    ].join(", "),
+  };
+});
 const desktopSheetSide = computed(() => resolvedConfig.value.desktopDetailsPanelSide);
 const desktopSheetWidth = computed(() => resolvedConfig.value.desktopDetailsPanelWidth);
-
-const setActiveBlurLayer = (layer: "a" | "b"): void => {
-  if (layer === "a") {
-    blurLayerAOpacity.value = 1;
-    blurLayerBOpacity.value = 0;
-    return;
-  }
-
-  blurLayerAOpacity.value = 0;
-  blurLayerBOpacity.value = 1;
-};
-
-const preloadBlurImage = (imageUrl: string): Promise<boolean> => {
-  if (loadedBlurImageUrls.has(imageUrl)) {
-    return Promise.resolve(true);
-  }
-
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => {
-      loadedBlurImageUrls.add(imageUrl);
-      resolve(true);
-    };
-    image.onerror = () => resolve(false);
-    image.src = imageUrl;
-  });
-};
 
 const setActiveItemIndex = (index: number | null): void => {
   activeItemIndex.value = index;
@@ -244,47 +224,6 @@ const syncBottomSheetCameraFocus = (): void => {
     desktopSheetSide.value,
     desktopSheetWidth.value,
   );
-};
-
-const setArtworkGapBlur = (imageUrl: string | undefined): void => {
-  const nextUrl = imageUrl?.trim();
-  if (!nextUrl) {
-    blurTransitionVersion += 1;
-    blurLayerAOpacity.value = 0;
-    blurLayerBOpacity.value = 0;
-    return;
-  }
-
-  const activeUrl = blurLayerActive.value === "a" ? blurLayerAUrl.value : blurLayerBUrl.value;
-  if (activeUrl === nextUrl) {
-    setActiveBlurLayer(blurLayerActive.value);
-    return;
-  }
-
-  const transitionVersion = ++blurTransitionVersion;
-  void preloadBlurImage(nextUrl).then((loaded) => {
-    if (!loaded || transitionVersion !== blurTransitionVersion) {
-      return;
-    }
-
-    const nextLayer = blurLayerActive.value === "a" ? "b" : "a";
-    if (nextLayer === "a") {
-      blurLayerAUrl.value = nextUrl;
-      blurLayerAOpacity.value = 0;
-    } else {
-      blurLayerBUrl.value = nextUrl;
-      blurLayerBOpacity.value = 0;
-    }
-
-    requestAnimationFrame(() => {
-      if (transitionVersion !== blurTransitionVersion) {
-        return;
-      }
-
-      setActiveBlurLayer(nextLayer);
-      blurLayerActive.value = nextLayer;
-    });
-  });
 };
 
 const handleProgress = (state: ScrollProgressState): void => {
@@ -396,14 +335,6 @@ watch(
   },
 );
 
-watch(
-  () => activeJourneyContent.value?.thumbnailUrl,
-  (nextImageUrl) => {
-    setArtworkGapBlur(nextImageUrl);
-  },
-  { immediate: true },
-);
-
 onBeforeUnmount(() => {
   scrollController?.dispose();
   scrollController = null;
@@ -438,9 +369,11 @@ onBeforeUnmount(() => {
     aria-label="3D Art Gallery Runtime"
     @click="handleSceneClick"
   >
-    <div class="artwork-gap-fill artwork-gap-fill--a" :style="artworkGapFillStyleA" aria-hidden="true" />
-    <div class="artwork-gap-fill artwork-gap-fill--b" :style="artworkGapFillStyleB" aria-hidden="true" />
+    <div class="ambient-gradient-layer" :style="ambientGradientStyle" aria-hidden="true" />
     <div class="white-overlay" :style="whiteOverlayStyle" />
+    <div class="debug-overlay" aria-live="polite">
+      {{ activeDebugLabel }}
+    </div>
     <div
       class="progress-bar-track"
       :class="progressBarPositionClass"
@@ -480,19 +413,36 @@ onBeforeUnmount(() => {
   transition: opacity 80ms linear;
 }
 
-.artwork-gap-fill {
+.ambient-gradient-layer {
   position: absolute;
-  inset: 0;
+  inset: -18%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0;
-  background-color: #05070f;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  transform: scale(1.08);
-  filter: blur(28px) saturate(1.08);
-  transition: opacity 420ms ease;
+  opacity: 0.94;
+  transform: scale(1.16);
+  filter: blur(42px) saturate(1.04);
+}
+
+.debug-overlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 7;
+  max-width: min(320px, calc(100% - 28px));
+  padding: 8px 11px;
+  border: 1px solid rgba(198, 222, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(7, 12, 24, 0.78);
+  color: rgba(235, 243, 255, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  text-transform: uppercase;
 }
 
 .progress-bar-track {

@@ -691,6 +691,7 @@ const CREATIVE_DIRECTOR_SAMPLE: ArtGallerySceneConfig = {
     ...DAYLIGHT_GALLERY_SAMPLE,
     id: "creative-director-portfolio",
     sceneTitle: "Creative Direction Portfolio",
+    startPosition: "back",
     lightingMode: "contrast",
     infiniteCorridor: true,
     sceneBackgroundColor: "#090d15",
@@ -701,6 +702,23 @@ const CREATIVE_DIRECTOR_SAMPLE: ArtGallerySceneConfig = {
     artworkBacklightEnabled: true,
     artworkBacklightColor: "#8bb4ff",
     artworkBacklightIntensity: 1.9,
+    corridor: {
+        ...DAYLIGHT_GALLERY_SAMPLE.corridor,
+        segmentLength: 7.4,
+        artworkSpacing: 11.5,
+    },
+    sceneTitleConfig: {
+        ...DAYLIGHT_GALLERY_SAMPLE.sceneTitleConfig,
+        maxWidth: 4.2,
+        position: [0, 1.7, -8.8],
+        maxOpacity: 0,
+        fadeStartProgress: 0,
+        fadeEndProgress: 0.01,
+    },
+    camera: {
+        ...DAYLIGHT_GALLERY_SAMPLE.camera,
+        startPosition: [0, 1.7, 0.95],
+    },
     artworks: [
         {
             id: "nike-air-max-campaign",
@@ -789,6 +807,21 @@ const CREATIVE_DIRECTOR_SAMPLE: ArtGallerySceneConfig = {
         },
     ],
     items: [
+        {
+            id: "template-title-station",
+            type: "stational-card",
+            variant: "custom",
+            title: "Creative Direction Portfolio",
+            subtitle: "Template Intro",
+            description:
+                "A cinematic portfolio template for creative directors, campaign leads and visual storytellers.",
+            manifesto:
+                "Open with a branded station instead of floating title letters, then move into selected case studies and contact moments.",
+            layout: "text",
+            width: 2.9,
+            height: 2.05,
+            depth: 0.04,
+        },
         {
             id: "nike-air-max-campaign",
             type: "artwork",

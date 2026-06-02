@@ -143,6 +143,20 @@ const wrapSceneTitleLines = (
 
 export const createSceneTitle = async (config: ArtGallerySceneConfig): Promise<SceneTitleResult> => {
   const root = new Group();
+  const titleText = config.sceneTitle.trim();
+
+  if (!titleText || config.sceneTitleConfig.maxOpacity <= 0) {
+    const material = new MeshStandardMaterial({
+      color: config.sceneTitleConfig.color,
+      transparent: true,
+      opacity: 0,
+      roughness: 0.4,
+      metalness: 0.18,
+    });
+
+    root.visible = false;
+    return { root, material };
+  }
 
   let material: MeshStandardMaterial;
 
@@ -160,7 +174,7 @@ export const createSceneTitle = async (config: ArtGallerySceneConfig): Promise<S
       depth: config.sceneTitleConfig.depth,
     };
     const lines = wrapSceneTitleLines(
-      config.sceneTitle,
+      titleText,
       font,
       titleOptions,
       config.sceneTitleConfig.maxWidth,
