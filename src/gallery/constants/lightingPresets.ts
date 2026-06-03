@@ -6,7 +6,8 @@ export interface LightingPreset {
   directionalPosition: [number, number, number];
   shadowMapSize: number;
   shadowSoftness: number;
-  fogDensity: number;
+  fogNear: number;
+  fogFar: number;
 }
 
 export const LIGHTING_PRESETS: Record<LightingMode, LightingPreset> = {
@@ -16,7 +17,8 @@ export const LIGHTING_PRESETS: Record<LightingMode, LightingPreset> = {
     directionalPosition: [3, 7, 5],
     shadowMapSize: 2048,
     shadowSoftness: 0.35,
-    fogDensity: 0.06,
+    fogNear: 36,
+    fogFar: 104,
   },
   day: {
     ambientIntensity: 0.65,
@@ -24,7 +26,8 @@ export const LIGHTING_PRESETS: Record<LightingMode, LightingPreset> = {
     directionalPosition: [6, 10, 3],
     shadowMapSize: 1024,
     shadowSoftness: 0.85,
-    fogDensity: 0.028,
+    fogNear: 40,
+    fogFar: 120,
   },
 };
 

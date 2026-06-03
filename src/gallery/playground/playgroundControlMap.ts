@@ -12,6 +12,7 @@ export type AspectRatioPreset =
 export type PlaygroundInputType =
   | "text"
   | "number"
+  | "slider"
   | "boolean"
   | "select"
   | "color"
@@ -242,6 +243,42 @@ export const PLAYGROUND_CONTROLS: PlaygroundControlDefinition[] = [
     max: 4,
     step: 0.01,
     defaultValue: DEFAULT_GALLERY_CONFIG.ceilingSpotsIntensity,
+  },
+  {
+    key: "ceilingLightIntensity",
+    path: "ceilingLightIntensity",
+    label: "Ceiling Light Intensity",
+    description: "Intensidad de la luz continua que revela el techo.",
+    section: "Lighting",
+    inputType: "slider",
+    min: 0,
+    max: 4,
+    step: 0.01,
+    defaultValue: DEFAULT_GALLERY_CONFIG.ceilingLightIntensity,
+  },
+  {
+    key: "lightGridWidth",
+    path: "lightGridWidth",
+    label: "Light Grid Width",
+    description: "Ancho del grid cenital de luces y guías.",
+    section: "Lighting",
+    inputType: "slider",
+    min: 1.2,
+    max: 20,
+    step: 0.1,
+    defaultValue: DEFAULT_GALLERY_CONFIG.lightGridWidth,
+  },
+  {
+    key: "lightGridRailWidth",
+    path: "lightGridRailWidth",
+    label: "Light Grid Rail Width",
+    description: "Grosor de los rieles oscuros del grid cenital.",
+    section: "Lighting",
+    inputType: "slider",
+    min: 0.01,
+    max: 0.18,
+    step: 0.005,
+    defaultValue: DEFAULT_GALLERY_CONFIG.lightGridRailWidth,
   },
   {
     key: "artworkBacklightEnabled",

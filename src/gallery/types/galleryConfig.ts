@@ -179,6 +179,9 @@ export interface ArtGallerySceneConfig {
   ceilingSpotsEnabled: boolean;
   ceilingSpotsColor: string;
   ceilingSpotsIntensity: number;
+  ceilingLightIntensity: number;
+  lightGridWidth: number;
+  lightGridRailWidth: number;
   artworkBacklightEnabled: boolean;
   artworkBacklightColor: string;
   artworkBacklightIntensity: number;

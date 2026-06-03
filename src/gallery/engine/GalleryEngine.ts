@@ -1,6 +1,6 @@
 import {
   Color,
-  FogExp2,
+  Fog,
   Group,
   Material,
   PerspectiveCamera,
@@ -31,6 +31,7 @@ import { LIGHTING_PRESETS } from "../constants/lightingPresets";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
 import { isStationalCard } from "../utils/galleryItems";
 import type { PositionedGalleryItem } from "../types/galleryRuntime";
+import { createArchitecturalMaterials } from "../scene/createArchitecturalMaterials";
 
 interface FocusSpotlightEntry {
   itemIndex: number;
@@ -59,7 +60,8 @@ type BottomSheetState = "collapsed" | "half" | "full";
 type DesktopSheetSide = "left" | "right";
 type DesktopSheetWidth = 0.25 | 0.5;
 
-const LOOP_FOG_BOOST = 0.08;
+const LOOP_FOG_NEAR_PULL = 34;
+const LOOP_FOG_FAR_PULL = 46;
 const MIN_AUTO_LANDSCAPE_ASPECT = 1.35;
 const MAX_AUTO_ASPECT = 2.4;
 const PORTRAIT_MAX_AUTO_ASPECT = 4 / 3;
@@ -98,7 +100,8 @@ export class GalleryEngine {
   private initialized = false;
   private smoothedLookAt: Vec3 | null = null;
   private loopWhiteMix = 0;
-  private baseFogDensity = 0.025;
+  private baseFogNear = 40;
+  private baseFogFar = 120;
   private readonly whiteColor = new Color(GALLERY_TOKENS.scene.white);
   private readonly baseBackgroundColor = new Color();
   private readonly baseFogColor = new Color();
@@ -707,19 +710,24 @@ export class GalleryEngine {
     });
     const keyframes = buildCameraKeyframes(this.config, layout);
 
-    const corridorRoot = createCorridor(this.config);
+    const architecturalMaterials = await createArchitecturalMaterials(this.config);
+    const corridorRoot = createCorridor(this.config, architecturalMaterials);
     const artworkRoot = new Group();
     artworkRoot.name = "gallery-items-root";
 
     const lightingRoot = createLighting(this.config);
-    const environmentRoot = createEnvironment(this.config, this.scene.fog as FogExp2 | null);
+    const environmentRoot = createEnvironment(
+      this.config,
+      this.scene.fog as Fog | null,
+      architecturalMaterials,
+    );
 
     this.itemSpotlights = [];
     this.focusSurfaces = [];
 
     for (const item of layout) {
       if (isStationalCard(item)) {
-        const created = await createStationalCard(item);
+        const created = await createStationalCard(item, architecturalMaterials);
         artworkRoot.add(created.meshGroup);
         this.focusSurfaces.push({
           itemIndex: item.index,
@@ -731,7 +739,7 @@ export class GalleryEngine {
         continue;
       }
 
-      const created = await createArtwork(this.config, item);
+      const created = await createArtwork(this.config, item, architecturalMaterials);
       artworkRoot.add(created.meshGroup);
       lightingRoot.add(created.spotlight);
       lightingRoot.add(created.spotlightTarget);
@@ -774,7 +782,8 @@ export class GalleryEngine {
   private resetAtmosphereBase(): void {
     this.baseBackgroundColor.set(this.config.sceneBackgroundColor);
     this.baseFogColor.set(this.config.sceneFogColor);
-    this.baseFogDensity = LIGHTING_PRESETS[this.config.lightingMode].fogDensity;
+    this.baseFogNear = LIGHTING_PRESETS[this.config.lightingMode].fogNear;
+    this.baseFogFar = LIGHTING_PRESETS[this.config.lightingMode].fogFar;
   }
 
   private applyAtmosphere(whiteMix: number): void {
@@ -791,9 +800,13 @@ export class GalleryEngine {
       this.scene.background = this.mixedBackgroundColor.clone();
     }
 
-    if (this.scene.fog instanceof FogExp2) {
+    if (this.scene.fog instanceof Fog) {
       this.scene.fog.color.copy(this.mixedFogColor);
-      this.scene.fog.density = this.baseFogDensity + whiteMix * LOOP_FOG_BOOST;
+      this.scene.fog.near = Math.max(0, this.baseFogNear - whiteMix * LOOP_FOG_NEAR_PULL);
+      this.scene.fog.far = Math.max(
+        this.scene.fog.near + 1,
+        this.baseFogFar - whiteMix * LOOP_FOG_FAR_PULL,
+      );
     }
 
     this.renderer.setClearColor(this.mixedBackgroundColor, 0);
@@ -813,10 +826,12 @@ export class GalleryEngine {
       nodes.titleRoot,
     ];
 
+    const disposableRoot = new Group();
     groups.forEach((group) => {
       this.scene?.remove(group);
-      disposeThree(group);
+      disposableRoot.add(group);
     });
+    disposeThree(disposableRoot);
 
     this.sceneGraph = null;
     this.itemSpotlights = [];

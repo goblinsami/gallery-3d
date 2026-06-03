@@ -12,7 +12,7 @@ const runtimeOutRootDir = path.resolve(appDistDir, "runtime");
 
 const runtimeRequiredFiles = ["scrollix-art-gallery-runtime.js"];
 const runtimeOptionalFiles = ["scrollix-art-gallery-runtime.css"];
-const runtimeDirectories = ["images", "fonts"];
+const runtimeDirectories = ["images", "fonts", "textures"];
 const DEFAULT_CHANNEL = "stable";
 
 const sanitizeSegment = (value) => value.replace(/[^a-zA-Z0-9._-]/g, "-");

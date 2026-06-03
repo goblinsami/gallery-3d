@@ -27,6 +27,16 @@ const defaultValueLabel = computed(() => {
   return String(value);
 });
 
+const numericValue = computed(() =>
+  typeof props.modelValue === "number" ? props.modelValue : Number(props.control.defaultValue),
+);
+
+const numericValueLabel = computed(() =>
+  Number.isInteger(numericValue.value)
+    ? String(numericValue.value)
+    : numericValue.value.toFixed(2).replace(/\.?0+$/, ""),
+);
+
 const commitNumber = (raw: string): void => {
   const parsed = Number(raw);
   if (Number.isFinite(parsed)) {
@@ -88,10 +98,23 @@ watch(
       @input="commitText(($event.target as HTMLInputElement).value)"
     />
 
+    <div v-else-if="control.inputType === 'slider'" class="slider-control">
+      <input
+        type="range"
+        :value="numericValue"
+        :min="control.min"
+        :max="control.max"
+        :step="control.step ?? 0.01"
+        :aria-label="control.label"
+        @input="commitNumber(($event.target as HTMLInputElement).value)"
+      />
+      <span class="slider-value">{{ numericValueLabel }}</span>
+    </div>
+
     <input
       v-else-if="control.inputType === 'number'"
       type="number"
-      :value="typeof modelValue === 'number' ? modelValue : Number(control.defaultValue)"
+      :value="numericValue"
       :min="control.min"
       :max="control.max"
       :step="control.step ?? 0.01"
@@ -179,6 +202,28 @@ button {
   padding: 0;
 }
 
+.slider-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(48px, auto);
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-control input[type="range"] {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  accent-color: var(--token-accent);
+  background: transparent;
+}
+
+.slider-value {
+  color: var(--token-text);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.78rem;
+  text-align: right;
+}
+
 .json-control {
   display: grid;
   gap: 8px;
@@ -212,4 +257,3 @@ button {
   color: var(--token-meta);
 }
 </style>
-

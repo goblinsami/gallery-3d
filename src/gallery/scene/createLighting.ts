@@ -4,12 +4,25 @@ import {
   Group,
   HemisphereLight,
   Object3D,
+  PointLight,
+  RectAreaLight,
   SpotLight,
 } from "three";
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 import { LIGHTING_PRESETS } from "../constants/lightingPresets";
+import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 import { GALLERY_TOKENS } from "../config/galleryTokens";
-import { getCeilingSpotLayout } from "./ceilingSpotLayout";
+import { getCeilingGridFadeOpacity, getCeilingGridLayout } from "./ceilingSpotLayout";
+import { getArchitecturalLedRakeLightLayout } from "./architecturalLedLayout";
+
+const sampleAnchorsEvenly = <T>(anchors: T[], maxCount: number): T[] => {
+  if (anchors.length <= maxCount) {
+    return anchors;
+  }
+
+  const step = anchors.length / maxCount;
+  return Array.from({ length: maxCount }, (_, index) => anchors[Math.floor(index * step)]);
+};
 
 export const createLighting = (config: ArtGallerySceneConfig): Group => {
   const root = new Group();
@@ -57,20 +70,44 @@ export const createLighting = (config: ArtGallerySceneConfig): Group => {
     root.add(ceilingBounce);
   }
 
+  const ceilingGrid = getCeilingGridLayout(config);
+  const ceilingAnchors = ceilingGrid.anchors;
+  if (config.ceilingLightIntensity > 0) {
+    const ceilingFill = new RectAreaLight(
+      GALLERY_TOKENS.lighting.gold,
+      config.ceilingLightIntensity * (config.lightingMode === "contrast" ? 1 : 0.65),
+      config.lightGridWidth * GALLERY_DEFAULTS.architecture.ceilingFillLightWidthScale,
+      ceilingGrid.depthLength * GALLERY_DEFAULTS.architecture.ceilingFillLightDepthScale,
+    );
+    ceilingFill.position.set(
+      0,
+      config.corridor.height - GALLERY_DEFAULTS.architecture.ceilingFillLightInset,
+      ceilingGrid.depthCenter,
+    );
+    ceilingFill.lookAt(0, config.corridor.height, ceilingGrid.depthCenter);
+    root.add(ceilingFill);
+  }
+
   if (config.ceilingSpotsEnabled && config.ceilingSpotsIntensity > 0) {
-    const anchors = getCeilingSpotLayout(config);
-    const sampledAnchors =
-      config.lightingMode === "contrast" ? anchors.filter((_, index) => index % 2 === 0) : anchors;
+    const sampledAnchors = sampleAnchorsEvenly(
+      ceilingAnchors,
+      GALLERY_DEFAULTS.architecture.maxCeilingSpotLights,
+    );
     for (const anchor of sampledAnchors) {
+      const fadeOpacity = getCeilingGridFadeOpacity(ceilingGrid, anchor.z);
+      if (fadeOpacity <= GALLERY_DEFAULTS.architecture.ceilingGridFadeMinOpacity) {
+        continue;
+      }
+
       const floorTarget = new Object3D();
       floorTarget.position.set(anchor.x, -0.02, anchor.z);
 
       const spot = new SpotLight(
-        config.ceilingSpotsColor,
-        config.ceilingSpotsIntensity * (config.lightingMode === "contrast" ? 8.5 : 4.5),
-        0,
-        Math.PI / 4.2,
-        0.35,
+        GALLERY_TOKENS.lighting.gold,
+        config.ceilingSpotsIntensity * (config.lightingMode === "contrast" ? 1.08 : 1) * fadeOpacity,
+        config.corridor.height * 1.9,
+        Math.PI / 3.2,
+        0.5,
         1,
       );
       spot.position.set(anchor.x, config.corridor.height - 0.03, anchor.z);
@@ -78,6 +115,25 @@ export const createLighting = (config: ArtGallerySceneConfig): Group => {
       spot.castShadow = false;
       root.add(floorTarget, spot);
     }
+  }
+
+  for (const anchor of getArchitecturalLedRakeLightLayout(config)) {
+    const fadeOpacity = getCeilingGridFadeOpacity(ceilingGrid, anchor.z);
+    if (fadeOpacity <= GALLERY_DEFAULTS.architecture.ceilingGridFadeMinOpacity) {
+      continue;
+    }
+
+    const ledRakeLight = new PointLight(
+      GALLERY_TOKENS.lighting.gold,
+      GALLERY_DEFAULTS.architecture.ledRakeLightIntensity *
+        anchor.intensityScale *
+        fadeOpacity,
+      GALLERY_DEFAULTS.architecture.ledRakeLightDistance,
+      2,
+    );
+    ledRakeLight.position.set(anchor.x, anchor.y, anchor.z);
+    ledRakeLight.castShadow = false;
+    root.add(ledRakeLight);
   }
 
   return root;

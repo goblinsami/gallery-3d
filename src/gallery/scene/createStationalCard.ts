@@ -13,6 +13,8 @@ import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 import type { PositionedStationalCard } from "../types/galleryRuntime";
 import { loadTextureWithFallback } from "../utils/textureLoader";
 import { renderStationalCardContent } from "../utils/renderStationalCardContent";
+import type { ArchitecturalMaterialSet } from "./createArchitecturalMaterials";
+import { createStationNiche } from "./createArchitecturalNiche";
 
 const BASE_CANVAS_HEIGHT = 760;
 const MIN_CANVAS_DIM = 640;
@@ -181,6 +183,7 @@ export interface CreatedStationalCard {
 
 export const createStationalCard = async (
   station: PositionedStationalCard,
+  architecturalMaterials: ArchitecturalMaterialSet,
 ): Promise<CreatedStationalCard> => {
   const width = clamp(station.width ?? GALLERY_DEFAULTS.stationalCard.width, 1.6, 8);
   const height = clamp(station.height ?? GALLERY_DEFAULTS.stationalCard.height, 1.2, 5);
@@ -190,6 +193,7 @@ export const createStationalCard = async (
   root.name = `stational-card-${station.id}`;
   root.position.set(station.position[0], station.position[1], station.position[2]);
   root.rotation.set(station.rotation[0], station.rotation[1], station.rotation[2]);
+  root.add(createStationNiche(width, height, architecturalMaterials));
 
   const splitLayout = station.layout === "image-left" || station.layout === "image-right";
   const stackAsColumn = splitLayout && station.mobileColumnLayout === true;

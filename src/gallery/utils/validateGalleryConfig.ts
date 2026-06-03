@@ -404,6 +404,10 @@ export const validateGalleryConfig = (
     0.12,
     Math.max(0.12, corridorWidth - 0.35),
   );
+  const maxLightGridWidth = Math.max(
+    GALLERY_DEFAULTS.architecture.lightGridMinWidth,
+    corridorWidth - GALLERY_DEFAULTS.architecture.ceilingGridInset,
+  );
 
   const config: ArtGallerySceneConfig = {
     id: source.id ?? defaultConfig.id,
@@ -420,6 +424,21 @@ export const validateGalleryConfig = (
     ceilingSpotsEnabled: source.ceilingSpotsEnabled ?? defaultConfig.ceilingSpotsEnabled,
     ceilingSpotsColor: source.ceilingSpotsColor ?? defaultConfig.ceilingSpotsColor,
     ceilingSpotsIntensity: clamp(source.ceilingSpotsIntensity ?? defaultConfig.ceilingSpotsIntensity, 0, 4),
+    ceilingLightIntensity: clamp(
+      source.ceilingLightIntensity ?? defaultConfig.ceilingLightIntensity,
+      0,
+      GALLERY_DEFAULTS.architecture.ceilingFillLightMaxIntensity,
+    ),
+    lightGridWidth: clamp(
+      source.lightGridWidth ?? defaultConfig.lightGridWidth,
+      GALLERY_DEFAULTS.architecture.lightGridMinWidth,
+      maxLightGridWidth,
+    ),
+    lightGridRailWidth: clamp(
+      source.lightGridRailWidth ?? defaultConfig.lightGridRailWidth,
+      GALLERY_DEFAULTS.architecture.ceilingGridRailMinWidth,
+      GALLERY_DEFAULTS.architecture.ceilingGridRailMaxWidth,
+    ),
     artworkBacklightEnabled: source.artworkBacklightEnabled ?? defaultConfig.artworkBacklightEnabled,
     artworkBacklightColor: source.artworkBacklightColor ?? defaultConfig.artworkBacklightColor,
     artworkBacklightIntensity: clamp(

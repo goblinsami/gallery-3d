@@ -28,6 +28,9 @@ describe("validateGalleryConfig", () => {
     expect(result.config.ceilingSpotsEnabled).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsEnabled);
     expect(result.config.ceilingSpotsColor).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsColor);
     expect(result.config.ceilingSpotsIntensity).toBe(DEFAULT_GALLERY_CONFIG.ceilingSpotsIntensity);
+    expect(result.config.ceilingLightIntensity).toBe(DEFAULT_GALLERY_CONFIG.ceilingLightIntensity);
+    expect(result.config.lightGridWidth).toBe(DEFAULT_GALLERY_CONFIG.lightGridWidth);
+    expect(result.config.lightGridRailWidth).toBe(DEFAULT_GALLERY_CONFIG.lightGridRailWidth);
     expect(result.config.artworkBacklightEnabled).toBe(DEFAULT_GALLERY_CONFIG.artworkBacklightEnabled);
     expect(result.config.artworkBacklightColor).toBe(DEFAULT_GALLERY_CONFIG.artworkBacklightColor);
     expect(result.config.artworkBacklightIntensity).toBe(DEFAULT_GALLERY_CONFIG.artworkBacklightIntensity);
@@ -166,6 +169,9 @@ describe("validateGalleryConfig", () => {
       ceilingSpotsEnabled: true,
       ceilingSpotsColor: "#ffd2a2",
       ceilingSpotsIntensity: 1.8,
+      ceilingLightIntensity: 1.25,
+      lightGridWidth: 5.8,
+      lightGridRailWidth: 0.08,
       artworkBacklightEnabled: true,
       artworkBacklightColor: "#ff9a55",
       artworkBacklightIntensity: 2.2,
@@ -213,6 +219,9 @@ describe("validateGalleryConfig", () => {
     expect(result.config.ceilingSpotsEnabled).toBe(true);
     expect(result.config.ceilingSpotsColor).toBe("#ffd2a2");
     expect(result.config.ceilingSpotsIntensity).toBeCloseTo(1.8);
+    expect(result.config.ceilingLightIntensity).toBeCloseTo(1.25);
+    expect(result.config.lightGridWidth).toBeCloseTo(5.8);
+    expect(result.config.lightGridRailWidth).toBeCloseTo(0.08);
     expect(result.config.artworkBacklightEnabled).toBe(true);
     expect(result.config.artworkBacklightColor).toBe("#ff9a55");
     expect(result.config.artworkBacklightIntensity).toBeCloseTo(2.2);
@@ -317,17 +326,46 @@ describe("validateGalleryConfig", () => {
   it("clamps ceiling/artwork light intensities", () => {
     const low = validateGalleryConfig({
       ceilingSpotsIntensity: -1,
+      ceilingLightIntensity: -1,
       artworkBacklightIntensity: -1,
     });
     const high = validateGalleryConfig({
       ceilingSpotsIntensity: 99,
+      ceilingLightIntensity: 99,
       artworkBacklightIntensity: 99,
     });
 
     expect(low.config.ceilingSpotsIntensity).toBe(0);
+    expect(low.config.ceilingLightIntensity).toBe(0);
     expect(low.config.artworkBacklightIntensity).toBe(0);
     expect(high.config.ceilingSpotsIntensity).toBe(4);
+    expect(high.config.ceilingLightIntensity).toBe(4);
     expect(high.config.artworkBacklightIntensity).toBe(4);
+  });
+
+  it("clamps light grid width against corridor width", () => {
+    const narrow = validateGalleryConfig({
+      lightGridWidth: 0.4,
+    });
+    const wide = validateGalleryConfig({
+      corridor: { width: 6 },
+      lightGridWidth: 99,
+    });
+
+    expect(narrow.config.lightGridWidth).toBe(1.2);
+    expect(wide.config.lightGridWidth).toBe(5.3);
+  });
+
+  it("clamps light grid rail width", () => {
+    const thin = validateGalleryConfig({
+      lightGridRailWidth: 0.001,
+    });
+    const thick = validateGalleryConfig({
+      lightGridRailWidth: 1,
+    });
+
+    expect(thin.config.lightGridRailWidth).toBe(0.01);
+    expect(thick.config.lightGridRailWidth).toBe(0.18);
   });
 
   it("converts legacy sensitivity values to strength scale", () => {

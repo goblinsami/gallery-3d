@@ -8,6 +8,7 @@ import {
 } from "three";
 import type { ArtGallerySceneConfig } from "../types/galleryConfig";
 import { getGalleryItemCount } from "../utils/galleryItems";
+import type { ArchitecturalMaterialSet } from "./createArchitecturalMaterials";
 
 const resolveSegmentCount = (config: ArtGallerySceneConfig): number => {
   const artworkDepth = getGalleryItemCount(config) * config.corridor.artworkSpacing;
@@ -21,7 +22,10 @@ const resolveSegmentCount = (config: ArtGallerySceneConfig): number => {
   return baseCount;
 };
 
-export const createCorridor = (config: ArtGallerySceneConfig): Group => {
+export const createCorridor = (
+  config: ArtGallerySceneConfig,
+  materials: ArchitecturalMaterialSet,
+): Group => {
   const root = new Group();
   root.name = "corridor-root";
 
@@ -37,12 +41,6 @@ export const createCorridor = (config: ArtGallerySceneConfig): Group => {
   const ceilingGeometry = new PlaneGeometry(width + seamOverlap * 2, corridorDepth + seamOverlap * 2);
   const wallGeometry = new PlaneGeometry(corridorDepth + seamOverlap * 2, height + seamOverlap * 2);
 
-  const floorMaterial = new MeshStandardMaterial({ color: new Color(config.corridor.floorColor), roughness: 0.9 });
-  const ceilingMaterial = new MeshStandardMaterial({
-    color: new Color(config.corridor.ceilingColor),
-    roughness: 0.65,
-  });
-  const wallMaterial = new MeshStandardMaterial({ color: new Color(config.corridor.wallColor), roughness: 0.75 });
   const carpetEnabled = config.corridor.carpetEnabled;
   const carpetMaterial = carpetEnabled
     ? new MeshStandardMaterial({
@@ -63,21 +61,21 @@ export const createCorridor = (config: ArtGallerySceneConfig): Group => {
 
   const zCenter = -corridorDepth / 2;
 
-  const floor = new Mesh(floorGeometry, floorMaterial);
+  const floor = new Mesh(floorGeometry, materials.floor);
   floor.position.set(0, -thickness / 2, zCenter);
   floor.receiveShadow = true;
 
-  const ceiling = new Mesh(ceilingGeometry, ceilingMaterial);
+  const ceiling = new Mesh(ceilingGeometry, materials.ceiling);
   ceiling.position.set(0, height, zCenter);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.receiveShadow = true;
 
-  const leftWall = new Mesh(wallGeometry, wallMaterial);
+  const leftWall = new Mesh(wallGeometry, materials.wall);
   leftWall.position.set(-width / 2, height / 2, zCenter);
   leftWall.rotation.y = Math.PI / 2;
   leftWall.receiveShadow = true;
 
-  const rightWall = new Mesh(wallGeometry, wallMaterial);
+  const rightWall = new Mesh(wallGeometry, materials.wall);
   rightWall.position.set(width / 2, height / 2, zCenter);
   rightWall.rotation.y = -Math.PI / 2;
   rightWall.receiveShadow = true;

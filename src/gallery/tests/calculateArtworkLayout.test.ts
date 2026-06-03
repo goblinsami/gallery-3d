@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_GALLERY_CONFIG } from "../config/defaultGalleryConfig";
 import { calculateArtworkLayout } from "../journey/cameraKeyframes";
 import type { PositionedArtwork } from "../types/galleryRuntime";
+import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 
 const getArtworkLayout = (...args: Parameters<typeof calculateArtworkLayout>): PositionedArtwork[] =>
   calculateArtworkLayout(...args).filter(
@@ -73,8 +74,28 @@ describe("calculateArtworkLayout", () => {
 
     expect(layout[0].rotation[1]).toBeCloseTo(Math.PI / 2);
     expect(layout[1].rotation[1]).toBeCloseTo(-Math.PI / 2);
-    expect(layout[0].focusTarget[0]).toBeGreaterThan(layout[0].position[0]);
-    expect(layout[1].focusTarget[0]).toBeLessThan(layout[1].position[0]);
+    expect(layout[0].focusPosition[0]).toBeGreaterThan(layout[0].focusTarget[0]);
+    expect(layout[1].focusPosition[0]).toBeLessThan(layout[1].focusTarget[0]);
+  });
+
+  it("keeps artwork focus targets recessed inside architectural niches", () => {
+    const layout = getArtworkLayout({
+      ...DEFAULT_GALLERY_CONFIG,
+      artworks: [
+        {
+          ...DEFAULT_GALLERY_CONFIG.artworks[0],
+          side: "left" as const,
+        },
+      ],
+    });
+    const artwork = layout[0];
+    const expectedSurfaceOffset =
+      -GALLERY_DEFAULTS.architecture.nicheDepth +
+      GALLERY_DEFAULTS.architecture.nicheSurfaceClearance +
+      (artwork.frameDepth ?? GALLERY_DEFAULTS.artwork.frameDepth) / 2 +
+      0.02;
+
+    expect(artwork.focusTarget[0] - artwork.position[0]).toBeCloseTo(expectedSurfaceOffset);
   });
 
   it("expands focus composition when artwork sideText is present", () => {

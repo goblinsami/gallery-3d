@@ -155,6 +155,9 @@ export const calculateArtworkLayout = (
     const artworkWidth = artwork.width ?? GALLERY_DEFAULTS.artwork.width;
     const artworkHeight = artwork.height ?? GALLERY_DEFAULTS.artwork.height;
     const frameDepth = artwork.frameDepth ?? GALLERY_DEFAULTS.artwork.frameDepth;
+    const nicheSurfaceOffset =
+      -GALLERY_DEFAULTS.architecture.nicheDepth +
+      GALLERY_DEFAULTS.architecture.nicheSurfaceClearance;
     const sideText = artwork.sideText;
     const hasSideText = Boolean(sideText?.title || sideText?.eyebrow || sideText?.description);
     const sideTextWidth = clamp(sideText?.width ?? GALLERY_DEFAULTS.artwork.sideTextWidth, 0.8, 3.6);
@@ -177,7 +180,7 @@ export const calculateArtworkLayout = (
     const position: Vec3 = [x, cameraHeight, z];
     const lookAt: Vec3 = [0, cameraHeight, focusTargetZ];
     const focusTarget: Vec3 = [
-      x + normalX * (frameDepth / 2 + IMAGE_SURFACE_OFFSET),
+      x + normalX * (nicheSurfaceOffset + frameDepth / 2 + IMAGE_SURFACE_OFFSET),
       cameraHeight,
       focusTargetZ,
     ];

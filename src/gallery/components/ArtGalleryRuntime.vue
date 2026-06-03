@@ -149,11 +149,11 @@ const ambientGradientStyle = computed<Record<string, string>>(() => {
   return {
     backgroundColor: resolvedConfig.value.sceneBackgroundColor,
     backgroundImage: [
-      `radial-gradient(72% 82% at 50% 102%, ${corridor.floorColor} 0%, transparent 72%)`,
-      `radial-gradient(78% 76% at 50% -4%, ${corridor.ceilingColor} 0%, transparent 70%)`,
+      `radial-gradient(72% 82% at 50% 102%, ${corridor.wallColor} 0%, transparent 72%)`,
+      `radial-gradient(78% 76% at 50% -4%, ${corridor.wallColor} 0%, transparent 70%)`,
       `radial-gradient(54% 88% at -6% 50%, ${corridor.wallColor} 0%, transparent 72%)`,
       `radial-gradient(54% 88% at 106% 50%, ${corridor.wallColor} 0%, transparent 72%)`,
-      `linear-gradient(180deg, ${corridor.ceilingColor} 0%, ${corridor.wallColor} 48%, ${corridor.floorColor} 100%)`,
+      `linear-gradient(180deg, ${corridor.wallColor} 0%, ${corridor.wallColor} 48%, ${corridor.wallColor} 100%)`,
     ].join(", "),
   };
 });
