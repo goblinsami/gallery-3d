@@ -13,6 +13,7 @@ import { LIGHTING_PRESETS } from "../constants/lightingPresets";
 import { GALLERY_DEFAULTS } from "../constants/galleryDefaults";
 import type { ArchitecturalMaterialSet } from "./createArchitecturalMaterials";
 import { getArchitecturalLedLayout } from "./architecturalLedLayout";
+import { createArchitecturalLedBake } from "./createArchitecturalLedBake";
 import {
   getCeilingGridFadeOpacity,
   getCeilingGridLayout,
@@ -111,6 +112,7 @@ export const createEnvironment = (
   const segmentZPositions = grid.crossRailZPositions.slice(0, -1).map((z, index) => ({
     zCenter: (z + grid.crossRailZPositions[index + 1]) / 2,
   }));
+  root.add(createArchitecturalLedBake(config, grid, segmentZPositions));
 
   const longitudinalRailGeometry = new BoxGeometry(
     railWidth,

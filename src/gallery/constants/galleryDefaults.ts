@@ -93,6 +93,13 @@ export const GALLERY_DEFAULTS = {
     ledFloorLightIntensityScale: 1,
     ledVerticalLightHeightScale: 0.5,
     ledVerticalLightIntensityScale: 0.62,
+    ledBakeSurfaceOffset: 0.018,
+    ledBakeFloorWidth: 1.2,
+    ledBakeVerticalWallWidth: 0.82,
+    ledBakeWallEdgeHeight: 0.82,
+    ledBakeFloorOpacity: 0.34,
+    ledBakeWallOpacity: 0.24,
+    ledBakeCeilingOpacity: 0.16,
   },
   timings: {
     introDuration: 1.1,
